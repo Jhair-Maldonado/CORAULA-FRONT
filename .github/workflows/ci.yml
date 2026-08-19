@@ -1,0 +1,30 @@
+name: Front-End CI (Next.js)
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout del código
+      uses: actions/checkout@v3
+
+    - name: Configurar Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+
+    - name: Instalar dependencias
+      run: npm install
+
+    - name: Ejecutar revisión de código (Linter)
+      run: npm run lint
+
+    - name: Compilar el proyecto (Build Test)
+      run: npm run build

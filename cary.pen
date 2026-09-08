@@ -28246,6 +28246,2256 @@
           ]
         }
       ]
+    },
+    {
+      "type": "frame",
+      "id": "QJwUj",
+      "x": 9775,
+      "y": 5240,
+      "name": "Padres Portal - Asistencia e Incidencias",
+      "clip": true,
+      "width": 1440,
+      "height": 900,
+      "fill": "#F8F9FA",
+      "layout": "none",
+      "children": [
+        {
+          "id": "yLeoN",
+          "type": "ref",
+          "ref": "QABwH",
+          "name": "Parent Sidebar Instance",
+          "x": 0,
+          "y": 0,
+          "width": 240,
+          "height": 900,
+          "descendants": {
+            "G7gLqS": {
+              "fill": "#FFFFFF"
+            },
+            "UFGVm": {
+              "fill": "#64748B"
+            },
+            "ZrV7a": {
+              "fill": "#334155"
+            },
+            "kKM4S": {
+              "fill": "#FCE8E6"
+            },
+            "t0fWtH": {
+              "fill": "#C81E45"
+            },
+            "YwvtO": {
+              "fill": "#C81E45"
+            }
+          }
+        },
+        {
+          "type": "frame",
+          "id": "ajQZY",
+          "x": 280,
+          "y": 0,
+          "name": "Attendance Content",
+          "width": 1120,
+          "height": 900,
+          "fill": "#F8F9FA",
+          "layout": "vertical",
+          "gap": 18,
+          "padding": [
+            30,
+            32
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "yDKec",
+              "name": "Attendance Page Header",
+              "width": "fill_container",
+              "height": 52,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "PvPZC",
+                  "name": "Header Title Block",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "jqDl2",
+                      "name": "Page Title",
+                      "fill": "#1F2937",
+                      "content": "Control de Asistencia e Incidencias",
+                      "fontFamily": "Manrope",
+                      "fontSize": 22,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "qdarS",
+                      "name": "Page Subtitle",
+                      "fill": "#64748B",
+                      "content": "Consulta la asistencia y el historial de incidencias de tu hijo.",
+                      "fontFamily": "Manrope",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "T3BL02",
+                  "name": "Student Selector",
+                  "width": 300,
+                  "height": 42,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 12,
+                  "gap": 10,
+                  "padding": [
+                    10,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "BEmYG",
+                      "name": "Quick Student Avatar",
+                      "fill": "#FCE8E6",
+                      "width": 24,
+                      "height": 24
+                    },
+                    {
+                      "type": "text",
+                      "id": "ljSkw",
+                      "name": "Avatar Initial",
+                      "fill": "#C81E45",
+                      "content": "MM",
+                      "fontFamily": "Manrope",
+                      "fontSize": 9,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "nmQLR",
+                      "name": "Selected Student Info",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 2,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "gEKM0",
+                          "name": "Selected Student",
+                          "fill": "#1F2937",
+                          "content": "Mateo Machacuay",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "800"
+                        },
+                        {
+                          "type": "text",
+                          "id": "ZE2hw",
+                          "name": "Selected Grade",
+                          "fill": "#64748B",
+                          "content": "3° Secundaria",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon",
+                      "id": "HVx9w",
+                      "name": "Selector Chevron",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "chevron-down",
+                      "library": "lucide",
+                      "fill": "#64748B"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "MPbvw",
+              "name": "Attendance Summary Card",
+              "width": "fill_container",
+              "height": 250,
+              "fill": "#FFFFFF",
+              "cornerRadius": 16,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "juokT",
+                  "x": 24,
+                  "y": 22,
+                  "name": "Summary Title",
+                  "fill": "#1F2937",
+                  "content": "Resumen de Asistencia del Alumno",
+                  "fontFamily": "Manrope",
+                  "fontSize": 16,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "frame",
+                  "id": "Kqhd2",
+                  "x": 794,
+                  "y": 18,
+                  "name": "Regular Status Badge",
+                  "width": 150,
+                  "height": 30,
+                  "fill": "#E6F4EA",
+                  "cornerRadius": 15,
+                  "gap": 6,
+                  "padding": [
+                    7,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "o4pVi0",
+                      "name": "Status Dot",
+                      "fill": "#34A853",
+                      "width": 7,
+                      "height": 7
+                    },
+                    {
+                      "type": "text",
+                      "id": "hQLYd",
+                      "name": "Status Label",
+                      "fill": "#188038",
+                      "content": "Estado: Regular",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "ellipse",
+                  "id": "D8EWb1",
+                  "x": 30,
+                  "y": 68,
+                  "name": "Donut Track",
+                  "innerRadius": 0.76,
+                  "fill": "#FCE8E6",
+                  "width": 132,
+                  "height": 132
+                },
+                {
+                  "type": "ellipse",
+                  "id": "dbICw",
+                  "x": 30,
+                  "y": 68,
+                  "name": "Donut Progress",
+                  "innerRadius": 0.76,
+                  "startAngle": -90,
+                  "sweepAngle": 345,
+                  "fill": "#C81E45",
+                  "width": 132,
+                  "height": 132
+                },
+                {
+                  "type": "frame",
+                  "id": "J1UR0",
+                  "x": 54,
+                  "y": 106,
+                  "name": "Donut Center",
+                  "width": 84,
+                  "height": 58,
+                  "layout": "vertical",
+                  "gap": 2,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Xye5P",
+                      "name": "Attendance Percent",
+                      "fill": "#C81E45",
+                      "content": "96%",
+                      "fontFamily": "Manrope",
+                      "fontSize": 24,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "BS6Xt",
+                      "name": "Attendance Caption",
+                      "fill": "#64748B",
+                      "content": "Asistencia",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "ZyYTt",
+                  "x": 210,
+                  "y": 68,
+                  "name": "Metrics Heading",
+                  "fill": "#64748B",
+                  "content": "Desglose del periodo",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "frame",
+                  "id": "OpG4X",
+                  "x": 210,
+                  "y": 91,
+                  "name": "Metric Row 1",
+                  "width": 460,
+                  "height": 24,
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "kVxLO",
+                      "name": "Metric Label 1",
+                      "gap": 7,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "jifF2",
+                          "name": "Metric Name 1",
+                          "fill": "#334155",
+                          "content": "Total Días Lectivos",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "qVPdZ",
+                      "name": "Metric Value 1",
+                      "fill": "#1F2937",
+                      "content": "125",
+                      "fontFamily": "Manrope",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "kaiWt",
+                  "x": 210,
+                  "y": 120,
+                  "name": "Metric Row 2",
+                  "width": 460,
+                  "height": 24,
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "f3Sau",
+                      "name": "Metric Label 2",
+                      "gap": 7,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "TCS52",
+                          "name": "Metric Name 2",
+                          "fill": "#334155",
+                          "content": "Días Asistidos",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "SxU5R",
+                      "name": "Metric Value 2",
+                      "fill": "#1F2937",
+                      "content": "120",
+                      "fontFamily": "Manrope",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "xhGoJ",
+                  "x": 210,
+                  "y": 149,
+                  "name": "Metric Row 3",
+                  "width": 460,
+                  "height": 24,
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "e1UWO",
+                      "name": "Metric Label 3",
+                      "gap": 7,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "j2EW7",
+                          "name": "Metric Name 3",
+                          "fill": "#334155",
+                          "content": "Inasistencias Justificadas",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "xqWWQ",
+                      "name": "Metric Value 3",
+                      "fill": "#1F2937",
+                      "content": "2",
+                      "fontFamily": "Manrope",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tkRDP",
+                  "x": 210,
+                  "y": 178,
+                  "name": "Metric Row 4",
+                  "width": 460,
+                  "height": 24,
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "OcQ6m",
+                      "name": "Metric Label 4",
+                      "gap": 7,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "D9R97O",
+                          "name": "Alert Dot",
+                          "fill": "#C81E45",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "u8Wd2A",
+                          "name": "Metric Name 4",
+                          "fill": "#334155",
+                          "content": "Inasistencias No Justificadas",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "Y2q2dR",
+                      "name": "Metric Value 4",
+                      "fill": "#C81E45",
+                      "content": "1",
+                      "fontFamily": "Manrope",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "wOgvZ",
+                  "x": 790,
+                  "y": 190,
+                  "name": "Justify Absence Button",
+                  "width": 180,
+                  "height": 40,
+                  "fill": "#C81E45",
+                  "cornerRadius": 10,
+                  "gap": 8,
+                  "padding": [
+                    11,
+                    14
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "M38us",
+                      "name": "Justify Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "file-check",
+                      "library": "lucide",
+                      "fill": "#FFFFFF"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ZlVDn",
+                      "name": "Justify Label",
+                      "fill": "#FFFFFF",
+                      "content": "Justificar Inasistencia",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "zEiN0",
+              "name": "Incident History Card",
+              "width": "fill_container",
+              "height": 300,
+              "fill": "#FFFFFF",
+              "cornerRadius": 16,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "aZVQ3",
+                  "x": 24,
+                  "y": 22,
+                  "name": "History Title",
+                  "fill": "#1F2937",
+                  "content": "Historial de Incidencias Registradas",
+                  "fontFamily": "Manrope",
+                  "fontSize": 16,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "frame",
+                  "id": "h2xAyQ",
+                  "x": 800,
+                  "y": 18,
+                  "name": "Incident Count Tag",
+                  "width": 176,
+                  "height": 30,
+                  "fill": "#FCE8E6",
+                  "cornerRadius": 15,
+                  "gap": 7,
+                  "padding": [
+                    7,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "DFTn3",
+                      "name": "Shield Icon",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "shield",
+                      "library": "lucide",
+                      "fill": "#C81E45"
+                    },
+                    {
+                      "type": "text",
+                      "id": "MS25T",
+                      "name": "Incident Count",
+                      "fill": "#C81E45",
+                      "content": "3 Incidencias este año",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "rectangle",
+                  "id": "Y6Rsb",
+                  "x": 61,
+                  "y": 87,
+                  "name": "Incident Timeline Rail",
+                  "fill": "#FCE8E6",
+                  "width": 2,
+                  "height": 170
+                },
+                {
+                  "type": "ellipse",
+                  "id": "MTmkC",
+                  "x": 55,
+                  "y": 84,
+                  "name": "Incident Marker 1",
+                  "fill": "#C81E45",
+                  "width": 14,
+                  "height": 14
+                },
+                {
+                  "type": "frame",
+                  "id": "yDQP1",
+                  "x": 24,
+                  "y": 70,
+                  "name": "Incident Date 1",
+                  "width": 58,
+                  "height": 42,
+                  "layout": "vertical",
+                  "gap": 2,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "jTWn2",
+                      "name": "Incident Date Label 1",
+                      "fill": "#64748B",
+                      "content": "15 SEP",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "KuYJK",
+                  "x": 105,
+                  "y": 73,
+                  "name": "Severity Badge 1",
+                  "width": 52,
+                  "height": 26,
+                  "fill": "#FFF4CC",
+                  "cornerRadius": 13,
+                  "padding": [
+                    6,
+                    10
+                  ],
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "s5E1km",
+                      "name": "Severity Label 1",
+                      "fill": "#A16207",
+                      "content": "Leve",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "W2SV7",
+                  "x": 205,
+                  "y": 70,
+                  "name": "Incident Detail 1",
+                  "width": 700,
+                  "height": 44,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "wOfO7",
+                      "name": "Incident Description 1",
+                      "fill": "#334155",
+                      "content": "Tardanza al ingreso de clase de Matemáticas",
+                      "fontFamily": "Manrope",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "JRpY7",
+                      "name": "Incident Note 1",
+                      "fill": "#94A3B8",
+                      "content": "Prof. Carlos Mendoza",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "ellipse",
+                  "id": "BKkmB",
+                  "x": 55,
+                  "y": 152,
+                  "name": "Incident Marker 2",
+                  "fill": "#C81E45",
+                  "width": 14,
+                  "height": 14
+                },
+                {
+                  "type": "frame",
+                  "id": "gWyTX",
+                  "x": 24,
+                  "y": 138,
+                  "name": "Incident Date 2",
+                  "width": 58,
+                  "height": 42,
+                  "layout": "vertical",
+                  "gap": 2,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "jHQ9U",
+                      "name": "Incident Date Label 2",
+                      "fill": "#64748B",
+                      "content": "10 SEP",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "CK8pF",
+                  "x": 105,
+                  "y": 141,
+                  "name": "Severity Badge 2",
+                  "width": 78,
+                  "height": 26,
+                  "fill": "#FDE3C8",
+                  "cornerRadius": 13,
+                  "padding": [
+                    6,
+                    10
+                  ],
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "PFOiA",
+                      "name": "Severity Label 2",
+                      "fill": "#C2410C",
+                      "content": "Moderada",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "eIMJE",
+                  "x": 205,
+                  "y": 138,
+                  "name": "Incident Detail 2",
+                  "width": 700,
+                  "height": 44,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "L5sPIb",
+                      "name": "Incident Description 2",
+                      "fill": "#334155",
+                      "content": "Entrega fuera de fecha del trabajo de Ciencias",
+                      "fontFamily": "Manrope",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "jcyTs",
+                      "name": "Incident Note 2",
+                      "fill": "#94A3B8",
+                      "content": "Prof. Ana Torres",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "ellipse",
+                  "id": "G7Mvsx",
+                  "x": 55,
+                  "y": 220,
+                  "name": "Incident Marker 3",
+                  "fill": "#C81E45",
+                  "width": 14,
+                  "height": 14
+                },
+                {
+                  "type": "frame",
+                  "id": "Yuq3c",
+                  "x": 24,
+                  "y": 206,
+                  "name": "Incident Date 3",
+                  "width": 58,
+                  "height": 42,
+                  "layout": "vertical",
+                  "gap": 2,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "DPDGy",
+                      "name": "Incident Date Label 3",
+                      "fill": "#64748B",
+                      "content": "02 SEP",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "gkSWC",
+                  "x": 105,
+                  "y": 209,
+                  "name": "Severity Badge 3",
+                  "width": 52,
+                  "height": 26,
+                  "fill": "#FFF4CC",
+                  "cornerRadius": 13,
+                  "padding": [
+                    6,
+                    10
+                  ],
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q6qh37",
+                      "name": "Severity Label 3",
+                      "fill": "#A16207",
+                      "content": "Leve",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "zQnf6",
+                  "x": 205,
+                  "y": 206,
+                  "name": "Incident Detail 3",
+                  "width": 700,
+                  "height": 44,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "I9NIr",
+                      "name": "Incident Description 3",
+                      "fill": "#334155",
+                      "content": "Uso no autorizado de teléfono celular en clase",
+                      "fontFamily": "Manrope",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "UCGbP",
+                      "name": "Incident Note 3",
+                      "fill": "#94A3B8",
+                      "content": "Tutoría 3°B",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "OhmEW",
+      "x": 9775,
+      "y": 3799,
+      "name": "Padres Portal - Calificaciones",
+      "clip": true,
+      "width": 1440,
+      "height": 900,
+      "fill": "#F8F9FA",
+      "layout": "none",
+      "children": [
+        {
+          "id": "OHYNN",
+          "type": "ref",
+          "ref": "QABwH",
+          "name": "Parent Sidebar Instance",
+          "x": 0,
+          "y": 0,
+          "width": 240,
+          "height": 900,
+          "descendants": {
+            "G7gLqS": {
+              "fill": "#FFFFFF"
+            },
+            "kKM4S": {
+              "fill": "#FFFFFF"
+            },
+            "pfh9j": {
+              "fill": "#FCE8E6"
+            },
+            "crmde": {
+              "fill": "#C81E45"
+            },
+            "gtitk": {
+              "fill": "#C81E45"
+            },
+            "OW6ji": {
+              "fill": "#FFFFFF"
+            },
+            "DdDD7": {
+              "fill": "#64748B"
+            },
+            "viGq7": {
+              "fill": "#334155"
+            }
+          }
+        },
+        {
+          "type": "frame",
+          "id": "sJE0o",
+          "x": 280,
+          "y": 0,
+          "name": "Grades Content",
+          "width": 1120,
+          "height": 900,
+          "fill": "#F8F9FA",
+          "layout": "vertical",
+          "gap": 18,
+          "padding": [
+            30,
+            32
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "bphY9",
+              "name": "Grades Page Header",
+              "width": "fill_container",
+              "height": 52,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "DrjEj",
+                  "name": "Grades Header Titles",
+                  "width": 650,
+                  "layout": "vertical",
+                  "gap": 4,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "D3LuU",
+                      "name": "Grades Page Title",
+                      "fill": "#1F2937",
+                      "content": "Rendimiento Académico y Calificaciones",
+                      "fontFamily": "Manrope",
+                      "fontSize": 22,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "MnFPQ",
+                      "name": "Grades Page Subtitle",
+                      "fill": "#64748B",
+                      "content": "Consulta el avance académico de Mateo durante el año escolar.",
+                      "fontFamily": "Manrope",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "gznMg",
+                  "name": "Student Selector",
+                  "width": 360,
+                  "height": 42,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 10,
+                  "stroke": "#E5E7EB",
+                  "gap": 10,
+                  "padding": [
+                    8,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "M5gQoR",
+                      "name": "Student Avatar",
+                      "width": 26,
+                      "height": 26,
+                      "fill": "#FCE8E6",
+                      "cornerRadius": 13,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "M6Nxx3",
+                          "name": "Avatar Initial",
+                          "fill": "#C81E45",
+                          "content": "M",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "HKbPA",
+                      "name": "Student Name",
+                      "fill": "#334155",
+                      "content": "Mateo Machacuay - 3° Secundaria",
+                      "fontFamily": "Manrope",
+                      "fontSize": 12,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "W9StAy",
+                      "name": "Selector Chevron",
+                      "fill": "#94A3B8",
+                      "content": "⌄",
+                      "fontFamily": "Manrope",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "e0hklI",
+              "name": "Grades Summary Banner",
+              "width": "fill_container",
+              "height": 146,
+              "fill": "#FFFFFF",
+              "cornerRadius": 16,
+              "gap": 24,
+              "padding": [
+                22,
+                24
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "X5SWWx",
+                  "name": "Overall GPA Metric",
+                  "width": 260,
+                  "height": 92,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "hgMQh",
+                      "name": "Overall GPA Label",
+                      "fill": "#64748B",
+                      "content": "Promedio General",
+                      "fontFamily": "Manrope",
+                      "fontSize": 12,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "KHBc4",
+                      "name": "Overall GPA Value",
+                      "fill": "#C81E45",
+                      "content": "16.9 / 20",
+                      "fontFamily": "Manrope",
+                      "fontSize": 28,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ccZGl",
+                  "name": "Quick Grade Stats",
+                  "width": 460,
+                  "height": 92,
+                  "layout": "vertical",
+                  "gap": 10,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "d5KmDc",
+                      "name": "Approved Courses",
+                      "fill": "#334155",
+                      "content": "Cursos Aprobados: 8/8",
+                      "fontFamily": "Manrope",
+                      "fontSize": 13,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "e7Sax",
+                      "name": "Merit Position",
+                      "fill": "#334155",
+                      "content": "Puesto de Orden de Mérito: 3° de la sección",
+                      "fontFamily": "Manrope",
+                      "fontSize": 13,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "N8RDW2",
+                  "name": "Download Report Button",
+                  "height": 44,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 10,
+                  "stroke": "#C81E45",
+                  "gap": 8,
+                  "padding": [
+                    12,
+                    16
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "HPUTn",
+                      "name": "Download Icon",
+                      "fill": "#C81E45",
+                      "content": "↓",
+                      "fontFamily": "Manrope",
+                      "fontSize": 16,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "V7t92",
+                      "name": "Download Report Label",
+                      "fill": "#C81E45",
+                      "content": "Descargar Libreta de Notas (PDF)",
+                      "fontFamily": "Manrope",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "IMcSs",
+              "name": "Grades Table Card",
+              "width": "fill_container",
+              "height": 410,
+              "fill": "#FFFFFF",
+              "cornerRadius": 16,
+              "layout": "vertical",
+              "gap": 10,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "e4CD4Z",
+                  "name": "Grades Table Heading",
+                  "width": "fill_container",
+                  "height": 24,
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "CD32G",
+                      "name": "Grades Table Title",
+                      "fill": "#1F2937",
+                      "content": "Boletín de Notas por Curso - Bimestre Actual",
+                      "fontFamily": "Manrope",
+                      "fontSize": 15,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "assf0",
+                      "name": "Current Term Label",
+                      "fill": "#94A3B8",
+                      "content": "2026 · 3° Secundaria",
+                      "fontFamily": "Manrope",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "sAMGA",
+                  "name": "Bimester Filter Tabs",
+                  "width": "fill_container",
+                  "height": 34,
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "u19Lbc",
+                      "name": "Filter Tab 1° Bimestre",
+                      "width": 125,
+                      "height": 32,
+                      "fill": "#F8F9FA",
+                      "cornerRadius": 8,
+                      "padding": [
+                        9,
+                        12
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "BFlD4",
+                          "name": "Tab Label 1° Bimestre",
+                          "fill": "#64748B",
+                          "content": "1° Bimestre",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "qqDtX",
+                      "name": "Filter Tab 2° Bimestre",
+                      "width": 125,
+                      "height": 32,
+                      "fill": "#F8F9FA",
+                      "cornerRadius": 8,
+                      "padding": [
+                        9,
+                        12
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "NqCDk",
+                          "name": "Tab Label 2° Bimestre",
+                          "fill": "#64748B",
+                          "content": "2° Bimestre",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "vbv9B",
+                      "name": "Filter Tab 3° Bimestre (Actual)",
+                      "width": 190,
+                      "height": 32,
+                      "fill": "#FCE8E6",
+                      "cornerRadius": 8,
+                      "padding": [
+                        9,
+                        12
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "FMnKk",
+                          "name": "Tab Label 3° Bimestre (Actual)",
+                          "fill": "#C81E45",
+                          "content": "3° Bimestre (Actual)",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "wuu7I",
+                      "name": "Filter Tab Anual",
+                      "width": 125,
+                      "height": 32,
+                      "fill": "#F8F9FA",
+                      "cornerRadius": 8,
+                      "padding": [
+                        9,
+                        12
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "DPp3w",
+                          "name": "Tab Label Anual",
+                          "fill": "#64748B",
+                          "content": "Anual",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "mkiLe",
+                  "name": "Grades Table Header Row",
+                  "width": "fill_container",
+                  "height": 30,
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "jWd1n",
+                      "name": "Header Cell Curso",
+                      "width": 180,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "o52TS",
+                          "name": "Header Curso",
+                          "fill": "#94A3B8",
+                          "content": "Curso",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "wSjVG",
+                      "name": "Header Cell Docente",
+                      "width": 170,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "mY1VW",
+                          "name": "Header Docente",
+                          "fill": "#94A3B8",
+                          "content": "Docente",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Vg3zT",
+                      "name": "Header Cell Evaluaciones Continuas",
+                      "width": 210,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "aPYt0",
+                          "name": "Header Evaluaciones Continuas",
+                          "fill": "#94A3B8",
+                          "content": "Evaluaciones Continuas",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "MJSV1",
+                      "name": "Header Cell Examen Bimestral",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "RqlXM",
+                          "name": "Header Examen Bimestral",
+                          "fill": "#94A3B8",
+                          "content": "Examen Bimestral",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "BUH5r",
+                      "name": "Header Cell Promedio Final",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "OqbFH",
+                          "name": "Header Promedio Final",
+                          "fill": "#94A3B8",
+                          "content": "Promedio Final",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "zI0vN",
+                      "name": "Header Cell Estado",
+                      "width": 120,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "PiZiU",
+                          "name": "Header Estado",
+                          "fill": "#94A3B8",
+                          "content": "Estado",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "oQUKV",
+                  "name": "Grade Row 1",
+                  "width": "fill_container",
+                  "height": 38,
+                  "fill": "#F8F9FA",
+                  "cornerRadius": 8,
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "fpRDZ",
+                      "name": "Cell 1 0",
+                      "width": 180,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "poWFW",
+                          "name": "Value 1 0",
+                          "fill": "#334155",
+                          "content": "Matemáticas",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "JSn8w",
+                      "name": "Cell 1 1",
+                      "width": 170,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "v31Xx",
+                          "name": "Value 1 1",
+                          "fill": "#64748B",
+                          "content": "Prof. Carlos Mendoza",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "mewDO",
+                      "name": "Cell 1 2",
+                      "width": 210,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Bwme9",
+                          "name": "Value 1 2",
+                          "fill": "#64748B",
+                          "content": "17, 18, 16",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "KyU2T",
+                      "name": "Cell 1 3",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "xHwR9",
+                          "name": "Value 1 3",
+                          "fill": "#64748B",
+                          "content": "18",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "TbONI",
+                      "name": "Cell 1 4",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "rjeca",
+                          "name": "Value 1 4",
+                          "fill": "#64748B",
+                          "content": "17.5",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "JZ37m",
+                      "name": "Status Badge 1",
+                      "width": 88,
+                      "height": 24,
+                      "fill": "#E6F4EA",
+                      "cornerRadius": 12,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "VKDQg",
+                          "name": "Status 1",
+                          "fill": "#287D3C",
+                          "content": "Aprobado",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "PVda6",
+                  "name": "Grade Row 2",
+                  "width": "fill_container",
+                  "height": 38,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 8,
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "VKOFV",
+                      "name": "Cell 2 0",
+                      "width": 180,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "hli7L",
+                          "name": "Value 2 0",
+                          "fill": "#334155",
+                          "content": "Comunicación",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "lsO58",
+                      "name": "Cell 2 1",
+                      "width": 170,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "QvTVI",
+                          "name": "Value 2 1",
+                          "fill": "#64748B",
+                          "content": "Prof. Elena Ríos",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "a5AUv",
+                      "name": "Cell 2 2",
+                      "width": 210,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "F7iDQ1",
+                          "name": "Value 2 2",
+                          "fill": "#64748B",
+                          "content": "18, 19, 17",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rQ85p",
+                      "name": "Cell 2 3",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "w5o65E",
+                          "name": "Value 2 3",
+                          "fill": "#64748B",
+                          "content": "18",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "mbG7h",
+                      "name": "Cell 2 4",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "AprcQ",
+                          "name": "Value 2 4",
+                          "fill": "#64748B",
+                          "content": "18.0",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "IhEqk",
+                      "name": "Status Badge 2",
+                      "width": 88,
+                      "height": 24,
+                      "fill": "#E6F4EA",
+                      "cornerRadius": 12,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "sVdvU",
+                          "name": "Status 2",
+                          "fill": "#287D3C",
+                          "content": "Aprobado",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "I1hOq",
+                  "name": "Grade Row 3",
+                  "width": "fill_container",
+                  "height": 38,
+                  "fill": "#F8F9FA",
+                  "cornerRadius": 8,
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "R3y5HU",
+                      "name": "Cell 3 0",
+                      "width": 180,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "gVAMo",
+                          "name": "Value 3 0",
+                          "fill": "#334155",
+                          "content": "Ciencias Naturales",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "huL36",
+                      "name": "Cell 3 1",
+                      "width": 170,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "K1wHd",
+                          "name": "Value 3 1",
+                          "fill": "#64748B",
+                          "content": "Prof. Ana Torres",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GfOYZ",
+                      "name": "Cell 3 2",
+                      "width": 210,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "HwtTe",
+                          "name": "Value 3 2",
+                          "fill": "#64748B",
+                          "content": "15, 16, 15",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rcX76",
+                      "name": "Cell 3 3",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "qJOiA",
+                          "name": "Value 3 3",
+                          "fill": "#64748B",
+                          "content": "17",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "OCeAW",
+                      "name": "Cell 3 4",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "a1tCQ",
+                          "name": "Value 3 4",
+                          "fill": "#64748B",
+                          "content": "15.8",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "OKDs2",
+                      "name": "Status Badge 3",
+                      "width": 88,
+                      "height": 24,
+                      "fill": "#E6F4EA",
+                      "cornerRadius": 12,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "z0LfEA",
+                          "name": "Status 3",
+                          "fill": "#287D3C",
+                          "content": "Aprobado",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "PC0T5",
+                  "name": "Grade Row 4",
+                  "width": "fill_container",
+                  "height": 38,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 8,
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "TofW8",
+                      "name": "Cell 4 0",
+                      "width": 180,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "e8EP6",
+                          "name": "Value 4 0",
+                          "fill": "#334155",
+                          "content": "Historia del Perú",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "dUCIA",
+                      "name": "Cell 4 1",
+                      "width": 170,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "w5LedC",
+                          "name": "Value 4 1",
+                          "fill": "#64748B",
+                          "content": "Prof. Roberto Gómez",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "yJAhn",
+                      "name": "Cell 4 2",
+                      "width": 210,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "JE268",
+                          "name": "Value 4 2",
+                          "fill": "#64748B",
+                          "content": "16, 17, 16",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Dk2jF",
+                      "name": "Cell 4 3",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "yKCM5",
+                          "name": "Value 4 3",
+                          "fill": "#64748B",
+                          "content": "16",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "dSSAD",
+                      "name": "Cell 4 4",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "h7QlF",
+                          "name": "Value 4 4",
+                          "fill": "#64748B",
+                          "content": "16.2",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "xg85H",
+                      "name": "Status Badge 4",
+                      "width": 88,
+                      "height": 24,
+                      "fill": "#E6F4EA",
+                      "cornerRadius": 12,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "gx9eb",
+                          "name": "Status 4",
+                          "fill": "#287D3C",
+                          "content": "Aprobado",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Ce3Fc",
+                  "name": "Grade Row 5",
+                  "width": "fill_container",
+                  "height": 38,
+                  "fill": "#F8F9FA",
+                  "cornerRadius": 8,
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "EMGoD",
+                      "name": "Cell 5 0",
+                      "width": 180,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "aT2kd",
+                          "name": "Value 5 0",
+                          "fill": "#334155",
+                          "content": "Inglés",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Z5DR8",
+                      "name": "Cell 5 1",
+                      "width": 170,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "e5B3Dl",
+                          "name": "Value 5 1",
+                          "fill": "#64748B",
+                          "content": "Prof. Sarah Smith",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "AQc9f",
+                      "name": "Cell 5 2",
+                      "width": 210,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "F0EoP",
+                          "name": "Value 5 2",
+                          "fill": "#64748B",
+                          "content": "19, 18, 20",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "CyYqS",
+                      "name": "Cell 5 3",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "FUJCS",
+                          "name": "Value 5 3",
+                          "fill": "#64748B",
+                          "content": "19",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PhlKV",
+                      "name": "Cell 5 4",
+                      "width": 130,
+                      "height": 30,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "cFYX9",
+                          "name": "Value 5 4",
+                          "fill": "#64748B",
+                          "content": "19.0",
+                          "textAlign": "center",
+                          "fontFamily": "Manrope",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "npvhS",
+                      "name": "Status Badge 5",
+                      "width": 112,
+                      "height": 24,
+                      "fill": "#E6F4EA",
+                      "cornerRadius": 12,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "GrGQL",
+                          "name": "Status 5",
+                          "fill": "#287D3C",
+                          "content": "Sobresaliente",
+                          "fontFamily": "Manrope",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "vviFs",
+              "name": "Grades Closing Note",
+              "width": "fill_container",
+              "height": 54,
+              "fill": "#FCE8E6",
+              "cornerRadius": 12,
+              "gap": 12,
+              "padding": [
+                14,
+                18
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "G5owdW",
+                  "name": "Note Icon",
+                  "width": 26,
+                  "height": 26,
+                  "fill": "#C81E45",
+                  "cornerRadius": 13,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "xnjMK",
+                      "name": "Note Icon Mark",
+                      "fill": "#FFFFFF",
+                      "content": "i",
+                      "fontFamily": "Manrope",
+                      "fontSize": 13,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "kNwXP",
+                  "name": "Grades Closing Note Text",
+                  "fill": "#991B3E",
+                  "content": "Próximo cierre de notas del 3° Bimestre: 15 de Octubre",
+                  "fontFamily": "Manrope",
+                  "fontSize": 12,
+                  "fontWeight": "700"
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variables": {

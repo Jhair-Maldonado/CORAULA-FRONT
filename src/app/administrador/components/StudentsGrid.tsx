@@ -14,6 +14,12 @@ export const StudentsGrid = ({ seccion }: StudentsGridProps) => {
     <div className="flex-1 p-6 md:p-8 flex flex-col gap-6 overflow-y-auto">
       {/* Header */}
       <div>
+        <Link 
+          href="/administrador/alumnos"
+          className="text-muted text-[13px] font-medium hover:text-accent transition-colors flex items-center gap-2 mb-2 w-fit"
+        >
+          &larr; Regresar al panel general
+        </Link>
         <h1 className="text-ink text-xl font-bold font-sans">
           Alumnos - {seccion.nombre}
         </h1>
@@ -41,32 +47,25 @@ export const StudentsGrid = ({ seccion }: StudentsGridProps) => {
 
       {/* Grid */}
       {seccion.estudiantes.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-6xl pb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-6xl pb-10">
           {seccion.estudiantes.map(student => (
-            <div 
+            <Link 
               key={student.id} 
-              className="w-full bg-white border border-line rounded-lg p-5 flex flex-col items-center gap-3 shadow-sm hover:shadow-md transition-shadow"
+              href={`/administrador/alumnos/${seccion.id}/estudiante/${student.id}`}
+              className="bg-white rounded-xl p-4 border border-line shadow-sm hover:shadow-md hover:border-accent/50 transition-all flex items-center gap-4 group cursor-pointer"
             >
-              {/* Avatar */}
-              <div className="w-[60px] h-[60px] rounded-full bg-accent flex items-center justify-center text-white text-lg font-bold">
+              <div className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold shrink-0">
                 {student.nombres.charAt(0)}{student.apellidos.charAt(0)}
               </div>
-              
-              {/* Info */}
-              <div className="text-center flex flex-col gap-0.5 w-full">
-                <span className="text-ink text-xs font-semibold truncate">{student.nombres}</span>
-                <span className="text-muted text-[11px] truncate">{student.apellidos}</span>
-                <span className="text-muted text-[10px] mt-1">{student.telefono}</span>
+              <div className="flex flex-col flex-1 overflow-hidden">
+                <span className="text-ink text-[13px] font-bold truncate group-hover:text-accent transition-colors">
+                  {student.nombres} {student.apellidos}
+                </span>
+                <span className="text-muted text-[11px] font-medium truncate mt-0.5">
+                  Tel: {student.telefono}
+                </span>
               </div>
-
-              {/* Action */}
-              <Link 
-                href={`/administrador/alumnos/${seccion.id}/estudiante/${student.id}`}
-                className="mt-2 w-full h-[32px] flex items-center justify-center bg-accent hover:bg-rose-800 text-white text-xs font-medium rounded-md transition-colors"
-              >
-                Ver información
-              </Link>
-            </div>
+            </Link>
           ))}
         </div>
       ) : (

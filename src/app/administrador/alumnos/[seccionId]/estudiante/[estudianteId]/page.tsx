@@ -1,170 +1,214 @@
-import React from 'react';
+import { MOCK_GRADOS } from '@/data/mockAlumnos';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getSeccionById, MOCK_GRADOS } from '@/data/mockAlumnos';
-import { Edit01Icon } from 'hugeicons-react';
+import { 
+  ArrowLeft01Icon, 
+  PencilEdit02Icon, 
+  UserCircleIcon, 
+  Mail01Icon, 
+  SmartPhone01Icon, 
+  Location01Icon,
+  Calendar01Icon,
+  HeartAddIcon,
+  ShieldKeyIcon,
+  BookOpen01Icon,
+  Copy01Icon
+} from 'hugeicons-react';
 
-export const metadata = {
-  title: 'Detalle de Alumno - CORAULA',
-};
-
-// Next.js static params generation
 export function generateStaticParams() {
-  const paths: { seccionId: string; estudianteId: string }[] = [];
+  const params: { seccionId: string; estudianteId: string }[] = [];
   MOCK_GRADOS.forEach(grado => {
     grado.secciones.forEach(seccion => {
-      seccion.estudiantes.forEach(estudiante => {
-        paths.push({
+      seccion.estudiantes.forEach(est => {
+        params.push({
           seccionId: seccion.id,
-          estudianteId: estudiante.id,
+          estudianteId: est.id
         });
       });
     });
   });
-  return paths;
+  return params;
 }
+
+const getEstudiante = (seccionId: string, estudianteId: string) => {
+  for (const grado of MOCK_GRADOS) {
+    const seccion = grado.secciones.find(s => s.id === seccionId);
+    if (seccion) {
+      const estudiante = seccion.estudiantes.find(e => e.id === estudianteId);
+      if (estudiante) return { estudiante, grado, seccion };
+    }
+  }
+  return null;
+};
 
 export default async function EstudianteDetallePage({ 
   params 
 }: { 
   params: Promise<{ seccionId: string; estudianteId: string }> 
 }) {
-  const { seccionId, estudianteId } = await params;
+  const resolvedParams = await params;
+  const data = getEstudiante(resolvedParams.seccionId, resolvedParams.estudianteId);
 
-  let estudianteData = null;
-  let seccionData = null;
-
-  for (const grado of MOCK_GRADOS) {
-    const s = getSeccionById(grado.id, seccionId);
-    if (s) {
-      const e = s.estudiantes.find(est => est.id === estudianteId);
-      if (e) {
-        estudianteData = e;
-        seccionData = s;
-        break;
-      }
-    }
-  }
-
-  if (!estudianteData || !seccionData) {
+  if (!data) {
     notFound();
   }
 
+  const { estudiante, grado, seccion } = data;
+
   return (
-    <div className="flex-1 p-6 md:p-8 flex flex-col gap-6 overflow-y-auto w-full max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="w-full h-full flex flex-col bg-canvas overflow-y-auto">
+      {/* Top Banner / Cover */}
+      <div className="h-32 md:h-30 bg-accent relative shrink-0">
+        <div className="absolute top-6 left-6 z-10 flex gap-2">
           <Link 
-            href={`/administrador/alumnos/${seccionId}`}
-            className="text-ink text-xl font-bold font-sans hover:text-accent transition-colors flex items-center gap-2 w-fit"
+            href={`/administrador/alumnos/${resolvedParams.seccionId}`}
+            className="flex items-center gap-2 px-3 py-1.5 bg-black/20 hover:bg-black/30 backdrop-blur-sm text-white rounded-lg text-[13px] font-bold transition-colors"
           >
-            &larr; Regresar
+            <ArrowLeft01Icon size={16} /> Volver al aula
           </Link>
-          <p className="text-muted text-[15px] mt-1">
-            {estudianteData.nombres} {estudianteData.apellidos} - {seccionData.nombre}
-          </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-neutral text-ink hover:bg-line transition-colors rounded-lg font-semibold text-sm">
-          <Edit01Icon size={16} />
-          Editar Alumno
-        </button>
       </div>
 
-      {/* Main Profile Box */}
-      <div className="w-full bg-white rounded-xl flex flex-col p-6 md:p-8 gap-8 border border-line shadow-sm">
+      <div className="max-w-4xl w-full mx-auto px-6 md:px-10 pb-16 -mt-12 relative z-20 flex-1">
         
-        <div className="flex flex-col md:flex-row gap-8">
-          {/* Avatar & Name */}
-          <div className="flex flex-col items-center justify-center gap-3 md:w-[260px] md:border-r border-line md:pr-8 shrink-0">
-            <div className="w-20 h-20 rounded-full bg-accent flex items-center justify-center text-white text-2xl font-bold">
-              {estudianteData.nombres.charAt(0)}{estudianteData.apellidos.charAt(0)}
-            </div>
-            <h2 className="text-ink text-base font-bold text-center">
-              {estudianteData.nombres} {estudianteData.apellidos}
-            </h2>
-            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-              estudianteData.estado === 'Activo' ? 'bg-success text-success-ink' : 'bg-accent-soft text-accent'
-            }`}>
-              {estudianteData.estado}
-            </span>
-          </div>
-
-          {/* Personal Data */}
-          <div className="flex-1 flex flex-col gap-4">
-            <h3 className="text-accent text-xs font-bold uppercase tracking-wider">
-              Datos Personales
-            </h3>
-            
-            <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-wide">DNI</span>
-                <span className="text-ink text-xs">{estudianteData.dni}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-wide">Edad</span>
-                <span className="text-ink text-xs">{estudianteData.edad} años</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-wide">Fecha de Nac.</span>
-                <span className="text-ink text-xs">{estudianteData.fechaNacimiento}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-wide">Teléfono</span>
-                <span className="text-ink text-xs">{estudianteData.telefono}</span>
-              </div>
-              <div className="flex flex-col gap-1 col-span-2">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-wide">Correo institucional</span>
-                <span className="text-ink text-xs">{estudianteData.correo}</span>
-              </div>
-              <div className="flex flex-col gap-1 col-span-2">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-wide">Dirección</span>
-                <span className="text-ink text-xs">{estudianteData.direccion}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <hr className="border-line" />
-
-        <div className="flex flex-col md:flex-row gap-8">
-          {/* Emergency Contact */}
-          <div className="flex-1 flex flex-col gap-4">
-            <h3 className="text-accent text-xs font-bold uppercase tracking-wider">
-              Contacto de Emergencia
-            </h3>
-            <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-wide">Familiar / Apoderado</span>
-                <span className="text-ink text-xs">{estudianteData.contactoEmergencia.nombre} ({estudianteData.contactoEmergencia.relacion})</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-wide">Teléfono</span>
-                <span className="text-ink text-xs font-semibold">{estudianteData.contactoEmergencia.telefono}</span>
-              </div>
-            </div>
+        {/* Header Profile */}
+        <div className="bg-white rounded-2xl shadow-sm border border-line p-6 md:p-5 flex flex-col md:flex-row items-center md:items-end gap-6 mb-5">
+          <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-neutral border-4 border-white shadow-md flex items-center justify-center text-3xl font-black text-accent shrink-0">
+            {estudiante.nombres.charAt(0)}{estudiante.apellidos.charAt(0)}
           </div>
           
-          <div className="hidden md:block w-[1px] bg-line" />
+          <div className="flex-1 text-center md:text-left">
+            <h1 className="text-xl md:text-2xl font-black text-ink tracking-tight mb-1">
+              {estudiante.nombres} {estudiante.apellidos}
+            </h1>
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-xs font-bold text-muted">
+              <span className="bg-neutral px-2 py-1 rounded text-ink flex items-center gap-1.5">
+                <BookOpen01Icon size={14} /> {grado.nombre} - Sec. {seccion.letra}
+              </span>
+              <span className="bg-neutral px-2 py-1 rounded text-ink flex items-center gap-1.5">
+                <UserCircleIcon size={14} /> DNI: {estudiante.dni}
+              </span>
+            </div>
+          </div>
 
-          {/* System Credentials */}
-          <div className="flex-1 flex flex-col gap-4">
-            <h3 className="text-accent text-xs font-bold uppercase tracking-wider">
-              Credenciales del Sistema
-            </h3>
-            <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-wide">Usuario (DNI)</span>
-                <span className="text-ink text-xs font-mono bg-neutral p-1.5 rounded w-fit">{estudianteData.credenciales.usuario}</span>
+          <button className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-xs font-bold hover:bg-rose-800 transition-colors shadow-sm shrink-0">
+            <PencilEdit02Icon size={16} /> Editar Alumno
+          </button>
+        </div>
+
+        {/* Content Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          {/* Datos Personales */}
+          <div className="bg-white rounded-2xl border border-line p-6 shadow-sm">
+            <h2 className="text-[13px] font-black text-ink uppercase tracking-widest mb-5 flex items-center gap-2">
+              <UserCircleIcon size={18} className="text-accent" /> Datos Personales
+            </h2>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-4 p-3 bg-neutral/50 rounded-xl">
+                <div className="w-10 h-10 rounded-full bg-white border border-line flex items-center justify-center text-muted shrink-0">
+                  <Calendar01Icon size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider">F. Nacimiento</p>
+                  <p className="text-xs font-bold text-ink">{estudiante.fechaNacimiento}</p>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-wide">Contraseña Inicial</span>
-                <span className="text-ink text-xs font-mono bg-neutral p-1.5 rounded w-fit">{estudianteData.credenciales.contrasenia}</span>
+              
+              <div className="flex items-center gap-4 p-3 bg-neutral/50 rounded-xl">
+                <div className="w-10 h-10 rounded-full bg-white border border-line flex items-center justify-center text-muted shrink-0">
+                  <SmartPhone01Icon size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider">Teléfono</p>
+                  <p className="text-xs font-bold text-ink">{estudiante.telefono}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 p-3 bg-neutral/50 rounded-xl">
+                <div className="w-10 h-10 rounded-full bg-white border border-line flex items-center justify-center text-muted shrink-0">
+                  <Mail01Icon size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider">Correo Institucional</p>
+                  <p className="text-xs font-bold text-ink">{estudiante.correo}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 p-3 bg-neutral/50 rounded-xl">
+                <div className="w-10 h-10 rounded-full bg-white border border-line flex items-center justify-center text-muted shrink-0">
+                  <Location01Icon size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider">Dirección (Referencial)</p>
+                  <p className="text-xs font-bold text-ink">Registrada en sistema central</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
+          <div className="flex flex-col gap-6">
+            {/* Contacto de Emergencia */}
+            {estudiante.contactoEmergencia && (
+              <div className="bg-white rounded-2xl border border-line p-6 shadow-sm border-l-4 border-l-rose-400">
+                <h2 className="text-[13px] font-black text-ink uppercase tracking-widest mb-5 flex items-center gap-2">
+                  <HeartAddIcon size={18} className="text-rose-500" /> Contacto de Emergencia
+                </h2>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between p-3 bg-rose-50 rounded-xl border border-rose-100">
+                    <div>
+                      <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Familiar / Apoderado</p>
+                      <p className="text-xs font-black text-ink mt-0.5">{estudiante.contactoEmergencia.nombre}</p>
+                      <p className="text-[11px] font-bold text-muted">{estudiante.contactoEmergencia.relacion}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Celular</p>
+                      <p className="text-base font-black text-ink tracking-tight mt-0.5">{estudiante.contactoEmergencia.telefono}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Credenciales de Acceso */}
+            {estudiante.credenciales && (
+              <div className="bg-ink text-white rounded-2xl p-6 shadow-sm relative overflow-hidden">
+                {/* Background decorative icon */}
+                <ShieldKeyIcon size={120} className="absolute -right-6 -bottom-6 text-white/5" />
+                
+                <h2 className="text-[13px] font-black text-white uppercase tracking-widest mb-5 flex items-center gap-2 relative z-10">
+                  <ShieldKeyIcon size={18} className="text-accent-soft" /> Accesos al Sistema
+                </h2>
+                
+                <div className="flex flex-col gap-4 relative z-10">
+                  <div>
+                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-wider mb-1">Usuario (DNI)</p>
+                    <div className="flex items-center justify-between bg-white/10 rounded-lg p-3 backdrop-blur-md border border-white/10">
+                      <code className="text-xs font-mono font-bold">{estudiante.credenciales.usuario}</code>
+                      <button className="text-white/60 hover:text-white transition-colors">
+                        <Copy01Icon size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-wider mb-1">Contraseña Inicial</p>
+                    <div className="flex items-center justify-between bg-white/10 rounded-lg p-3 backdrop-blur-md border border-white/10">
+                      <code className="text-xs font-mono font-bold text-accent-soft">{estudiante.credenciales.contrasenia}</code>
+                      <button className="text-white/60 hover:text-white transition-colors">
+                        <Copy01Icon size={16} />
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-white/40 font-medium mt-2">
+                      El alumno deberá cambiar esta contraseña al ingresar por primera vez.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+        </div>
       </div>
     </div>
   );

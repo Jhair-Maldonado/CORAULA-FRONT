@@ -15,7 +15,7 @@ export const StudentsGrid = ({ seccion }: StudentsGridProps) => {
       {/* Header */}
       <div>
         <Link 
-          href="/administrador/alumnos"
+          href="/administrador/alumnos/alumnado"
           className="text-muted text-[13px] font-medium hover:text-accent transition-colors flex items-center gap-2 mb-2 w-fit"
         >
           &larr; Regresar al panel general
@@ -51,7 +51,7 @@ export const StudentsGrid = ({ seccion }: StudentsGridProps) => {
           {seccion.estudiantes.map(student => (
             <Link 
               key={student.id} 
-              href={`/administrador/alumnos/${seccion.id}/estudiante/${student.id}`}
+              href={`/administrador/alumnos/alumnado/${seccion.id}/estudiante/${student.id}`}
               className="bg-white rounded-xl p-4 border border-line shadow-sm hover:shadow-md hover:border-accent/50 transition-all flex items-center gap-4 group cursor-pointer"
             >
               <div className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold shrink-0">

@@ -25,7 +25,9 @@ export const MOCK_GRADOS: Grado[] = [
             fechaNacimiento: '15/04/2014',
             estado: 'Activo',
             contactoEmergencia: { nombre: 'Juan Torres', telefono: '+34 600 111 222', relacion: 'Padre' },
-            credenciales: { usuario: '45678901', contrasenia: 'Ana2014*' }
+            credenciales: { usuario: '45678901', contrasenia: 'Ana2014*' },
+            enRiesgo: true,
+            incidencias: ['3 faltas consecutivas', 'Bajo rendimiento en Matemáticas']
           },
           {
             id: 'est-2',
@@ -53,7 +55,8 @@ export const MOCK_GRADOS: Grado[] = [
             fechaNacimiento: '10/11/2014',
             estado: 'Activo',
             contactoEmergencia: { nombre: 'Roberto Fernández', telefono: '+34 600 111 444', relacion: 'Padre' },
-            credenciales: { usuario: '45678903', contrasenia: 'Lucia2014*' }
+            credenciales: { usuario: '45678903', contrasenia: 'Lucia2014*' },
+            incidencias: ['Reporte disciplinario reciente']
           }
         ]
       },

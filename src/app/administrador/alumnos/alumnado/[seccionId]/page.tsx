@@ -1,7 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { getSeccionById, MOCK_GRADOS } from '@/data/mockAlumnos';
-import { StudentsGrid } from '../../components/StudentsGrid';
+import { StudentsGrid } from '../../../components/StudentsGrid';
 
 export const metadata = {
   title: 'Alumnos por Sección - CORAULA',

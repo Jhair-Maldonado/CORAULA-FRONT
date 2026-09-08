@@ -8,13 +8,20 @@ import { ArrowDown01Icon, ArrowRight01Icon, Folder01Icon, FolderOpenIcon, BookOp
 
 export const GradosSidebar = () => {
   const pathname = usePathname();
-  // Extraer el seccionId de la ruta actual si existe
-  const currentSeccionId = pathname.split('/')[3]; 
   
-  // Buscar qué grado contiene esta sección para autodesplegarlo
-  const initialExpandedGrado = MOCK_GRADOS.find(g => 
+  // Extraer el id de sección de la ruta (ej: /administrador/alumnos/alumnado/1a)
+  const segments = pathname.split('/');
+  const alumnadoIndex = segments.indexOf('alumnado');
+  const currentSeccionId = alumnadoIndex !== -1 && segments.length > alumnadoIndex + 1 
+    ? segments[alumnadoIndex + 1] 
+    : null;
+  
+  // Buscar qué grado contiene esta sección activa
+  const activeGradoObj = MOCK_GRADOS.find(g => 
     g.secciones.some(s => s.id === currentSeccionId)
-  )?.id || MOCK_GRADOS[0].id;
+  );
+
+  const initialExpandedGrado = activeGradoObj?.id || MOCK_GRADOS[0].id;
 
   const [expandedGrado, setExpandedGrado] = useState<string | null>(initialExpandedGrado);
 
@@ -25,12 +32,24 @@ export const GradosSidebar = () => {
           <BookOpen01Icon size={18} className="text-accent" />
           Niveles y Grados
         </h2>
-        <p className="text-muted text-[11px] font-medium mt-1">Explora las secciones del plantel</p>
+        <p className="text-muted text-[11px] font-medium mt-1 mb-3">Explora las secciones del plantel</p>
+        
+        <Link
+          href="/administrador/alumnos/alumnado"
+          className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold transition-all border ${
+            pathname === '/administrador/alumnos/alumnado'
+              ? 'bg-accent text-white border-accent shadow-sm'
+              : 'bg-neutral text-ink border-line hover:bg-neutral/80'
+          }`}
+        >
+          Ver todo alumnado
+        </Link>
       </div>
       
       <div className="flex flex-col gap-3 px-3">
         {MOCK_GRADOS.map((grado) => {
           const isExpanded = expandedGrado === grado.id;
+          const hasActiveSection = grado.secciones.some(s => s.id === currentSeccionId);
           // Calculate total students in this grade for a badge
           const totalStudents = grado.secciones.reduce((acc, curr) => acc + curr.estudiantes.length, 0);
           
@@ -39,12 +58,14 @@ export const GradosSidebar = () => {
               <button
                 onClick={() => setExpandedGrado(isExpanded ? null : grado.id)}
                 className={`w-full flex items-center justify-between rounded-lg px-3 py-2.5 transition-all ${
-                  isExpanded ? 'bg-neutral text-ink' : 'text-muted hover:bg-neutral hover:text-ink'
+                  hasActiveSection 
+                    ? 'bg-accent/10 text-accent font-bold border border-accent/20' 
+                    : isExpanded ? 'bg-neutral text-ink' : 'text-muted hover:bg-neutral hover:text-ink'
                 }`}
               >
                 <div className="flex items-center gap-2.5">
-                  {isExpanded ? <FolderOpenIcon size={18} className="text-accent" /> : <Folder01Icon size={18} />}
-                  <span className={`text-[13px] ${isExpanded ? 'font-bold' : 'font-semibold'}`}>
+                  {hasActiveSection || isExpanded ? <FolderOpenIcon size={18} className="text-accent" /> : <Folder01Icon size={18} />}
+                  <span className={`text-[13px] ${hasActiveSection || isExpanded ? 'font-bold' : 'font-semibold'}`}>
                     {grado.nombre}
                   </span>
                 </div>
@@ -68,7 +89,7 @@ export const GradosSidebar = () => {
                   return (
                     <Link
                       key={seccion.id}
-                      href={`/administrador/alumnos/${seccion.id}`}
+                      href={`/administrador/alumnos/alumnado/${seccion.id}`}
                       className={`w-full flex items-center justify-between px-4 py-2 ml-2 rounded-lg text-[12px] transition-all relative ${
                         isActive 
                           ? 'bg-accent-soft text-accent font-bold' 

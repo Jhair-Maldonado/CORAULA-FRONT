@@ -61,7 +61,7 @@ export default async function EstudianteDetallePage({
       <div className="h-32 md:h-30 bg-accent relative shrink-0">
         <div className="absolute top-6 left-6 z-10 flex gap-2">
           <Link 
-            href={`/administrador/alumnos/${resolvedParams.seccionId}`}
+            href={`/administrador/alumnos/alumnado/${resolvedParams.seccionId}`}
             className="flex items-center gap-2 px-3 py-1.5 bg-black/20 hover:bg-black/30 backdrop-blur-sm text-white rounded-lg text-[13px] font-bold transition-colors"
           >
             <ArrowLeft01Icon size={16} /> Volver al aula

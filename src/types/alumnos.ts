@@ -22,6 +22,8 @@ export interface Estudiante {
   estado: 'Activo' | 'Inactivo' | 'Suspendido';
   contactoEmergencia: ContactoEmergencia;
   credenciales: Credenciales;
+  enRiesgo?: boolean;
+  incidencias?: string[];
 }
 
 export interface Seccion {

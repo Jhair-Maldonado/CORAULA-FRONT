@@ -1,7 +1,5 @@
 import React from 'react';
-import { AdminSidebar } from './components/AdminSidebar';
-// Ejemplo de importación de hugeicons-react
-// import { DashboardIcon, UserGroupIcon } from 'hugeicons-react';
+import { SidebarAdmin } from './components/SidebarAdmin';
 
 export default function AdministradorLayout({
   children,
@@ -9,9 +7,9 @@ export default function AdministradorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
-      <AdminSidebar />
-      <main className="flex-1 p-6 bg-slate-50">
+    <div className="flex min-h-screen bg-canvas font-sans">
+      <SidebarAdmin />
+      <main className="flex-1 flex flex-col h-screen overflow-y-auto overflow-x-hidden">
         {children}
       </main>
     </div>

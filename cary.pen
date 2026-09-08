@@ -30496,6 +30496,1679 @@
           ]
         }
       ]
+    },
+    {
+      "type": "frame",
+      "id": "N1gRPo",
+      "x": 3362,
+      "y": -1135,
+      "name": "Login - Director / Administración",
+      "clip": true,
+      "width": 1280,
+      "height": 820,
+      "fill": "#F8F9FA",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "lOmSz",
+          "x": 488,
+          "y": 60,
+          "name": "Login Card",
+          "width": 304,
+          "height": 700,
+          "fill": "#FFFFFF",
+          "cornerRadius": 16,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#11182714",
+            "offset": {
+              "x": 0,
+              "y": 5
+            },
+            "blur": 18
+          },
+          "layout": "vertical",
+          "gap": 12,
+          "padding": 22,
+          "children": [
+            {
+              "type": "frame",
+              "id": "bu40x",
+              "name": "Brand Header",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 5,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "tk409",
+                  "name": "CORAULA Logo",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "tpOwu",
+                      "name": "Logo Mark",
+                      "width": 25,
+                      "height": 25,
+                      "fill": "#C81E45",
+                      "cornerRadius": 7,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": 3,
+                          "id": "XPZ6j",
+                          "x": 7,
+                          "y": 6,
+                          "name": "Logo Spark",
+                          "fill": "#FFFFFF",
+                          "width": 11,
+                          "height": 13
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "gJlLD",
+                      "name": "Logo Wordmark",
+                      "fill": "#C81E45",
+                      "content": "CORAULA",
+                      "fontFamily": "Manrope",
+                      "fontSize": 20,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "w6LHV1",
+                  "name": "System Subtitle",
+                  "fill": "#6B7280",
+                  "content": "Gestión e Inteligencia Educativa",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "gzACp",
+              "name": "Role Badge",
+              "fill": "#C81E45",
+              "cornerRadius": 999,
+              "padding": [
+                7,
+                11
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "uHbUO",
+                  "name": "Role Badge Label",
+                  "fill": "#FFFFFF",
+                  "content": "Portal Directivo y Gestión Global",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "L2memh",
+              "name": "Primary Field Group",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ApGZg",
+                  "name": "Primary Field Label",
+                  "fill": "#6B7280",
+                  "content": "Correo Electrónico / Usuario",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "O8KLI3",
+                  "name": "Primary Field Input",
+                  "width": "fill_container",
+                  "height": 46,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 10,
+                  "stroke": "#E5E7EB",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ayhGc",
+                      "name": "Primary Field Placeholder",
+                      "fill": "#111827",
+                      "textGrowth": "fixed-width",
+                      "width": 190,
+                      "content": "usuario@colegio.edu.pe",
+                      "fontFamily": "Manrope",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "z8NVpV",
+                      "name": "Primary Field Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "user",
+                      "library": "lucide",
+                      "fill": "#9CA3AF"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "MP170",
+              "name": "Password Field Group",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "W4wpIs",
+                  "name": "Password Field Label",
+                  "fill": "#6B7280",
+                  "content": "Contraseña",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "aGF1A",
+                  "name": "Password Field Input",
+                  "width": "fill_container",
+                  "height": 46,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 10,
+                  "stroke": "#E5E7EB",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Y320sl",
+                      "name": "Password Field Placeholder",
+                      "fill": "#111827",
+                      "textGrowth": "fixed-width",
+                      "width": 190,
+                      "content": "••••••••",
+                      "fontFamily": "Manrope",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "Cmqx2",
+                      "name": "Password Field Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "eye",
+                      "library": "lucide",
+                      "fill": "#9CA3AF"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Y9emA7",
+              "name": "Role Specific Option",
+              "width": "fill_container",
+              "height": 42,
+              "fill": "#FCE8E6",
+              "cornerRadius": 10,
+              "stroke": "#E5E7EB",
+              "strokeWidth": 1,
+              "gap": 8,
+              "padding": [
+                0,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "pFkTu",
+                  "name": "Specific Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "shield-check",
+                  "library": "lucide",
+                  "fill": "#C81E45"
+                },
+                {
+                  "type": "text",
+                  "id": "vTAuT",
+                  "name": "Specific Option Text",
+                  "fill": "#7F1D1D",
+                  "textGrowth": "fixed-width",
+                  "width": 220,
+                  "content": "Acceso con Firma Digital / Token Institucional",
+                  "fontFamily": "Manrope",
+                  "fontSize": 12,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ATNJS",
+              "name": "Login Options",
+              "width": "fill_container",
+              "height": 22,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r8DLq",
+                  "name": "Remember Me",
+                  "gap": 7,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 4,
+                      "id": "PqySo",
+                      "name": "Remember Checkbox",
+                      "fill": "#FFFFFF",
+                      "width": 14,
+                      "height": 14,
+                      "stroke": "#D1D5DB",
+                      "strokeWidth": 1
+                    },
+                    {
+                      "type": "text",
+                      "id": "hq98b",
+                      "name": "Remember Label",
+                      "fill": "#6B7280",
+                      "content": "Recordarme",
+                      "fontFamily": "Manrope",
+                      "fontSize": 11,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "d2oheH",
+                  "name": "Forgot Password",
+                  "fill": "#C81E45",
+                  "content": "Olvidé mi contraseña",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "qfx8j",
+              "name": "Primary Action",
+              "width": "fill_container",
+              "height": 46,
+              "fill": "#C81E45",
+              "cornerRadius": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "gVXXM",
+                  "name": "Primary Action Label",
+                  "fill": "#FFFFFF",
+                  "content": "Iniciar Sesión",
+                  "fontFamily": "Manrope",
+                  "fontSize": 13,
+                  "fontWeight": "800"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "u46F3N",
+              "name": "Helper Note",
+              "width": "fill_container",
+              "fill": "#FCE8E6",
+              "cornerRadius": 9,
+              "gap": 8,
+              "padding": [
+                9,
+                11
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "OoqS5",
+                  "name": "Helper Icon",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "info",
+                  "library": "lucide",
+                  "fill": "#C81E45"
+                },
+                {
+                  "type": "text",
+                  "id": "HOMHr",
+                  "name": "Helper Text",
+                  "fill": "#7F1D1D",
+                  "textGrowth": "fixed-width",
+                  "width": 215,
+                  "content": "Acceso restringido para personal administrativo autorizado.",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "S4XYYy",
+              "name": "Card Footer",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "O352T",
+                  "name": "Portal Switch",
+                  "fill": "#C81E45",
+                  "content": "¿Eres de otro rol? Cambiar portal",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "VliyO",
+                  "name": "Institution Footer",
+                  "fill": "#9CA3AF",
+                  "content": "Colegio San Marcos - 2026",
+                  "fontFamily": "Manrope",
+                  "fontSize": 10,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "MJNoL",
+      "x": 4834,
+      "y": -1268,
+      "name": "Login - Docente / Tutor",
+      "clip": true,
+      "width": 1280,
+      "height": 820,
+      "fill": "#F8F9FA",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "kzsot",
+          "x": 488,
+          "y": 60,
+          "name": "Login Card",
+          "width": 304,
+          "height": 700,
+          "fill": "#FFFFFF",
+          "cornerRadius": 16,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#11182714",
+            "offset": {
+              "x": 0,
+              "y": 5
+            },
+            "blur": 18
+          },
+          "layout": "vertical",
+          "gap": 12,
+          "padding": 22,
+          "children": [
+            {
+              "type": "frame",
+              "id": "F6QVy",
+              "name": "Brand Header",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 5,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "AfbBH",
+                  "name": "CORAULA Logo",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "b4daaz",
+                      "name": "Logo Mark",
+                      "width": 25,
+                      "height": 25,
+                      "fill": "#C81E45",
+                      "cornerRadius": 7,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": 3,
+                          "id": "rZ3kI",
+                          "x": 7,
+                          "y": 6,
+                          "name": "Logo Spark",
+                          "fill": "#FFFFFF",
+                          "width": 11,
+                          "height": 13
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "nTqeR",
+                      "name": "Logo Wordmark",
+                      "fill": "#C81E45",
+                      "content": "CORAULA",
+                      "fontFamily": "Manrope",
+                      "fontSize": 20,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "FIdE1",
+                  "name": "System Subtitle",
+                  "fill": "#6B7280",
+                  "content": "Gestión e Inteligencia Educativa",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "sKrsp",
+              "name": "Role Badge",
+              "fill": "#FCE8E6",
+              "cornerRadius": 999,
+              "padding": [
+                7,
+                11
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "u6q5B",
+                  "name": "Role Badge Label",
+                  "fill": "#C81E45",
+                  "content": "Portal Docente y Aulas",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "suhxm",
+              "name": "Primary Field Group",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "C3dkY",
+                  "name": "Primary Field Label",
+                  "fill": "#6B7280",
+                  "content": "Correo Electrónico / Usuario",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "PM4uH",
+                  "name": "Primary Field Input",
+                  "width": "fill_container",
+                  "height": 46,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 10,
+                  "stroke": "#E5E7EB",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q1tmK1",
+                      "name": "Primary Field Placeholder",
+                      "fill": "#111827",
+                      "textGrowth": "fixed-width",
+                      "width": 190,
+                      "content": "usuario@colegio.edu.pe",
+                      "fontFamily": "Manrope",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "JaVUs",
+                      "name": "Primary Field Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "user",
+                      "library": "lucide",
+                      "fill": "#9CA3AF"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "zMGbS",
+              "name": "Password Field Group",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "l8fGhW",
+                  "name": "Password Field Label",
+                  "fill": "#6B7280",
+                  "content": "Contraseña",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "b5UEgO",
+                  "name": "Password Field Input",
+                  "width": "fill_container",
+                  "height": 46,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 10,
+                  "stroke": "#E5E7EB",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "h2P9n",
+                      "name": "Password Field Placeholder",
+                      "fill": "#111827",
+                      "textGrowth": "fixed-width",
+                      "width": 190,
+                      "content": "••••••••",
+                      "fontFamily": "Manrope",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "F6lRE",
+                      "name": "Password Field Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "eye",
+                      "library": "lucide",
+                      "fill": "#9CA3AF"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "kpoDJ",
+              "name": "Role Specific Option",
+              "width": "fill_container",
+              "height": 42,
+              "fill": "#FFFFFF",
+              "cornerRadius": 10,
+              "stroke": "#E5E7EB",
+              "strokeWidth": 1,
+              "gap": 8,
+              "padding": [
+                0,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "k7BF3",
+                  "name": "Specific Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "building-2",
+                  "library": "lucide",
+                  "fill": "#C81E45"
+                },
+                {
+                  "type": "text",
+                  "id": "dX1Ad",
+                  "name": "Specific Option Text",
+                  "fill": "#374151",
+                  "textGrowth": "fixed-width",
+                  "width": 220,
+                  "content": "Secundaria - Sede Central",
+                  "fontFamily": "Manrope",
+                  "fontSize": 12,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "e7ubCi",
+              "name": "Login Options",
+              "width": "fill_container",
+              "height": 22,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Q9gd2",
+                  "name": "Remember Me",
+                  "gap": 7,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 4,
+                      "id": "x0pBly",
+                      "name": "Remember Checkbox",
+                      "fill": "#FFFFFF",
+                      "width": 14,
+                      "height": 14,
+                      "stroke": "#D1D5DB",
+                      "strokeWidth": 1
+                    },
+                    {
+                      "type": "text",
+                      "id": "jKeuC",
+                      "name": "Remember Label",
+                      "fill": "#6B7280",
+                      "content": "Recordarme",
+                      "fontFamily": "Manrope",
+                      "fontSize": 11,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "B9NHsS",
+                  "name": "Forgot Password",
+                  "fill": "#C81E45",
+                  "content": "Olvidé mi contraseña",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "WlYwR",
+              "name": "Primary Action",
+              "width": "fill_container",
+              "height": 46,
+              "fill": "#C81E45",
+              "cornerRadius": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "P8Zh58",
+                  "name": "Primary Action Label",
+                  "fill": "#FFFFFF",
+                  "content": "Iniciar Sesión",
+                  "fontFamily": "Manrope",
+                  "fontSize": 13,
+                  "fontWeight": "800"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "GzguY",
+              "name": "Card Footer",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "FbjzD",
+                  "name": "Portal Switch",
+                  "fill": "#C81E45",
+                  "content": "¿Eres de otro rol? Cambiar portal",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "I6qgi",
+                  "name": "Institution Footer",
+                  "fill": "#9CA3AF",
+                  "content": "Colegio San Marcos - 2026",
+                  "fontFamily": "Manrope",
+                  "fontSize": 10,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "QLHGV",
+          "x": 510,
+          "y": 656,
+          "name": "Quick Attendance Action",
+          "width": 280,
+          "height": 28,
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "qc5Os",
+              "name": "Quick Action Label",
+              "fill": "#C81E45",
+              "content": "Ingreso directo a Registro de Asistencia Rápida",
+              "fontFamily": "Manrope",
+              "fontSize": 10,
+              "fontWeight": "700"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "kfu4K",
+      "x": 6394,
+      "y": -1268,
+      "name": "Login - Alumno",
+      "clip": true,
+      "width": 1280,
+      "height": 820,
+      "fill": "#F8F9FA",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "KSdr5",
+          "x": 488,
+          "y": 60,
+          "name": "Login Card",
+          "width": 304,
+          "height": 700,
+          "fill": "#FFFFFF",
+          "cornerRadius": 16,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#11182714",
+            "offset": {
+              "x": 0,
+              "y": 5
+            },
+            "blur": 18
+          },
+          "layout": "vertical",
+          "gap": 12,
+          "padding": 22,
+          "children": [
+            {
+              "type": "frame",
+              "id": "OP1Kr",
+              "name": "Brand Header",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 5,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "VTGov",
+                  "name": "CORAULA Logo",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "AuUkp",
+                      "name": "Logo Mark",
+                      "width": 25,
+                      "height": 25,
+                      "fill": "#C81E45",
+                      "cornerRadius": 7,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": 3,
+                          "id": "Qjh5a",
+                          "x": 7,
+                          "y": 6,
+                          "name": "Logo Spark",
+                          "fill": "#FFFFFF",
+                          "width": 11,
+                          "height": 13
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "BZW3Y",
+                      "name": "Logo Wordmark",
+                      "fill": "#C81E45",
+                      "content": "CORAULA",
+                      "fontFamily": "Manrope",
+                      "fontSize": 20,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "r2Yjy",
+                  "name": "System Subtitle",
+                  "fill": "#6B7280",
+                  "content": "Gestión e Inteligencia Educativa",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "yKNwR",
+              "name": "Role Badge",
+              "fill": "#E6F4EA",
+              "cornerRadius": 999,
+              "padding": [
+                7,
+                11
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "UBeVJ",
+                  "name": "Role Badge Label",
+                  "fill": "#166534",
+                  "content": "Portal Estudiantil",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "VCN6g",
+              "name": "Welcome Visual",
+              "width": "fill_container",
+              "height": 44,
+              "fill": "#E6F4EA",
+              "cornerRadius": 10,
+              "gap": 8,
+              "padding": [
+                0,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "jNczx",
+                  "name": "Welcome Icon",
+                  "width": 18,
+                  "height": 18,
+                  "icon": "sparkles",
+                  "library": "lucide",
+                  "fill": "#15803D"
+                },
+                {
+                  "type": "text",
+                  "id": "xWOk7",
+                  "name": "Welcome Message",
+                  "fill": "#166534",
+                  "textGrowth": "fixed-width",
+                  "width": 215,
+                  "content": "¡Listo para aprender hoy!",
+                  "fontFamily": "Manrope",
+                  "fontSize": 12,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "gGpAv",
+              "name": "Primary Field Group",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "O4MLT0",
+                  "name": "Primary Field Label",
+                  "fill": "#6B7280",
+                  "content": "Código de Estudiante / DNI",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "rbul6",
+                  "name": "Primary Field Input",
+                  "width": "fill_container",
+                  "height": 46,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 10,
+                  "stroke": "#E5E7EB",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "vYiGH",
+                      "name": "Primary Field Placeholder",
+                      "fill": "#111827",
+                      "textGrowth": "fixed-width",
+                      "width": 190,
+                      "content": "Ingresa tu código o DNI",
+                      "fontFamily": "Manrope",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "SWEsZ",
+                      "name": "Primary Field Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "user",
+                      "library": "lucide",
+                      "fill": "#9CA3AF"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "wCBfd",
+              "name": "Password Field Group",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "YKFg2",
+                  "name": "Password Field Label",
+                  "fill": "#6B7280",
+                  "content": "Contraseña",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "hFbek",
+                  "name": "Password Field Input",
+                  "width": "fill_container",
+                  "height": 46,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 10,
+                  "stroke": "#E5E7EB",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "A8sBv",
+                      "name": "Password Field Placeholder",
+                      "fill": "#111827",
+                      "textGrowth": "fixed-width",
+                      "width": 190,
+                      "content": "••••••••",
+                      "fontFamily": "Manrope",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "A9kZV",
+                      "name": "Password Field Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "eye",
+                      "library": "lucide",
+                      "fill": "#9CA3AF"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "l95cV",
+              "name": "Login Options",
+              "width": "fill_container",
+              "height": 22,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "KCJLB",
+                  "name": "Remember Me",
+                  "gap": 7,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 4,
+                      "id": "GGdu7",
+                      "name": "Remember Checkbox",
+                      "fill": "#FFFFFF",
+                      "width": 14,
+                      "height": 14,
+                      "stroke": "#D1D5DB",
+                      "strokeWidth": 1
+                    },
+                    {
+                      "type": "text",
+                      "id": "i2CgL",
+                      "name": "Remember Label",
+                      "fill": "#6B7280",
+                      "content": "Recordarme",
+                      "fontFamily": "Manrope",
+                      "fontSize": 11,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "jUIlU",
+                  "name": "Forgot Password",
+                  "fill": "#C81E45",
+                  "content": "Olvidé mi contraseña",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "oIR44",
+              "name": "Primary Action",
+              "width": "fill_container",
+              "height": 46,
+              "fill": "#C81E45",
+              "cornerRadius": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "SJdaF",
+                  "name": "Primary Action Label",
+                  "fill": "#FFFFFF",
+                  "content": "Iniciar Sesión",
+                  "fontFamily": "Manrope",
+                  "fontSize": 13,
+                  "fontWeight": "800"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "kkB7g",
+              "name": "Card Footer",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "V3GtJ",
+                  "name": "Portal Switch",
+                  "fill": "#C81E45",
+                  "content": "¿Eres de otro rol? Cambiar portal",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "ZuO3D",
+                  "name": "Institution Footer",
+                  "fill": "#9CA3AF",
+                  "content": "Colegio San Marcos - 2026",
+                  "fontFamily": "Manrope",
+                  "fontSize": 10,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "IC2xX",
+      "x": 7944,
+      "y": -1268,
+      "name": "Login - Padre de Familia / Apoderado",
+      "clip": true,
+      "width": 1280,
+      "height": 820,
+      "fill": "#F8F9FA",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "nvIl9",
+          "x": 488,
+          "y": 60,
+          "name": "Login Card",
+          "width": 304,
+          "height": 700,
+          "fill": "#FFFFFF",
+          "cornerRadius": 16,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#11182714",
+            "offset": {
+              "x": 0,
+              "y": 5
+            },
+            "blur": 18
+          },
+          "layout": "vertical",
+          "gap": 12,
+          "padding": 22,
+          "children": [
+            {
+              "type": "frame",
+              "id": "HkxZs",
+              "name": "Brand Header",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 5,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "g8NX7",
+                  "name": "CORAULA Logo",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "f5JiA6",
+                      "name": "Logo Mark",
+                      "width": 25,
+                      "height": 25,
+                      "fill": "#C81E45",
+                      "cornerRadius": 7,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": 3,
+                          "id": "p0zZlJ",
+                          "x": 7,
+                          "y": 6,
+                          "name": "Logo Spark",
+                          "fill": "#FFFFFF",
+                          "width": 11,
+                          "height": 13
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "i71JL",
+                      "name": "Logo Wordmark",
+                      "fill": "#C81E45",
+                      "content": "CORAULA",
+                      "fontFamily": "Manrope",
+                      "fontSize": 20,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "YQBO4",
+                  "name": "System Subtitle",
+                  "fill": "#6B7280",
+                  "content": "Gestión e Inteligencia Educativa",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "TmNvT",
+              "name": "Role Badge",
+              "fill": "#FCE8E6",
+              "cornerRadius": 999,
+              "padding": [
+                7,
+                11
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "qgfe8",
+                  "name": "Role Badge Label",
+                  "fill": "#C81E45",
+                  "content": "Portal de Padres de Familia",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "LX9iF",
+              "name": "Primary Field Group",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "EizmT",
+                  "name": "Primary Field Label",
+                  "fill": "#6B7280",
+                  "content": "DNI del Apoderado o Correo Registrado",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "wxwze",
+                  "name": "Primary Field Input",
+                  "width": "fill_container",
+                  "height": 46,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 10,
+                  "stroke": "#E5E7EB",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "N9RLI7",
+                      "name": "Primary Field Placeholder",
+                      "fill": "#111827",
+                      "textGrowth": "fixed-width",
+                      "width": 190,
+                      "content": "usuario@colegio.edu.pe",
+                      "fontFamily": "Manrope",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "voYHW",
+                      "name": "Primary Field Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "user",
+                      "library": "lucide",
+                      "fill": "#9CA3AF"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "D2GkVl",
+              "name": "Password Field Group",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "nI633",
+                  "name": "Password Field Label",
+                  "fill": "#6B7280",
+                  "content": "Contraseña",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "P6PiS",
+                  "name": "Password Field Input",
+                  "width": "fill_container",
+                  "height": 46,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 10,
+                  "stroke": "#E5E7EB",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Zywcp",
+                      "name": "Password Field Placeholder",
+                      "fill": "#111827",
+                      "textGrowth": "fixed-width",
+                      "width": 190,
+                      "content": "••••••••",
+                      "fontFamily": "Manrope",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "zBkdP",
+                      "name": "Password Field Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "eye",
+                      "library": "lucide",
+                      "fill": "#9CA3AF"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "PXilB",
+              "name": "Role Specific Option",
+              "width": "fill_container",
+              "height": 42,
+              "fill": "#E6F4EA",
+              "cornerRadius": 10,
+              "stroke": "#E5E7EB",
+              "strokeWidth": 1,
+              "gap": 8,
+              "padding": [
+                0,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "kD0j6",
+                  "name": "Specific Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "message-circle",
+                  "library": "lucide",
+                  "fill": "#15803D"
+                },
+                {
+                  "type": "text",
+                  "id": "RnoVd",
+                  "name": "Specific Option Text",
+                  "fill": "#166534",
+                  "textGrowth": "fixed-width",
+                  "width": 220,
+                  "content": "Ingresar con WhatsApp / Código SMS de Verificación",
+                  "fontFamily": "Manrope",
+                  "fontSize": 12,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ymbz6",
+              "name": "Login Options",
+              "width": "fill_container",
+              "height": 22,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "XJ0kL",
+                  "name": "Remember Me",
+                  "gap": 7,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 4,
+                      "id": "n1YPw",
+                      "name": "Remember Checkbox",
+                      "fill": "#FFFFFF",
+                      "width": 14,
+                      "height": 14,
+                      "stroke": "#D1D5DB",
+                      "strokeWidth": 1
+                    },
+                    {
+                      "type": "text",
+                      "id": "wtVOi",
+                      "name": "Remember Label",
+                      "fill": "#6B7280",
+                      "content": "Recordarme",
+                      "fontFamily": "Manrope",
+                      "fontSize": 11,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "Aem8F",
+                  "name": "Forgot Password",
+                  "fill": "#C81E45",
+                  "content": "Olvidé mi contraseña",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "YMVy8",
+              "name": "Primary Action",
+              "width": "fill_container",
+              "height": 46,
+              "fill": "#C81E45",
+              "cornerRadius": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "sLZPT",
+                  "name": "Primary Action Label",
+                  "fill": "#FFFFFF",
+                  "content": "Iniciar Sesión",
+                  "fontFamily": "Manrope",
+                  "fontSize": 13,
+                  "fontWeight": "800"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "b3Jus",
+              "name": "Helper Note",
+              "width": "fill_container",
+              "fill": "#FCE8E6",
+              "cornerRadius": 9,
+              "gap": 8,
+              "padding": [
+                9,
+                11
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "g1AF2V",
+                  "name": "Helper Icon",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "info",
+                  "library": "lucide",
+                  "fill": "#C81E45"
+                },
+                {
+                  "type": "text",
+                  "id": "GZQmY",
+                  "name": "Helper Text",
+                  "fill": "#7F1D1D",
+                  "textGrowth": "fixed-width",
+                  "width": 215,
+                  "content": "Consulta las calificaciones y asistencia de tus hijos en tiempo real.",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "rPaks",
+              "name": "Card Footer",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "vN3hE",
+                  "name": "Portal Switch",
+                  "fill": "#C81E45",
+                  "content": "¿Eres de otro rol? Cambiar portal",
+                  "fontFamily": "Manrope",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "NJi0v",
+                  "name": "Institution Footer",
+                  "fill": "#9CA3AF",
+                  "content": "Colegio San Marcos - 2026",
+                  "fontFamily": "Manrope",
+                  "fontSize": 10,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variables": {

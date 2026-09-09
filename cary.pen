@@ -764,250 +764,24 @@
       "layout": "none",
       "children": [
         {
-          "type": "frame",
-          "id": "xonI2",
+          "id": "a0O4x",
+          "type": "ref",
+          "ref": "tcx5Y",
+          "name": "Sidebar Docentes",
           "x": 0,
           "y": 0,
-          "name": "Sidebar Docentes",
-          "width": 220,
-          "height": 820,
-          "fill": "$white",
-          "layout": "vertical",
-          "gap": 18,
-          "padding": 24,
-          "children": [
-            {
-              "type": "text",
-              "id": "tnxoX",
-              "name": "Logo Docentes",
-              "fill": "$accent",
-              "content": "CORAULA",
-              "fontFamily": "Manrope",
-              "fontSize": 22,
-              "fontWeight": "800"
+          "descendants": {
+            "XZnLr": {
+              "fill": "#FCE8E6"
             },
-            {
-              "type": "text",
-              "id": "X0Y3C",
-              "name": "Caption Docentes",
-              "fill": "$muted",
-              "content": "Gestión educativa",
-              "fontFamily": "Manrope",
-              "fontSize": 11,
-              "fontWeight": "500"
+            "wD1IO": {
+              "fill": "#C81E45"
             },
-            {
-              "type": "frame",
-              "id": "ydvgs",
-              "name": "Nav Group Docentes",
-              "width": "fill_container",
-              "height": 300,
-              "layout": "vertical",
-              "gap": 8,
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "a1mGLW",
-                  "name": "Docentes Nav Resumen",
-                  "width": "fill_container",
-                  "height": 42,
-                  "fill": "$white",
-                  "cornerRadius": 8,
-                  "gap": 10,
-                  "padding": [
-                    10,
-                    12
-                  ],
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "t4wS8",
-                      "name": "Docentes Icon Resumen",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "layout-dashboard",
-                      "library": "lucide",
-                      "fill": "$muted"
-                    },
-                    {
-                      "type": "text",
-                      "id": "Q1fIBH",
-                      "name": "Docentes Label Resumen",
-                      "fill": "$muted",
-                      "content": "Resumen",
-                      "fontFamily": "Manrope",
-                      "fontSize": 13,
-                      "fontWeight": "500"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "LfYbu",
-                  "name": "Docentes Nav Docentes",
-                  "width": "fill_container",
-                  "height": 42,
-                  "fill": "$accentSoft",
-                  "cornerRadius": 8,
-                  "gap": 10,
-                  "padding": [
-                    10,
-                    12
-                  ],
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "Hz9Q8",
-                      "name": "Docentes Icon Docentes",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "graduation-cap",
-                      "library": "lucide",
-                      "fill": "$accent"
-                    },
-                    {
-                      "type": "text",
-                      "id": "n2mcH",
-                      "name": "Docentes Label Docentes",
-                      "fill": "$accent",
-                      "content": "Docentes",
-                      "fontFamily": "Manrope",
-                      "fontSize": 13,
-                      "fontWeight": "700"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "HtTkd",
-                  "name": "Docentes Nav Alumnos",
-                  "width": "fill_container",
-                  "height": 42,
-                  "fill": "$white",
-                  "cornerRadius": 8,
-                  "gap": 10,
-                  "padding": [
-                    10,
-                    12
-                  ],
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "M2L9D",
-                      "name": "Docentes Icon Alumnos",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "users",
-                      "library": "lucide",
-                      "fill": "$muted"
-                    },
-                    {
-                      "type": "text",
-                      "id": "USCVR",
-                      "name": "Docentes Label Alumnos",
-                      "fill": "$muted",
-                      "content": "Alumnos",
-                      "fontFamily": "Manrope",
-                      "fontSize": 13,
-                      "fontWeight": "500"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "B3i6C",
-                  "name": "Docentes Nav Notas",
-                  "width": "fill_container",
-                  "height": 42,
-                  "fill": "$white",
-                  "cornerRadius": 8,
-                  "gap": 10,
-                  "padding": [
-                    10,
-                    12
-                  ],
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "x7KE8",
-                      "name": "Docentes Icon Notas",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "clipboard-check",
-                      "library": "lucide",
-                      "fill": "$muted"
-                    },
-                    {
-                      "type": "text",
-                      "id": "K9cYj5",
-                      "name": "Docentes Label Notas",
-                      "fill": "$muted",
-                      "content": "Notas",
-                      "fontFamily": "Manrope",
-                      "fontSize": 13,
-                      "fontWeight": "500"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "c2bUE",
-                  "name": "Docentes Nav Auditoría",
-                  "width": "fill_container",
-                  "height": 42,
-                  "fill": "$white",
-                  "cornerRadius": 8,
-                  "gap": 10,
-                  "padding": [
-                    10,
-                    12
-                  ],
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "hodDo",
-                      "name": "Docentes Icon Auditoría",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "shield-check",
-                      "library": "lucide",
-                      "fill": "$muted"
-                    },
-                    {
-                      "type": "text",
-                      "id": "zUDqC",
-                      "name": "Docentes Label Auditoría",
-                      "fill": "$muted",
-                      "content": "Auditoría",
-                      "fontFamily": "Manrope",
-                      "fontSize": 13,
-                      "fontWeight": "500"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "text",
-              "id": "D5FjBT",
-              "name": "School Docentes",
-              "fill": "$ink",
-              "content": "Colegio San Marcos",
-              "fontFamily": "Manrope",
-              "fontSize": 12,
+            "c5GdH0": {
+              "fill": "#C81E45",
               "fontWeight": "700"
-            },
-            {
-              "type": "text",
-              "id": "Bhfzi",
-              "name": "Meta Docentes",
-              "fill": "$muted",
-              "content": "Administrador · 2026",
-              "fontFamily": "Manrope",
-              "fontSize": 11,
-              "fontWeight": "500"
             }
-          ]
+          }
         },
         {
           "type": "frame",
@@ -2395,250 +2169,24 @@
       "layout": "none",
       "children": [
         {
-          "type": "frame",
-          "id": "ZHdEP",
+          "id": "Pc5RG",
+          "type": "ref",
+          "ref": "tcx5Y",
+          "name": "Sidebar Docentes",
           "x": 0,
           "y": 0,
-          "name": "Sidebar Docentes",
-          "width": 220,
-          "height": 820,
-          "fill": "$white",
-          "layout": "vertical",
-          "gap": 18,
-          "padding": 24,
-          "children": [
-            {
-              "type": "text",
-              "id": "d4ZZb",
-              "name": "Logo Docentes",
-              "fill": "$accent",
-              "content": "CORAULA",
-              "fontFamily": "Manrope",
-              "fontSize": 22,
-              "fontWeight": "800"
+          "descendants": {
+            "XZnLr": {
+              "fill": "#FCE8E6"
             },
-            {
-              "type": "text",
-              "id": "J1SLh8",
-              "name": "Caption Docentes",
-              "fill": "$muted",
-              "content": "Gestión educativa",
-              "fontFamily": "Manrope",
-              "fontSize": 11,
-              "fontWeight": "500"
+            "wD1IO": {
+              "fill": "#C81E45"
             },
-            {
-              "type": "frame",
-              "id": "QcuZC",
-              "name": "Nav Group Docentes",
-              "width": "fill_container",
-              "height": 300,
-              "layout": "vertical",
-              "gap": 8,
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "xRdsz",
-                  "name": "Docentes Nav Resumen",
-                  "width": "fill_container",
-                  "height": 42,
-                  "fill": "$white",
-                  "cornerRadius": 8,
-                  "gap": 10,
-                  "padding": [
-                    10,
-                    12
-                  ],
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "wn48p",
-                      "name": "Docentes Icon Resumen",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "layout-dashboard",
-                      "library": "lucide",
-                      "fill": "$muted"
-                    },
-                    {
-                      "type": "text",
-                      "id": "H5PEZB",
-                      "name": "Docentes Label Resumen",
-                      "fill": "$muted",
-                      "content": "Resumen",
-                      "fontFamily": "Manrope",
-                      "fontSize": 13,
-                      "fontWeight": "500"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "o8Ej73",
-                  "name": "Docentes Nav Docentes",
-                  "width": "fill_container",
-                  "height": 42,
-                  "fill": "$accentSoft",
-                  "cornerRadius": 8,
-                  "gap": 10,
-                  "padding": [
-                    10,
-                    12
-                  ],
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "g3FYC",
-                      "name": "Docentes Icon Docentes",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "graduation-cap",
-                      "library": "lucide",
-                      "fill": "$accent"
-                    },
-                    {
-                      "type": "text",
-                      "id": "ubT1k",
-                      "name": "Docentes Label Docentes",
-                      "fill": "$accent",
-                      "content": "Docentes",
-                      "fontFamily": "Manrope",
-                      "fontSize": 13,
-                      "fontWeight": "700"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "ZkErX",
-                  "name": "Docentes Nav Alumnos",
-                  "width": "fill_container",
-                  "height": 42,
-                  "fill": "$white",
-                  "cornerRadius": 8,
-                  "gap": 10,
-                  "padding": [
-                    10,
-                    12
-                  ],
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "gRMjU",
-                      "name": "Docentes Icon Alumnos",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "users",
-                      "library": "lucide",
-                      "fill": "$muted"
-                    },
-                    {
-                      "type": "text",
-                      "id": "dALQz",
-                      "name": "Docentes Label Alumnos",
-                      "fill": "$muted",
-                      "content": "Alumnos",
-                      "fontFamily": "Manrope",
-                      "fontSize": 13,
-                      "fontWeight": "500"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "EksN5",
-                  "name": "Docentes Nav Notas",
-                  "width": "fill_container",
-                  "height": 42,
-                  "fill": "$white",
-                  "cornerRadius": 8,
-                  "gap": 10,
-                  "padding": [
-                    10,
-                    12
-                  ],
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "wCLqU",
-                      "name": "Docentes Icon Notas",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "clipboard-check",
-                      "library": "lucide",
-                      "fill": "$muted"
-                    },
-                    {
-                      "type": "text",
-                      "id": "emalf",
-                      "name": "Docentes Label Notas",
-                      "fill": "$muted",
-                      "content": "Notas",
-                      "fontFamily": "Manrope",
-                      "fontSize": 13,
-                      "fontWeight": "500"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "oPmDt",
-                  "name": "Docentes Nav Auditoría",
-                  "width": "fill_container",
-                  "height": 42,
-                  "fill": "$white",
-                  "cornerRadius": 8,
-                  "gap": 10,
-                  "padding": [
-                    10,
-                    12
-                  ],
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "rA2bf",
-                      "name": "Docentes Icon Auditoría",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "shield-check",
-                      "library": "lucide",
-                      "fill": "$muted"
-                    },
-                    {
-                      "type": "text",
-                      "id": "WoU8G",
-                      "name": "Docentes Label Auditoría",
-                      "fill": "$muted",
-                      "content": "Auditoría",
-                      "fontFamily": "Manrope",
-                      "fontSize": 13,
-                      "fontWeight": "500"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "text",
-              "id": "f35EOo",
-              "name": "School Docentes",
-              "fill": "$ink",
-              "content": "Colegio San Marcos",
-              "fontFamily": "Manrope",
-              "fontSize": 12,
+            "c5GdH0": {
+              "fill": "#C81E45",
               "fontWeight": "700"
-            },
-            {
-              "type": "text",
-              "id": "nA86Q",
-              "name": "Meta Docentes",
-              "fill": "$muted",
-              "content": "Administrador · 2026",
-              "fontFamily": "Manrope",
-              "fontSize": 11,
-              "fontWeight": "500"
             }
-          ]
+          }
         },
         {
           "type": "frame",
@@ -4031,8 +3579,8 @@
       "reusable": true,
       "width": 220,
       "height": 820,
-      "fill": "$white",
-      "stroke": "#0052a3",
+      "fill": "#FFFFFF",
+      "stroke": "#E9E3E5",
       "strokeWidth": 1,
       "layout": "vertical",
       "gap": 18,
@@ -4042,7 +3590,7 @@
           "type": "text",
           "id": "GO6kx",
           "name": "Brand Logo",
-          "fill": "$accent",
+          "fill": "#C81E45",
           "content": "CORAULA",
           "fontFamily": "Manrope",
           "fontSize": 22,
@@ -4052,18 +3600,18 @@
           "type": "text",
           "id": "b806Ao",
           "name": "Brand Caption",
-          "fill": "$muted",
+          "fill": "#8A7F83",
           "content": "Gestión educativa",
           "fontFamily": "Manrope",
           "fontSize": 11,
-          "fontWeight": "normal"
+          "fontWeight": "500"
         },
         {
           "type": "frame",
           "id": "pxNj2",
           "name": "Navigation",
           "width": "fill_container",
-          "height": 300,
+          "height": 350,
           "layout": "vertical",
           "gap": 8,
           "children": [
@@ -4073,7 +3621,7 @@
               "name": "Nav Resumen",
               "width": "fill_container",
               "height": 42,
-              "fill": "$white",
+              "fill": "#FFFFFF",
               "cornerRadius": 8,
               "gap": 10,
               "padding": [
@@ -4089,17 +3637,17 @@
                   "height": 18,
                   "icon": "layout-dashboard",
                   "library": "lucide",
-                  "fill": "$muted"
+                  "fill": "#6F6669"
                 },
                 {
                   "type": "text",
                   "id": "jNsuC",
                   "name": "Label Resumen",
-                  "fill": "$muted",
+                  "fill": "#6F6669",
                   "content": "Resumen",
                   "fontFamily": "Manrope",
                   "fontSize": 13,
-                  "fontWeight": "500"
+                  "fontWeight": "600"
                 }
               ]
             },
@@ -4109,7 +3657,7 @@
               "name": "Nav Docentes",
               "width": "fill_container",
               "height": 42,
-              "fill": "$white",
+              "fill": "#FFFFFF",
               "cornerRadius": 8,
               "gap": 10,
               "padding": [
@@ -4125,17 +3673,17 @@
                   "height": 18,
                   "icon": "graduation-cap",
                   "library": "lucide",
-                  "fill": "$muted"
+                  "fill": "#6F6669"
                 },
                 {
                   "type": "text",
                   "id": "c5GdH0",
                   "name": "Label Docentes",
-                  "fill": "$muted",
+                  "fill": "#6F6669",
                   "content": "Docentes",
                   "fontFamily": "Manrope",
                   "fontSize": 13,
-                  "fontWeight": "500"
+                  "fontWeight": "600"
                 }
               ]
             },
@@ -4145,7 +3693,7 @@
               "name": "Nav Alumnos",
               "width": "fill_container",
               "height": 42,
-              "fill": "$white",
+              "fill": "#FFFFFF",
               "cornerRadius": 8,
               "gap": 10,
               "padding": [
@@ -4161,17 +3709,17 @@
                   "height": 18,
                   "icon": "users",
                   "library": "lucide",
-                  "fill": "$muted"
+                  "fill": "#6F6669"
                 },
                 {
                   "type": "text",
                   "id": "Avp0y",
                   "name": "Label Alumnos",
-                  "fill": "$muted",
+                  "fill": "#6F6669",
                   "content": "Alumnos",
                   "fontFamily": "Manrope",
                   "fontSize": 13,
-                  "fontWeight": "500"
+                  "fontWeight": "600"
                 }
               ]
             },
@@ -4181,7 +3729,7 @@
               "name": "Nav Notas",
               "width": "fill_container",
               "height": 42,
-              "fill": "$white",
+              "fill": "#FFFFFF",
               "cornerRadius": 8,
               "gap": 10,
               "padding": [
@@ -4197,27 +3745,27 @@
                   "height": 18,
                   "icon": "clipboard-check",
                   "library": "lucide",
-                  "fill": "$muted"
+                  "fill": "#6F6669"
                 },
                 {
                   "type": "text",
                   "id": "bxwTZ",
                   "name": "Label Notas",
-                  "fill": "$muted",
+                  "fill": "#6F6669",
                   "content": "Notas",
                   "fontFamily": "Manrope",
                   "fontSize": 13,
-                  "fontWeight": "500"
+                  "fontWeight": "600"
                 }
               ]
             },
             {
               "type": "frame",
               "id": "yLF5M",
-              "name": "Nav Notas",
+              "name": "Nav Matricula",
               "width": "fill_container",
               "height": 42,
-              "fill": "$white",
+              "fill": "#FFFFFF",
               "cornerRadius": 8,
               "gap": 10,
               "padding": [
@@ -4231,19 +3779,55 @@
                   "name": "Icon Notas",
                   "width": 18,
                   "height": 18,
-                  "icon": "clipboard-check",
+                  "icon": "clipboard-list",
                   "library": "lucide",
-                  "fill": "$muted"
+                  "fill": "#6F6669"
                 },
                 {
                   "type": "text",
                   "id": "e7XKYy",
                   "name": "Label Notas",
-                  "fill": "$muted",
-                  "content": "Matricula",
+                  "fill": "#6F6669",
+                  "content": "Matrícula",
                   "fontFamily": "Manrope",
                   "fontSize": 13,
-                  "fontWeight": "500"
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "anIwc",
+              "name": "Nav Control Biométrico",
+              "width": "fill_container",
+              "height": 42,
+              "fill": "#FFFFFF",
+              "cornerRadius": 8,
+              "gap": 10,
+              "padding": [
+                10,
+                12
+              ],
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "hAgc2",
+                  "name": "Icon Control Biométrico",
+                  "width": 18,
+                  "height": 18,
+                  "icon": "fingerprint",
+                  "library": "Material Symbols Outlined",
+                  "fill": "#6F6669"
+                },
+                {
+                  "type": "text",
+                  "id": "ZXNtm",
+                  "name": "Label Control Biométrico",
+                  "fill": "#6F6669",
+                  "content": "Control Biométrico",
+                  "fontFamily": "Manrope",
+                  "fontSize": 13,
+                  "fontWeight": "600"
                 }
               ]
             },
@@ -4253,7 +3837,7 @@
               "name": "Nav Auditoría",
               "width": "fill_container",
               "height": 42,
-              "fill": "$white",
+              "fill": "#FFFFFF",
               "cornerRadius": 8,
               "gap": 10,
               "padding": [
@@ -4269,17 +3853,17 @@
                   "height": 18,
                   "icon": "shield-check",
                   "library": "lucide",
-                  "fill": "$muted"
+                  "fill": "#6F6669"
                 },
                 {
                   "type": "text",
                   "id": "QMoUR",
                   "name": "Label Auditoría",
-                  "fill": "$muted",
+                  "fill": "#6F6669",
                   "content": "Auditoría",
                   "fontFamily": "Manrope",
                   "fontSize": 13,
-                  "fontWeight": "500"
+                  "fontWeight": "600"
                 }
               ]
             }
@@ -4298,7 +3882,7 @@
           "type": "text",
           "id": "A24cX",
           "name": "School",
-          "fill": "$ink",
+          "fill": "#241A1D",
           "content": "Colegio San Marcos",
           "fontFamily": "Manrope",
           "fontSize": 12,
@@ -4308,11 +3892,11 @@
           "type": "text",
           "id": "QSLz3",
           "name": "School Meta",
-          "fill": "$muted",
-          "content": "Administrador · 2026",
+          "fill": "#8A7F83",
+          "content": "Administrador - 2026",
           "fontFamily": "Manrope",
           "fontSize": 11,
-          "fontWeight": "normal"
+          "fontWeight": "500"
         }
       ]
     },
@@ -33303,285 +32887,24 @@
           ]
         },
         {
-          "type": "frame",
-          "id": "BVIK8",
+          "id": "RsdsZ",
+          "type": "ref",
+          "ref": "tcx5Y",
+          "name": "Sidebar Control Biométrico",
           "x": 0,
           "y": 0,
-          "name": "Director Sidebar",
-          "width": 260,
-          "height": 820,
-          "fill": "#FFFFFF",
-          "stroke": "#E9E3E5",
-          "strokeWidth": 1,
-          "layout": "none",
-          "children": [
-            {
-              "type": "text",
-              "id": "RroZC",
-              "x": 28,
-              "y": 30,
-              "name": "Sidebar Brand",
+          "descendants": {
+            "anIwc": {
+              "fill": "#FCE8E6"
+            },
+            "hAgc2": {
+              "fill": "#C81E45"
+            },
+            "ZXNtm": {
               "fill": "#C81E45",
-              "content": "CORAULA",
-              "fontFamily": "Manrope",
-              "fontSize": 24,
-              "fontWeight": "800"
-            },
-            {
-              "type": "text",
-              "id": "YVzxm",
-              "x": 28,
-              "y": 61,
-              "name": "Sidebar Caption",
-              "fill": "#8A7F83",
-              "content": "Panel de Dirección",
-              "fontFamily": "Manrope",
-              "fontSize": 12,
-              "fontWeight": "600"
-            },
-            {
-              "type": "frame",
-              "id": "JwhlY",
-              "x": 18,
-              "y": 128,
-              "name": "Sidebar Dashboard",
-              "width": 224,
-              "height": 40,
-              "fill": "#FFFFFF",
-              "cornerRadius": 10,
-              "layout": "none",
-              "children": [
-                {
-                  "type": "icon",
-                  "id": "JHPjp",
-                  "x": 14,
-                  "y": 11,
-                  "name": "Dashboard Icon",
-                  "width": 18,
-                  "height": 18,
-                  "icon": "layout-dashboard",
-                  "library": "lucide",
-                  "fill": "#6F6669"
-                },
-                {
-                  "type": "text",
-                  "id": "y65hS",
-                  "x": 44,
-                  "y": 11,
-                  "name": "Dashboard Label",
-                  "fill": "#6F6669",
-                  "content": "Dashboard",
-                  "fontFamily": "Manrope",
-                  "fontSize": 13,
-                  "fontWeight": "600"
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "jF3wZ",
-              "x": 18,
-              "y": 180,
-              "name": "Sidebar Gestión de Alumnos",
-              "width": 224,
-              "height": 40,
-              "fill": "#FFFFFF",
-              "cornerRadius": 10,
-              "layout": "none",
-              "children": [
-                {
-                  "type": "icon",
-                  "id": "RpclP",
-                  "x": 14,
-                  "y": 11,
-                  "name": "Gestión de Alumnos Icon",
-                  "width": 18,
-                  "height": 18,
-                  "icon": "users",
-                  "library": "lucide",
-                  "fill": "#6F6669"
-                },
-                {
-                  "type": "text",
-                  "id": "nPJzc",
-                  "x": 44,
-                  "y": 11,
-                  "name": "Gestión de Alumnos Label",
-                  "fill": "#6F6669",
-                  "content": "Gestión de Alumnos",
-                  "fontFamily": "Manrope",
-                  "fontSize": 13,
-                  "fontWeight": "600"
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "n3qaO",
-              "x": 18,
-              "y": 232,
-              "name": "Sidebar Docentes",
-              "width": 224,
-              "height": 40,
-              "fill": "#FFFFFF",
-              "cornerRadius": 10,
-              "layout": "none",
-              "children": [
-                {
-                  "type": "icon",
-                  "id": "C01DfV",
-                  "x": 14,
-                  "y": 11,
-                  "name": "Docentes Icon",
-                  "width": 18,
-                  "height": 18,
-                  "icon": "graduation-cap",
-                  "library": "lucide",
-                  "fill": "#6F6669"
-                },
-                {
-                  "type": "text",
-                  "id": "gwupr",
-                  "x": 44,
-                  "y": 11,
-                  "name": "Docentes Label",
-                  "fill": "#6F6669",
-                  "content": "Docentes",
-                  "fontFamily": "Manrope",
-                  "fontSize": 13,
-                  "fontWeight": "600"
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "mqMVh",
-              "x": 18,
-              "y": 284,
-              "name": "Sidebar Control Biométrico",
-              "width": 224,
-              "height": 40,
-              "fill": "#FCE8E6",
-              "cornerRadius": 10,
-              "layout": "none",
-              "children": [
-                {
-                  "type": "icon",
-                  "id": "AP5ME",
-                  "x": 14,
-                  "y": 11,
-                  "name": "Control Biométrico Icon",
-                  "width": 18,
-                  "height": 18,
-                  "icon": "scan-line",
-                  "library": "lucide",
-                  "fill": "#C81E45"
-                },
-                {
-                  "type": "text",
-                  "id": "oB84G",
-                  "x": 44,
-                  "y": 11,
-                  "name": "Control Biométrico Label",
-                  "fill": "#C81E45",
-                  "content": "Control Biométrico",
-                  "fontFamily": "Manrope",
-                  "fontSize": 13,
-                  "fontWeight": "800"
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "Iue0l",
-              "x": 18,
-              "y": 336,
-              "name": "Sidebar Reportes General",
-              "width": 224,
-              "height": 40,
-              "fill": "#FFFFFF",
-              "cornerRadius": 10,
-              "layout": "none",
-              "children": [
-                {
-                  "type": "icon",
-                  "id": "nFko7",
-                  "x": 14,
-                  "y": 11,
-                  "name": "Reportes General Icon",
-                  "width": 18,
-                  "height": 18,
-                  "icon": "clipboard-check",
-                  "library": "lucide",
-                  "fill": "#6F6669"
-                },
-                {
-                  "type": "text",
-                  "id": "H2Ei5",
-                  "x": 44,
-                  "y": 11,
-                  "name": "Reportes General Label",
-                  "fill": "#6F6669",
-                  "content": "Reportes General",
-                  "fontFamily": "Manrope",
-                  "fontSize": 13,
-                  "fontWeight": "600"
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "ZeIht",
-              "x": 18,
-              "y": 388,
-              "name": "Sidebar Configuración",
-              "width": 224,
-              "height": 40,
-              "fill": "#FFFFFF",
-              "cornerRadius": 10,
-              "layout": "none",
-              "children": [
-                {
-                  "type": "icon",
-                  "id": "gWtTG",
-                  "x": 14,
-                  "y": 11,
-                  "name": "Configuración Icon",
-                  "width": 18,
-                  "height": 18,
-                  "icon": "settings",
-                  "library": "lucide",
-                  "fill": "#6F6669"
-                },
-                {
-                  "type": "text",
-                  "id": "ToO3V",
-                  "x": 44,
-                  "y": 11,
-                  "name": "Configuración Label",
-                  "fill": "#6F6669",
-                  "content": "Configuración",
-                  "fontFamily": "Manrope",
-                  "fontSize": 13,
-                  "fontWeight": "600"
-                }
-              ]
-            },
-            {
-              "type": "text",
-              "id": "ABv2n",
-              "x": 28,
-              "y": 758,
-              "name": "Sidebar Footer",
-              "fill": "#6F6669",
-              "textGrowth": "fixed-width",
-              "width": 200,
-              "content": "Colegio San Marcos - 2026",
-              "fontFamily": "Manrope",
-              "fontSize": 11,
               "fontWeight": "700"
             }
-          ]
+          }
         }
       ]
     }

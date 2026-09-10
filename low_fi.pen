@@ -2355,7 +2355,7 @@
                   "children": [
                     {
                       "type": "path",
-                      "id": "m4I0i",
+                      "id": "oT7vW",
                       "name": "Image Placeholder Diagonal A",
                       "geometry": "M0 0l180 178",
                       "viewBox": [
@@ -2372,7 +2372,7 @@
                     },
                     {
                       "type": "path",
-                      "id": "CNBbQ",
+                      "id": "CeblJ",
                       "name": "Image Placeholder Diagonal B",
                       "geometry": "M180 0l-180 178",
                       "viewBox": [
@@ -34804,15 +34804,15 @@
     },
     "accent": {
       "type": "color",
-      "value": "#BE123C"
+      "value": "#FFFFFF"
     },
     "ink": {
       "type": "color",
-      "value": "#111827"
+      "value": "#1F2937"
     },
     "muted": {
       "type": "color",
-      "value": "#6B7280"
+      "value": "#4B5563"
     },
     "white": {
       "type": "color",
@@ -34820,7 +34820,7 @@
     },
     "successInk": {
       "type": "color",
-      "value": "#15803D"
+      "value": "#1F2937"
     },
     "neutral": {
       "type": "color",
@@ -34828,19 +34828,19 @@
     },
     "line": {
       "type": "color",
-      "value": "#E5E7EB"
+      "value": "#1F2937"
     },
     "accentSoft": {
       "type": "color",
-      "value": "#FFE4E6"
+      "value": "#F3F4F6"
     },
     "success": {
       "type": "color",
-      "value": "#DCFCE7"
+      "value": "#F3F4F6"
     },
     "warningInk": {
       "type": "color",
-      "value": "#A16207"
+      "value": "#1F2937"
     }
   },
   "fileToken": "6875a7c8-db61-44a9-995e-626fa7c23c01"

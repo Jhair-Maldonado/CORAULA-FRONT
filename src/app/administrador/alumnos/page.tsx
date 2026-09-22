@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { MOCK_GRADOS } from '@/data/mockAlumnos';
 import { Search01Icon, ArrowLeft01Icon, ArrowRight02Icon } from 'hugeicons-react';
+import { TarjetaEstudiante } from './component/TarjetaEstudiante';
 
 export default function AlumnosOverviewPage() {
   // Shared Filters
@@ -140,23 +141,20 @@ export default function AlumnosOverviewPage() {
           <div className="flex flex-col flex-1">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {paginatedStudents.map(student => (
-                <Link 
-                  key={student.id} 
-                  href={`/administrador/alumnos/${student.seccionId}/estudiante/${student.id}`}
-                  className="bg-white rounded-xl p-3 border border-line shadow-sm hover:shadow-md hover:border-accent/50 transition-all flex items-center gap-3 group cursor-pointer"
-                >
-                  <div className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold shrink-0">
-                    {student.nombres.charAt(0)}{student.apellidos.charAt(0)}
-                  </div>
-                  <div className="flex flex-col flex-1 overflow-hidden">
-                    <span className="text-ink text-sm font-bold truncate group-hover:text-accent transition-colors">
-                      {student.nombres} {student.apellidos}
-                    </span>
-                    <span className="text-muted text-[11px] font-medium truncate mt-0.5">
-                      {student.gradoNumero}° {student.nivel} - Sec. {student.letra}
-                    </span>
-                  </div>
-                </Link>
+                <TarjetaEstudiante 
+                  key={student.id}
+                  id={student.id}
+                  nombres={student.nombres}
+                  apellidos={student.apellidos}
+                  dni={student.dni}
+                  telefono={student.telefono}
+                  seccionId={student.seccionId}
+                  gradoNumero={student.gradoNumero}
+                  nivel={student.nivel}
+                  letra={student.letra}
+                  fotoUrl={student.fotoUrl}
+                  estado={student.estado}
+                />
               ))}
             </div>
 

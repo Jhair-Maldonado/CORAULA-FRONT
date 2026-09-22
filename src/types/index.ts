@@ -4,6 +4,7 @@ export type UserRole = 'superadmin' | 'administrador' | 'docente' | 'padre' | 'a
 export * from './alumnos';
 export * from './docentes';
 export * from './horario';
+export * from './cursos';
 
 export interface User {
   id: string;

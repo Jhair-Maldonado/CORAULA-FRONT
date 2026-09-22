@@ -18,7 +18,9 @@ import {
   Folder01Icon,
   UserAdd01Icon,
   LicenseIcon,
-  Menu01Icon
+  Menu01Icon,
+  BookOpen01Icon,
+  
 } from 'hugeicons-react';
 
 type SubItem = {
@@ -51,8 +53,9 @@ const MENU_SECTIONS: MenuSection[] = [
     sectionTitle: 'Académico',
     items: [
       { name: 'Docentes', path: '/administrador/docentes', icon: TeacherIcon },
-      { name: 'Alumnos', path: '/administrador/alumnos', icon: UserGroupIcon},
-      { name: 'Tarjeta de sección.', path: '/administrador/horario', icon: Calendar01Icon },
+      { name: 'Alumnos', path: '/administrador/alumnos', icon: UserGroupIcon },
+      { name: 'Cursos', path: '/administrador/cursos', icon: BookOpen01Icon },
+      { name: 'Horarios', path: '/administrador/horario', icon: Calendar01Icon },
       { name: 'Notas', path: '/administrador/notas', icon: Task01Icon },
     ]
   },

@@ -32,13 +32,13 @@ type MenuItem = {
 };
 
 const MENU_ITEMS: MenuItem[] = [
-  { name: 'Dashboard', path: '/administrador', icon: DashboardSquare01Icon },
+  { name: 'Panel Principal', path: '/administrador', icon: DashboardSquare01Icon },
   { name: 'Docentes', path: '/administrador/docentes', icon: TeacherIcon },
   { 
     name: 'Alumnos', 
     icon: UserGroupIcon,
     subItems: [
-      { name: 'Dashboard', path: '/administrador/alumnos', icon: GridViewIcon },
+      { name: 'Panel General', path: '/administrador/alumnos', icon: GridViewIcon },
       { name: 'Vacantes', path: '/administrador/alumnos/vacantes', icon: Task01Icon },
       { name: 'Alumnado', path: '/administrador/alumnos/alumnado', icon: Folder01Icon },
     ]
@@ -62,7 +62,7 @@ export const SidebarAdmin = () => {
   };
 
   return (
-    <aside className={`relative h-full bg-white border-r border-line flex flex-col transition-all duration-300 ease-in-out shrink-0 ${
+    <aside className={`relative h-screen bg-white border-r border-line flex flex-col transition-all duration-300 ease-in-out shrink-0 overflow-y-auto ${
       isCollapsed ? 'w-[80px]' : 'w-[240px]'
     }`}>
       

@@ -100,6 +100,8 @@ export default function HorariosPage() {
           filteredGrados.map((item) => (
             <CardGrados 
               key={item.seccionId}
+              gradoId={item.gradoId}
+              nombreGrado={item.nombreGrado}
               seccionId={item.seccionId}
               nombreCompletoSeccion={item.nombreCompletoSeccion}
               nivel={item.nivel}

@@ -11,7 +11,8 @@ import {
   ViewIcon,
   ArrowLeft01Icon
 } from 'hugeicons-react';
-import { MOCK_DOCENTES, Docente } from '@/data/mockDocentes';
+import { MOCK_DOCENTES } from '@/data/mockDocentes';
+import { Docente } from '@/types';
 
 export default function DocentesPage() {
   const [searchTerm, setSearchTerm] = useState<string>('');

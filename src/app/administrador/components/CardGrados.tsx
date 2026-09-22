@@ -9,19 +9,7 @@ import {
   BookOpen01Icon,
   ArrowRight01Icon
 } from 'hugeicons-react';
-
-export interface CardGradosProps {
-  seccionId: string;
-  nombreCompletoSeccion: string;
-  nivel: string;
-  numeroGrado: number;
-  letraSeccion: string;
-  cantAlumnos: number;
-  capacidad: number;
-  tutor: string;
-  totalHorasSemana: number;
-  estadoHorario: string;
-}
+import { HorarioGradoSeccion as CardGradosProps } from '@/types/horario';
 
 export const CardGrados: React.FC<CardGradosProps> = ({
   seccionId,

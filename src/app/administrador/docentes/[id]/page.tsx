@@ -11,7 +11,8 @@ import {
   PencilEdit01Icon,
   Camera01Icon
 } from 'hugeicons-react';
-import { MOCK_DOCENTES, Docente } from '@/data/mockDocentes';
+import { MOCK_DOCENTES } from '@/data/mockDocentes';
+import { Docente } from '@/types';
 
 export default function DocentePerfilPage() {
   const params = useParams();

@@ -22,6 +22,7 @@ export interface Estudiante {
   estado: 'Activo' | 'Inactivo' | 'Suspendido';
   contactoEmergencia: ContactoEmergencia;
   credenciales: Credenciales;
+  fotoUrl?: string;
   enRiesgo?: boolean;
   incidencias?: string[];
 }

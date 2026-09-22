@@ -9,11 +9,11 @@ import { ArrowDown01Icon, ArrowRight01Icon, Folder01Icon, FolderOpenIcon, BookOp
 export const GradosSidebar = () => {
   const pathname = usePathname();
   
-  // Extraer el id de sección de la ruta (ej: /administrador/alumnos/alumnado/1a)
+  // Extraer el id de sección de la ruta (ej: /administrador/alumnos/sec-1a)
   const segments = pathname.split('/');
-  const alumnadoIndex = segments.indexOf('alumnado');
-  const currentSeccionId = alumnadoIndex !== -1 && segments.length > alumnadoIndex + 1 
-    ? segments[alumnadoIndex + 1] 
+  const alumnosIndex = segments.indexOf('alumnos');
+  const currentSeccionId = alumnosIndex !== -1 && segments.length > alumnosIndex + 1 
+    ? segments[alumnosIndex + 1] 
     : null;
   
   // Buscar qué grado contiene esta sección activa
@@ -26,20 +26,20 @@ export const GradosSidebar = () => {
   const [expandedGrado, setExpandedGrado] = useState<string | null>(initialExpandedGrado);
 
   return (
-    <div className="w-[240px] h-full bg-white border-r border-line py-6 flex flex-col gap-4 shrink-0 overflow-y-auto">
-      <div className="px-5 mb-2">
-        <h2 className="text-ink text-sm font-extrabold flex items-center gap-2">
-          <BookOpen01Icon size={18} className="text-accent" />
+    <div className="w-[190px] h-full bg-white border-r border-line py-4 flex flex-col gap-3 shrink-0 overflow-y-auto font-sans">
+      <div className="px-3 mb-1">
+        <h2 className="text-ink text-xs font-extrabold flex items-center gap-1.5">
+          <BookOpen01Icon size={15} className="text-accent" />
           Niveles y Grados
         </h2>
-        <p className="text-muted text-[11px] font-medium mt-1 mb-3">Explora las secciones del plantel</p>
+        <p className="text-muted text-[10px] font-medium mt-0.5 mb-2">Secciones del plantel</p>
         
         <Link
-          href="/administrador/alumnos/alumnado"
-          className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold transition-all border ${
-            pathname === '/administrador/alumnos/alumnado'
-              ? 'bg-accent text-white border-accent shadow-sm'
-              : 'bg-neutral text-ink border-line hover:bg-neutral/80'
+          href="/administrador/alumnos"
+          className={`w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
+            pathname === '/administrador/alumnos'
+              ? 'bg-accent text-white border-accent shadow-xs'
+              : 'bg-neutral text-ink border-line/60 hover:bg-neutral/80'
           }`}
         >
           Ver todo alumnado
@@ -89,7 +89,7 @@ export const GradosSidebar = () => {
                   return (
                     <Link
                       key={seccion.id}
-                      href={`/administrador/alumnos/alumnado/${seccion.id}`}
+                      href={`/administrador/alumnos/${seccion.id}`}
                       className={`w-full flex items-center justify-between px-4 py-2 ml-2 rounded-lg text-[12px] transition-all relative ${
                         isActive 
                           ? 'bg-accent-soft text-accent font-bold' 

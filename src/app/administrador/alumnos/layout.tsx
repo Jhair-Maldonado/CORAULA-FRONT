@@ -1,5 +1,5 @@
 import React from 'react';
-import { GradosSidebar } from '../component/GradosSidebar';
+import { GradosSidebar } from './component/GradosSidebar';
 
 export default function AlumnadoLayout({ children }: { children: React.ReactNode }) {
   return (

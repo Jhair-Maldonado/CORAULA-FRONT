@@ -11,7 +11,7 @@ export interface Curso {
   codigo: string;
   nivel: 'Primaria' | 'Secundaria';
   area: string;
-  frecuenciaSemanal: number; // Ej. 4 veces a la semana
+  frecuenciaSemanal: number; 
   horasTotalesSemana: number; // Ej. 6 horas
   cantPracticasCalificadas: number; // Ej. 4 prácticas
   semanasExamenes: string[]; // Ej. ["Semana 8 (Parcial)", "Semana 16 (Final)"]

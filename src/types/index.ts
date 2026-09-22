@@ -5,6 +5,7 @@ export * from './alumnos';
 export * from './docentes';
 export * from './horario';
 export * from './cursos';
+export * from './chat';
 
 export interface User {
   id: string;

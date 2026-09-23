@@ -15,6 +15,7 @@ import {
   CheckmarkCircle02Icon,
   SecurityKeyUsbIcon,
 } from 'hugeicons-react';
+import { GlobalLoader } from '@/components/GlobalLoader';
 
 export default function StudentLoginPage() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function StudentLoginPage() {
     setTimeout(() => {
       setCargando(false);
       router.push('/administrador');
-    }, 1000);
+    }, 2500);
   };
 
   const handleSendCode = (e: React.FormEvent) => {
@@ -189,17 +190,11 @@ export default function StudentLoginPage() {
                   disabled={cargando}
                   className="group w-full py-2.5 rounded-xl bg-accent text-white font-bold text-[13px] tracking-wide hover:bg-accent/90 active:scale-[0.99] transition-all shadow-md shadow-accent/20 flex items-center justify-center gap-2 cursor-pointer mt-1 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {cargando ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <span>Acceder a la Plataforma</span>
-                      <ArrowRight01Icon
-                        size={16}
-                        className="transition-transform group-hover:translate-x-0.5"
-                      />
-                    </>
-                  )}
+                  <span>Acceder a la Plataforma</span>
+                  <ArrowRight01Icon
+                    size={16}
+                    className="transition-transform group-hover:translate-x-0.5"
+                  />
                 </button>
               </form>
 
@@ -386,6 +381,7 @@ export default function StudentLoginPage() {
         </div>
       )}
 
+      {cargando && <GlobalLoader />}
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   CheckmarkCircle02Icon,
   LockPasswordIcon,
 } from 'hugeicons-react';
+import { GlobalLoader } from '@/components/GlobalLoader';
 
 export default function AdminSecurityLoginPage() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function AdminSecurityLoginPage() {
     setTimeout(() => {
       setCargando(false);
       router.push('/administrador');
-    }, 1000);
+    }, 2500);
   };
 
   const handleSendCode = (e: React.FormEvent) => {
@@ -188,17 +189,11 @@ export default function AdminSecurityLoginPage() {
                   disabled={cargando}
                   className="group w-full py-2.5 rounded-xl bg-ink text-white font-bold text-[13px] tracking-wide hover:bg-ink/90 active:scale-[0.99] transition-all shadow-md shadow-ink/15 flex items-center justify-center gap-2 cursor-pointer mt-1 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {cargando ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <span>Iniciar Sesión de Control</span>
-                      <ArrowRight01Icon
-                        size={16}
-                        className="transition-transform group-hover:translate-x-0.5 text-accent"
-                      />
-                    </>
-                  )}
+                  <span>Iniciar Sesión de Control</span>
+                  <ArrowRight01Icon
+                    size={16}
+                    className="transition-transform group-hover:translate-x-0.5 text-accent"
+                  />
                 </button>
               </form>
 
@@ -385,6 +380,7 @@ export default function AdminSecurityLoginPage() {
         </div>
       )}
 
+      {cargando && <GlobalLoader />}
     </div>
   );
 }

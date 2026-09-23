@@ -1,3 +1,4 @@
+import React from 'react';
 import { AuthProvider } from '@/contexts/AuthContext';
 import './globals.css';
 
@@ -6,11 +7,14 @@ export const metadata = {
   description: 'Sistema de Control y Registro Académico de Aula',
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="es">
-      {/* Tailwind: Fondo gris claro y texto oscuro por defecto */}
-      <body className="bg-gray-100 text-gray-900 antialiased min-h-screen flex flex-col">
+      <body className="bg-canvas text-ink antialiased min-h-screen flex flex-col font-sans">
         <AuthProvider>
           {children}
         </AuthProvider>

@@ -42,6 +42,7 @@ export const TarjetaEstudiante = ({
         {/* Avatar / Foto */}
         <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-bold text-xs flex items-center justify-center shrink-0 border border-accent/20 overflow-hidden group-hover:scale-105 transition-transform">
           {fotoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img src={fotoUrl} alt={`${nombres} ${apellidos}`} className="w-full h-full object-cover" />
           ) : (
             <span>{iniciales}</span>

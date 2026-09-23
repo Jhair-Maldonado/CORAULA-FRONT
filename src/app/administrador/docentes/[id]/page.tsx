@@ -129,6 +129,7 @@ export default function DocentePerfilPage() {
             {/* Foto Avatar Docente con Upload */}
             <div className="w-full md:w-44 h-44 rounded-xl bg-neutral/80 overflow-hidden relative shrink-0 border border-line flex items-center justify-center group">
               {fotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img 
                   src={fotoUrl} 
                   alt={docenteOriginal.nombreCompleto} 

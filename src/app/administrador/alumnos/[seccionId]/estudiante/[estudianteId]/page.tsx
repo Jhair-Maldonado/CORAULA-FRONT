@@ -121,6 +121,7 @@ export default function EstudianteDetallePage() {
             <div className="relative group shrink-0">
               <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-neutral border-4 border-white shadow-md flex items-center justify-center text-2xl font-bold text-accent overflow-hidden">
                 {fotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={fotoUrl} alt="Foto Alumno" className="w-full h-full object-cover" />
                 ) : (
                   <span>{nombres.charAt(0)}{apellidos.charAt(0)}</span>

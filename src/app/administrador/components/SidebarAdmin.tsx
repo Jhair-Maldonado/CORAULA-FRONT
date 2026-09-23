@@ -20,6 +20,7 @@ import {
   LicenseIcon,
   Menu01Icon,
   BookOpen01Icon,
+  Logout01Icon
   
 } from 'hugeicons-react';
 
@@ -242,10 +243,10 @@ export const SidebarAdmin = () => {
         ))}
       </nav>
 
-      {/* Footer / Usuario Estilo Shopall */}
-      <div className="p-3 border-t border-line shrink-0 relative z-20">
+      {/* Footer / Usuario con opción de Salir */}
+      <div className="p-3 border-t border-line shrink-0 relative z-20 flex flex-col gap-2">
         {!isCollapsed ? (
-          <div className="flex items-center justify-between p-1.5 rounded-xl hover:bg-neutral transition-colors cursor-pointer">
+          <div className="flex items-center justify-between p-1.5 rounded-xl bg-neutral/40 border border-line/60">
             <div className="flex items-center gap-2.5 overflow-hidden">
               <div className="w-7 h-7 rounded-full bg-accent-soft text-accent font-bold text-xs flex items-center justify-center shrink-0 border border-accent/20">
                 HG
@@ -255,19 +256,28 @@ export const SidebarAdmin = () => {
                 <span className="text-muted text-[10px] truncate leading-tight">admin@coraula.edu.pe</span>
               </div>
             </div>
-            <ArrowDown01Icon size={12} className="text-muted shrink-0 ml-1" />
+
+            <Link
+              href="/security"
+              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
+              title="Cerrar sesión"
+            >
+              <Logout01Icon size={16} />
+            </Link>
           </div>
         ) : (
           <div className="relative group flex justify-center">
-            <div className="w-7 h-7 rounded-full bg-accent-soft text-accent font-bold text-xs flex items-center justify-center shrink-0 border border-accent/20 cursor-pointer">
-              HG
-            </div>
-            {/* Globo Tooltip para Perfil */}
+            <Link
+              href="/security"
+              className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center cursor-pointer hover:bg-rose-100 transition-colors"
+            >
+              <Logout01Icon size={16} />
+            </Link>
+            {/* Globo Tooltip para Salir */}
             <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center z-50 pointer-events-none">
               <div className="w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-ink" />
-              <div className="bg-ink text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-xl flex flex-col">
-                <span>Hecham GAZHI</span>
-                <span className="text-[9px] text-white/70 font-normal">admin@coraula.edu.pe</span>
+              <div className="bg-ink text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-xl flex items-center gap-1.5">
+                <span>Cerrar sesión</span>
               </div>
             </div>
           </div>

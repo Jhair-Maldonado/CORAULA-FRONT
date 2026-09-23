@@ -39,15 +39,15 @@ export default function DocentesPage() {
   const paginatedDocentes = filteredDocentes.slice(startIndex, startIndex + itemsPerPage);
 
   return (
-    <div className="w-full h-full p-6 md:p-8 overflow-y-auto bg-canvas font-sans flex flex-col gap-5">
+    <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans flex flex-col gap-5">
       
       {/* HEADER & NUEVO DOCENTE ACTION */}
       <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <span className="text-accent text-[10px] font-extrabold tracking-widest uppercase">
+          <span className="text-accent text-[10px] font-bold tracking-widest uppercase">
             EQUIPO ACADÉMICO
           </span>
-          <h1 className="text-ink text-xl font-extrabold mt-0.5 tracking-tight">
+          <h1 className="text-ink text-xl font-bold mt-0.5 tracking-tight">
             Panel de docentes
           </h1>
           <p className="text-muted text-xs font-medium mt-0.5">
@@ -127,7 +127,7 @@ export default function DocentesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-neutral/50 border-b border-line text-[10px] font-extrabold text-muted uppercase tracking-wider">
+                <tr className="bg-neutral/50 border-b border-line text-[10px] font-bold text-muted uppercase tracking-wider">
                   <th className="py-2.5 px-4">Docente</th>
                   <th className="py-2.5 px-4">Celular</th>
                   <th className="py-2.5 px-4">Especialidad / Nivel</th>
@@ -145,7 +145,7 @@ export default function DocentesPage() {
                     {/* DOCENTE INFO */}
                     <td className="py-2.5 px-4">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center font-extrabold text-[10px] shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center font-bold text-[10px] shrink-0">
                           {docente.iniciales}
                         </div>
                         <span className="font-bold text-ink text-xs truncate max-w-[160px]">
@@ -173,13 +173,13 @@ export default function DocentesPage() {
                     </td>
 
                     {/* % ASISTENCIA */}
-                    <td className="py-2.5 px-4 text-center font-extrabold text-accent text-xs">
+                    <td className="py-2.5 px-4 text-center font-bold text-accent text-xs">
                       {docente.asistenciasPorcentaje}%
                     </td>
 
                     {/* FALTAS (SOLO NÚMERO) */}
                     <td className="py-2.5 px-4 text-center">
-                      <span className={`inline-block font-extrabold px-2 py-0.5 rounded text-[11px] ${
+                      <span className={`inline-block font-bold px-2 py-0.5 rounded text-[11px] ${
                         docente.faltasDias > 2 
                           ? 'bg-rose-100 text-rose-700' 
                           : docente.faltasDias > 0 
@@ -192,7 +192,7 @@ export default function DocentesPage() {
 
                     {/* TARDANZAS (SOLO NÚMERO) */}
                     <td className="py-2.5 px-4 text-center">
-                      <span className={`inline-block font-extrabold px-2 py-0.5 rounded text-[11px] ${
+                      <span className={`inline-block font-bold px-2 py-0.5 rounded text-[11px] ${
                         docente.tardanzasRegistros > 2 
                           ? 'bg-amber-100 text-amber-800' 
                           : 'bg-neutral text-muted'

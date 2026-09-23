@@ -145,7 +145,7 @@ export default function MatriculaPage() {
   );
 
   return (
-    <div className="w-full h-full p-6 md:p-8 overflow-y-auto bg-canvas font-sans flex flex-col gap-6">
+    <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans flex flex-col gap-6">
       
       {/* Hidden Input File */}
       <input 
@@ -159,10 +159,10 @@ export default function MatriculaPage() {
       {/* HEADER Y NAVEGACIÓN */}
       <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <span className="text-accent text-[11px] font-extrabold tracking-widest uppercase">
+          <span className="text-accent text-[11px] font-bold tracking-widest uppercase">
             MÓDULO ADMINISTRATIVO
           </span>
-          <h1 className="text-ink text-2xl font-extrabold mt-0.5 tracking-tight">
+          <h1 className="text-ink text-2xl font-bold mt-0.5 tracking-tight">
             Importación y Matrícula Masiva
           </h1>
           <p className="text-muted text-xs font-medium mt-0.5">
@@ -278,7 +278,7 @@ export default function MatriculaPage() {
             {/* COLUMNA IZQUIERDA: ALUMNOS */}
             <div className="bg-white rounded-xl border border-line p-4 shadow-xs flex flex-col gap-3">
               <div className="flex items-center justify-between border-b border-line pb-3">
-                <h3 className="text-xs font-black text-ink uppercase tracking-wider flex items-center gap-2">
+                <h3 className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2">
                   <UserCircleIcon size={18} className="text-accent" /> 1. Datos del Alumno
                 </h3>
                 <span className="text-[10px] font-bold text-muted bg-neutral px-2 py-0.5 rounded">
@@ -290,11 +290,11 @@ export default function MatriculaPage() {
                 {filteredRegistros.map((item, index) => (
                   <div key={item.id} className="p-3 rounded-lg border border-line/80 bg-neutral/30 hover:bg-neutral/70 transition-colors flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 rounded-md bg-accent/10 text-accent font-black text-[10px] flex items-center justify-center shrink-0">
+                      <span className="w-6 h-6 rounded-md bg-accent/10 text-accent font-bold text-[10px] flex items-center justify-center shrink-0">
                         {index + 1}
                       </span>
                       <div>
-                        <p className="text-xs font-extrabold text-ink leading-tight">
+                        <p className="text-xs font-bold text-ink leading-tight">
                           {item.alumnoNombres} {item.alumnoApellidos}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5 text-[10px] font-bold text-muted">
@@ -312,7 +312,7 @@ export default function MatriculaPage() {
             {/* COLUMNA DERECHA: PADRES / APODERADOS RELACIONADOS */}
             <div className="bg-white rounded-xl border border-line p-4 shadow-xs flex flex-col gap-3">
               <div className="flex items-center justify-between border-b border-line pb-3">
-                <h3 className="text-xs font-black text-ink uppercase tracking-wider flex items-center gap-2">
+                <h3 className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2">
                   <UserCheck01Icon size={18} className="text-emerald-600" /> 2. Apoderado Relacionado
                 </h3>
                 <span className="text-[10px] font-bold text-muted bg-neutral px-2 py-0.5 rounded">
@@ -325,10 +325,10 @@ export default function MatriculaPage() {
                   <div key={item.id} className="p-3 rounded-lg border border-emerald-100 bg-emerald-50/40 hover:bg-emerald-50 transition-colors flex items-center justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="text-xs font-extrabold text-ink leading-tight">
+                        <p className="text-xs font-bold text-ink leading-tight">
                           {item.padreNombres} {item.padreApellidos}
                         </p>
-                        <span className="text-[9px] font-extrabold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
+                        <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
                           {item.parentesco}
                         </span>
                       </div>

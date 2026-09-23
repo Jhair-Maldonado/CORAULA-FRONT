@@ -20,8 +20,8 @@ import {
   LicenseIcon,
   Menu01Icon,
   BookOpen01Icon,
-  Logout01Icon
-  
+  Logout01Icon,
+  FingerPrintIcon
 } from 'hugeicons-react';
 
 type SubItem = {
@@ -70,6 +70,7 @@ const MENU_SECTIONS: MenuSection[] = [
   {
     sectionTitle: 'Sistema',
     items: [
+      { name: 'Huella Digital', path: '/administrador/huella', icon: FingerPrintIcon },
       { name: 'Auditoría', path: '/administrador/auditoria', icon: Shield01Icon },
       { name: 'Chat', path: '/administrador/chat', icon: Comment01Icon, badge: 3 },
     ]
@@ -96,12 +97,12 @@ export const SidebarAdmin = () => {
       <div className={`h-16 flex items-center justify-between px-4 shrink-0 ${isCollapsed ? 'justify-center' : ''}`}>
         <div className="flex items-center gap-2.5">
           {/* Logo Icono */}
-          <div className="w-8 h-8 rounded-xl bg-accent flex items-center justify-center text-white shadow-xs shrink-0 font-extrabold text-sm tracking-tight">
+          <div className="w-8 h-8 rounded-xl bg-accent flex items-center justify-center text-white shadow-xs shrink-0 font-bold text-sm tracking-tight">
             C
           </div>
 
           {!isCollapsed && (
-            <span className="text-ink font-black text-lg tracking-tight">
+            <span className="text-ink font-bold text-lg tracking-tight">
               CORAULA
             </span>
           )}
@@ -140,22 +141,18 @@ export const SidebarAdmin = () => {
           </div>
         ) : (
           <div className="relative group flex justify-center">
-            <div className="w-8 h-8 rounded-xl bg-neutral/80 border border-line flex items-center justify-center text-accent font-bold text-xs cursor-pointer">
+            <div 
+              title="Sede Central · Santa Rosa"
+              className="w-8 h-8 rounded-xl bg-neutral/80 border border-line flex items-center justify-center text-accent font-bold text-xs cursor-pointer"
+            >
               S
-            </div>
-            {/* Globo Tooltip */}
-            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center z-50 pointer-events-none">
-              <div className="w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-ink" />
-              <div className="bg-ink text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-xl">
-                Sede Central · Santa Rosa
-              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Navegación por Secciones (sin overflow recortante) */}
-      <nav className="flex-1 flex flex-col gap-4 px-3 py-2 overflow-y-visible">
+      {/* Navegación por Secciones con scroll interno oculto */}
+      <nav className="flex-1 flex flex-col gap-4 px-3 py-2 overflow-y-auto hide-scrollbar">
         {MENU_SECTIONS.map((section) => (
           <div key={section.sectionTitle} className="flex flex-col gap-0.5">
             
@@ -178,13 +175,14 @@ export const SidebarAdmin = () => {
                 <div key={item.name} className="relative group">
                   <Link
                     href={item.path!}
+                    title={isCollapsed ? item.name : undefined}
                     className={`flex items-center justify-between rounded-xl transition-all font-sans text-xs relative ${
                       isCollapsed 
                         ? 'justify-center w-9 h-9 mx-auto' 
                         : 'px-2.5 h-8.5'
                     } ${
                       isActive 
-                        ? 'bg-accent/10 text-accent font-extrabold' 
+                        ? 'bg-accent/10 text-accent font-bold' 
                         : 'text-ink hover:bg-neutral/70 font-medium'
                     }`}
                   >
@@ -219,23 +217,6 @@ export const SidebarAdmin = () => {
                       <div className="absolute right-1 top-1 w-1.5 h-1.5 rounded-full bg-accent" />
                     )}
                   </Link>
-
-                  {/* Globo / Tooltip flotante visible en colapsado */}
-                  {isCollapsed && (
-                    <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center z-50 pointer-events-none">
-                      {/* Flechita del globo */}
-                      <div className="w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-ink" />
-                      {/* Cuerpo del globo */}
-                      <div className="bg-ink text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-xl flex items-center gap-1.5">
-                        <span>{item.name}</span>
-                        {item.badge && (
-                          <span className="bg-accent text-white text-[9px] px-1.5 py-0.2 rounded-md font-extrabold">
-                            {item.badge}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -269,17 +250,11 @@ export const SidebarAdmin = () => {
           <div className="relative group flex justify-center">
             <Link
               href="/security"
+              title="Cerrar sesión"
               className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center cursor-pointer hover:bg-rose-100 transition-colors"
             >
               <Logout01Icon size={16} />
             </Link>
-            {/* Globo Tooltip para Salir */}
-            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center z-50 pointer-events-none">
-              <div className="w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-ink" />
-              <div className="bg-ink text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-xl flex items-center gap-1.5">
-                <span>Cerrar sesión</span>
-              </div>
-            </div>
           </div>
         )}
       </div>

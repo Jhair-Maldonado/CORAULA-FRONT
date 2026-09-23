@@ -28,8 +28,7 @@ export default function HorariosPage() {
       capacidad: seccion.capacidadMaxima,
       // Horarios simulados para la card
       tutor: 'Prof. María Fernanda Soto',
-      totalHorasSemana: 30,
-      estadoHorario: 'Asignado Completo'
+      totalHorasSemana: 30
     }));
   });
 
@@ -41,15 +40,15 @@ export default function HorariosPage() {
   });
 
   return (
-    <div className="w-full h-full p-6 md:p-8 overflow-y-auto bg-canvas font-sans flex flex-col gap-5">
+    <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans flex flex-col gap-5">
       
       {/* HEADER & NUEVO HORARIO ACTION */}
       <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <span className="text-accent text-[10px] font-extrabold tracking-widest uppercase">
+          <span className="text-accent text-[10px] font-bold tracking-widest uppercase">
             PLANIFICACIÓN ACADÉMICA
           </span>
-          <h1 className="text-ink text-xl font-extrabold mt-0.5 tracking-tight">
+          <h1 className="text-ink text-xl font-bold mt-0.5 tracking-tight">
             Horarios por Grado y Sección
           </h1>
           <p className="text-muted text-xs font-medium mt-0.5">
@@ -111,7 +110,6 @@ export default function HorariosPage() {
               capacidad={item.capacidad}
               tutor={item.tutor}
               totalHorasSemana={item.totalHorasSemana}
-              estadoHorario={item.estadoHorario}
             />
           ))
         ) : (

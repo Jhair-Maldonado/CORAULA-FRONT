@@ -28,7 +28,7 @@ export const GradosSidebar = () => {
   return (
     <div className="w-[190px] h-full bg-white border-r border-line py-4 flex flex-col gap-3 shrink-0 overflow-y-auto font-sans">
       <div className="px-3 mb-1">
-        <h2 className="text-ink text-xs font-extrabold flex items-center gap-1.5">
+        <h2 className="text-ink text-xs font-bold flex items-center gap-1.5">
           <BookOpen01Icon size={15} className="text-accent" />
           Niveles y Grados
         </h2>

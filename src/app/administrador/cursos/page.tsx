@@ -66,15 +66,15 @@ export default function CursosPage() {
   };
 
   return (
-    <div className="w-full h-full p-6 md:p-8 overflow-y-auto bg-canvas font-sans flex flex-col gap-6">
+    <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans flex flex-col gap-6">
       
       {/* HEADER & NUEVO CURSO */}
       <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <span className="text-accent text-[10px] font-extrabold tracking-widest uppercase">
+          <span className="text-accent text-[10px] font-bold tracking-widest uppercase">
             MALLA CURRICULAR Y SYLLABUS
           </span>
-          <h1 className="text-ink text-2xl font-extrabold mt-0.5 tracking-tight">
+          <h1 className="text-ink text-2xl font-bold mt-0.5 tracking-tight">
             Gestión de Cursos Académicos
           </h1>
           <p className="text-muted text-xs font-medium mt-0.5">
@@ -129,16 +129,16 @@ export default function CursosPage() {
             <div>
               {/* Header de la tarjeta */}
               <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center font-extrabold text-sm border border-accent/20 shrink-0 group-hover:scale-105 transition-transform">
+                <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center font-bold text-sm border border-accent/20 shrink-0 group-hover:scale-105 transition-transform">
                   <BookOpen01Icon size={20} />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-wider bg-neutral text-ink px-2 py-0.5 rounded-md border border-line/60">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-neutral text-ink px-2 py-0.5 rounded-md border border-line/60">
                   {curso.codigo}
                 </span>
               </div>
 
               {/* Título y Nivel */}
-              <h2 className="text-sm font-black text-ink group-hover:text-accent transition-colors leading-tight mb-1">
+              <h2 className="text-sm font-bold text-ink group-hover:text-accent transition-colors leading-tight mb-1">
                 {curso.nombre}
               </h2>
               <p className="text-[11px] font-bold text-muted mb-3">
@@ -160,7 +160,7 @@ export default function CursosPage() {
 
             {/* Syllabus badge y Flecha */}
             <div className="pt-2 border-t border-line/50 flex items-center justify-between">
-              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
                 curso.syllabusArchivo 
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   : 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -182,7 +182,7 @@ export default function CursosPage() {
           <div className="bg-white rounded-2xl border border-line p-6 max-w-md w-full shadow-xl animate-fade-in flex flex-col gap-4">
             
             <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-base font-black text-ink flex items-center gap-2">
+              <h3 className="text-base font-bold text-ink flex items-center gap-2">
                 <BookOpen01Icon size={18} className="text-accent" /> Registrar Nuevo Curso
               </h3>
               <button 

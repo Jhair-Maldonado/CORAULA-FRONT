@@ -67,16 +67,16 @@ export default function AlumnosOverviewPage() {
   const uniqueLetras = Array.from(new Set(allSections.map(s => s.letra))).sort();
 
   return (
-    <div className="w-full h-full p-8 md:p-12 overflow-y-auto bg-canvas font-sans flex flex-col">
+    <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans flex flex-col">
       <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col">
         
         {/* Header */}
         <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <span className="text-accent text-[11px] font-extrabold tracking-widest uppercase">
+            <span className="text-accent text-[11px] font-bold tracking-widest uppercase">
               Alumnado
             </span>
-            <h1 className="text-ink text-2xl font-extrabold mt-1">
+            <h1 className="text-ink text-2xl font-bold mt-1">
               Listado de Alumnos
             </h1>
           </div>

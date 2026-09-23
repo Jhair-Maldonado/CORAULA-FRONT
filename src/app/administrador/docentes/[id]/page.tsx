@@ -69,10 +69,10 @@ export default function DocentePerfilPage() {
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-1">
           <div>
-            <span className="text-accent text-[11px] font-extrabold tracking-widest uppercase">
+            <span className="text-accent text-[11px] font-bold tracking-widest uppercase">
               EQUIPO ACADÉMICO
             </span>
-            <h1 className="text-ink text-2xl font-extrabold mt-0.5 tracking-tight">
+            <h1 className="text-ink text-2xl font-bold mt-0.5 tracking-tight">
               Perfil de docente
             </h1>
             <p className="text-muted text-xs font-medium mt-0.5">
@@ -135,7 +135,7 @@ export default function DocentePerfilPage() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-accent-soft text-accent font-extrabold text-2xl flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-accent-soft text-accent font-bold text-2xl flex items-center justify-center">
                   {docenteOriginal.iniciales}
                 </div>
               )}
@@ -164,7 +164,7 @@ export default function DocentePerfilPage() {
               
               {/* Identidad y Cargo */}
               <div>
-                <h2 className="text-ink font-extrabold text-lg md:text-xl leading-tight">
+                <h2 className="text-ink font-bold text-lg md:text-xl leading-tight">
                   {nombres} {apellidos}
                 </h2>
                 <p className="text-accent text-xs font-bold mt-0.5">
@@ -178,21 +178,21 @@ export default function DocentePerfilPage() {
                 {/* Asistencias */}
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-bold text-muted uppercase">Asistencias</span>
-                  <span className="text-lg font-black text-accent">{docenteOriginal.asistenciasPorcentaje}%</span>
+                  <span className="text-lg font-bold text-accent">{docenteOriginal.asistenciasPorcentaje}%</span>
                   <span className="text-[9px] font-semibold text-muted">Periodo actual</span>
                 </div>
 
                 {/* Faltas */}
                 <div className="flex flex-col gap-1 border-l border-line pl-3">
                   <span className="text-[10px] font-bold text-muted uppercase">Faltas</span>
-                  <span className="text-lg font-black text-ink">{docenteOriginal.faltasDias} días</span>
+                  <span className="text-lg font-bold text-ink">{docenteOriginal.faltasDias} días</span>
                   <span className="text-[9px] font-semibold text-muted">Periodo actual</span>
                 </div>
 
                 {/* Tardanzas */}
                 <div className="flex flex-col gap-1 border-l border-line pl-3">
                   <span className="text-[10px] font-bold text-muted uppercase">Tardanzas</span>
-                  <span className="text-lg font-black text-amber-500">{docenteOriginal.tardanzasRegistros} reg.</span>
+                  <span className="text-lg font-bold text-amber-500">{docenteOriginal.tardanzasRegistros} reg.</span>
                   <span className="text-[9px] font-semibold text-muted">Periodo actual</span>
                 </div>
 
@@ -206,7 +206,7 @@ export default function DocentePerfilPage() {
           <div className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm flex flex-col gap-4">
             
             <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-ink font-extrabold text-sm flex items-center gap-2">
+              <h3 className="text-ink font-bold text-sm flex items-center gap-2">
                 <BookOpen01Icon size={16} className="text-accent" />
                 Asignación de cursos, grado y sección
               </h3>
@@ -248,7 +248,7 @@ export default function DocentePerfilPage() {
             
             {/* SECCIÓN CREDENCIALES */}
             <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-ink font-extrabold text-sm">
+              <h3 className="text-ink font-bold text-sm">
                 Credenciales del Sistema
               </h3>
             </div>
@@ -322,7 +322,7 @@ export default function DocentePerfilPage() {
 
             {/* SECCIÓN DATOS PERSONALES */}
             <div className="border-t border-line pt-4 mt-2 flex flex-col gap-3">
-              <h3 className="text-ink font-extrabold text-sm border-b border-line pb-2">
+              <h3 className="text-ink font-bold text-sm border-b border-line pb-2">
                 Datos personales
               </h3>
 

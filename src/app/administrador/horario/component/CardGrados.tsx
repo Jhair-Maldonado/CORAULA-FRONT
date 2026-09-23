@@ -41,7 +41,7 @@ export const CardGrados: React.FC<CardGradosProps> = ({
         {/* Header de la Card */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-accent-soft text-accent flex items-center justify-center font-extrabold text-xs group-hover:scale-105 transition-transform shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-accent-soft text-accent flex items-center justify-center font-bold text-xs group-hover:scale-105 transition-transform shrink-0">
               {numeroGrado}°{letraSeccion}
             </div>
             <div>
@@ -54,7 +54,7 @@ export const CardGrados: React.FC<CardGradosProps> = ({
             </div>
           </div>
 
-          <span className="bg-emerald-50 text-emerald-700 text-[9px] font-extrabold px-2 py-0.5 rounded border border-emerald-200 shrink-0">
+          <span className="bg-emerald-50 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded border border-emerald-200 shrink-0">
             {estadoHorario}
           </span>
         </div>
@@ -67,14 +67,14 @@ export const CardGrados: React.FC<CardGradosProps> = ({
             <span className="flex items-center gap-1.5 text-[10px]">
               <UserGroupIcon size={13} className="text-accent shrink-0" /> Matriculados:
             </span>
-            <span className="font-extrabold text-ink">{cantAlumnos} / {capacidad}</span>
+            <span className="font-bold text-ink">{cantAlumnos} / {capacidad}</span>
           </div>
 
           <div className="flex items-center justify-between text-muted">
             <span className="flex items-center gap-1.5 text-[10px]">
               <Clock01Icon size={13} className="text-accent shrink-0" /> Horas/Semana:
             </span>
-            <span className="font-extrabold text-ink">{totalHorasSemana} hrs</span>
+            <span className="font-bold text-ink">{totalHorasSemana} hrs</span>
           </div>
 
           <div className="flex items-center justify-between text-muted">

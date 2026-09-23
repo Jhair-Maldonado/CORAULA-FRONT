@@ -54,11 +54,11 @@ export default function HomePage() {
     <div className="min-h-screen bg-canvas flex flex-col justify-between p-6 sm:p-12 font-sans">
       <header className="max-w-6xl mx-auto w-full flex justify-between items-center pb-8 border-b border-line">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-white font-extrabold text-xl shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-white font-bold text-xl shadow-md">
             C
           </div>
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-ink">CORAULA</h1>
+            <h1 className="text-xl font-bold tracking-tight text-ink">CORAULA</h1>
             <p className="text-xs font-semibold text-muted tracking-wider uppercase">Plataforma Educativa Integrada</p>
           </div>
         </div>
@@ -69,10 +69,10 @@ export default function HomePage() {
 
       <main className="max-w-6xl mx-auto w-full py-12 flex-1">
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-xs font-extrabold tracking-widest text-accent uppercase bg-accent-soft px-3 py-1 rounded-full inline-block mb-3">
+          <span className="text-xs font-bold tracking-widest text-accent uppercase bg-accent-soft px-3 py-1 rounded-full inline-block mb-3">
             SELECCIÓN DE ROL
           </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-ink tracking-tight mb-4">
+          <h2 className="text-3xl sm:text-4xl font-bold text-ink tracking-tight mb-4">
             Bienvenido al portal de CORAULA
           </h2>
           <p className="text-muted text-sm sm:text-base">

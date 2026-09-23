@@ -40,7 +40,7 @@ export const TarjetaEstudiante = ({
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {/* Avatar / Foto */}
-        <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-black text-xs flex items-center justify-center shrink-0 border border-accent/20 overflow-hidden group-hover:scale-105 transition-transform">
+        <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-bold text-xs flex items-center justify-center shrink-0 border border-accent/20 overflow-hidden group-hover:scale-105 transition-transform">
           {fotoUrl ? (
             <img src={fotoUrl} alt={`${nombres} ${apellidos}`} className="w-full h-full object-cover" />
           ) : (
@@ -51,7 +51,7 @@ export const TarjetaEstudiante = ({
         {/* Información Principal */}
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="text-ink text-xs font-black truncate group-hover:text-accent transition-colors">
+            <span className="text-ink text-xs font-bold truncate group-hover:text-accent transition-colors">
               {nombres} {apellidos}
             </span>
           </div>

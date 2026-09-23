@@ -112,11 +112,11 @@ export default function ChatPage() {
           {/* Header Lista con Botón Nuevo Chat */}
           <div className="p-4 border-b border-line bg-neutral/30 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-accent text-white font-black text-xs flex items-center justify-center">
+              <div className="w-9 h-9 rounded-full bg-accent text-white font-bold text-xs flex items-center justify-center">
                 AD
               </div>
               <div>
-                <h2 className="text-sm font-black text-ink leading-tight">Chat Institucional</h2>
+                <h2 className="text-sm font-bold text-ink leading-tight">Chat Institucional</h2>
                 <p className="text-[10px] font-bold text-muted">Mensajería interna</p>
               </div>
             </div>
@@ -182,7 +182,7 @@ export default function ChatPage() {
                 >
                   {/* Avatar con Estado Online */}
                   <div className="relative shrink-0">
-                    <div className="w-11 h-11 rounded-full bg-accent-soft text-accent font-black text-xs flex items-center justify-center border border-accent/20">
+                    <div className="w-11 h-11 rounded-full bg-accent-soft text-accent font-bold text-xs flex items-center justify-center border border-accent/20">
                       {iniciales}
                     </div>
                     {contacto.online && (
@@ -217,13 +217,13 @@ export default function ChatPage() {
           {/* Header Chat Activo */}
           <div className="p-3.5 px-6 bg-white border-b border-line flex items-center justify-between shrink-0 shadow-xs z-10">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-accent-soft text-accent font-black text-xs flex items-center justify-center border border-accent/20">
+              <div className="w-10 h-10 rounded-full bg-accent-soft text-accent font-bold text-xs flex items-center justify-center border border-accent/20">
                 {contactoSeleccionado.nombre.split(' ').map(n => n.charAt(0)).slice(0, 2).join('')}
               </div>
               <div>
-                <h3 className="text-sm font-black text-ink leading-tight">{contactoSeleccionado.nombre}</h3>
+                <h3 className="text-sm font-bold text-ink leading-tight">{contactoSeleccionado.nombre}</h3>
                 <span className="text-[10px] font-bold text-muted flex items-center gap-1.5">
-                  <span className="bg-accent/10 text-accent px-1.5 py-0.2 rounded font-extrabold">{contactoSeleccionado.rol}</span>
+                  <span className="bg-accent/10 text-accent px-1.5 py-0.2 rounded font-bold">{contactoSeleccionado.rol}</span>
                   • {contactoSeleccionado.online ? 'En línea' : 'Desconectado'}
                 </span>
               </div>
@@ -249,7 +249,7 @@ export default function ChatPage() {
                 }`}
               >
                 {!msg.esMio && (
-                  <span className="text-[10px] font-extrabold text-accent mb-1">{msg.remitenteNombre}</span>
+                  <span className="text-[10px] font-bold text-accent mb-1">{msg.remitenteNombre}</span>
                 )}
                 <p className="text-xs font-medium leading-relaxed break-words">{msg.texto}</p>
                 
@@ -297,7 +297,7 @@ export default function ChatPage() {
       {/* MODAL BIOMÉTRICO: ESCANEO DE HUELLA DACTILAR */}
       {showModalHuella && (
         <div className="fixed inset-0 bg-ink/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl border border-line p-6 md:p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center gap-4 relative animate-fade-in">
+          <div className="bg-white rounded-3xl border border-line p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center gap-4 relative animate-fade-in">
             
             <button 
               onClick={() => {
@@ -311,8 +311,8 @@ export default function ChatPage() {
             </button>
 
             <div className="flex flex-col items-center">
-              <span className="text-[10px] font-extrabold text-accent uppercase tracking-widest">VERIFICACIÓN BIOMÉTRICA</span>
-              <h3 className="text-base font-black text-ink mt-0.5">Escanear Huella del Alumno</h3>
+              <span className="text-[10px] font-bold text-accent uppercase tracking-widest">VERIFICACIÓN BIOMÉTRICA</span>
+              <h3 className="text-base font-bold text-ink mt-0.5">Escanear Huella del Alumno</h3>
               <p className="text-xs text-muted font-medium mt-1 max-w-[240px]">
                 Coloca la huella dactilar del alumno en el lector biológico para abrir el chat del apoderado.
               </p>
@@ -365,7 +365,7 @@ export default function ChatPage() {
 
             {alumnoEncontrado && (
               <div className="w-full p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex flex-col gap-1 text-left animate-fade-in">
-                <div className="flex items-center gap-1.5 text-xs font-black text-emerald-700">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700">
                   <CheckmarkCircle01Icon size={16} /> Huella Reconocida
                 </div>
                 <p className="text-[11px] font-bold text-ink mt-0.5">{alumnoEncontrado.alumno}</p>

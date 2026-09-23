@@ -97,7 +97,7 @@ export default function AdminSecurityLoginPage() {
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ink/5 text-ink text-[11px] font-bold tracking-wider uppercase mb-2">
                 <SecurityCheckIcon size={14} className="text-accent" /> Panel Administrativo & Docente
               </span>
-              <h2 className="text-[26px] font-black text-ink leading-tight tracking-tight">
+              <h2 className="text-[26px] font-bold text-ink leading-tight tracking-tight">
                 Gestión eficiente, <span className="text-accent">mejores resultados</span>
               </h2>
               <p className="text-[13px] text-muted font-medium mt-2 leading-relaxed max-w-sm mx-auto">
@@ -113,7 +113,7 @@ export default function AdminSecurityLoginPage() {
               {/* Header de tarjeta */}
               <div className="mb-6 text-left">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-extrabold tracking-widest uppercase text-accent">
+                  <span className="text-[11px] font-bold tracking-widest uppercase text-accent">
                     CORAULA
                   </span>
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-md">
@@ -121,7 +121,7 @@ export default function AdminSecurityLoginPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-[22px] font-black text-ink tracking-tight">
+                  <h1 className="text-[22px] font-bold text-ink tracking-tight">
                     Acceso Institucional
                   </h1>
                   <LockPasswordIcon size={20} className="text-accent" />
@@ -270,7 +270,7 @@ export default function AdminSecurityLoginPage() {
                     <SecurityCheckIcon size={20} />
                   </div>
                   <div>
-                    <h3 className="text-base font-black text-ink">Recuperar acceso</h3>
+                    <h3 className="text-base font-bold text-ink">Recuperar acceso</h3>
                     <p className="text-[12px] text-muted font-medium">Paso 1 de 2: Ingresa tu correo</p>
                   </div>
                 </div>
@@ -314,7 +314,7 @@ export default function AdminSecurityLoginPage() {
                     <SecurityCheckIcon size={20} />
                   </div>
                   <div>
-                    <h3 className="text-base font-black text-ink">Código enviado</h3>
+                    <h3 className="text-base font-bold text-ink">Código enviado</h3>
                     <p className="text-[12px] text-muted font-medium">Paso 2 de 2: Verifica el código</p>
                   </div>
                 </div>
@@ -340,7 +340,7 @@ export default function AdminSecurityLoginPage() {
                           (e.target.nextElementSibling as HTMLInputElement).focus();
                         }
                       }}
-                      className="w-10 h-11 text-center bg-neutral/30 border border-line rounded-xl text-base font-black text-ink outline-none focus:border-accent focus:bg-white"
+                      className="w-10 h-11 text-center bg-neutral/30 border border-line rounded-xl text-base font-bold text-ink outline-none focus:border-accent focus:bg-white"
                     />
                   ))}
                 </div>
@@ -364,7 +364,7 @@ export default function AdminSecurityLoginPage() {
                 <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
                   <CheckmarkCircle02Icon size={28} />
                 </div>
-                <h3 className="text-base font-black text-ink">¡Autenticación Exitosa!</h3>
+                <h3 className="text-base font-bold text-ink">¡Autenticación Exitosa!</h3>
                 <p className="text-[12.5px] text-muted leading-relaxed">
                   Se ha enviado un enlace de restablecimiento seguro a tu dirección corporativa.
                 </p>

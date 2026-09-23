@@ -31,15 +31,15 @@ export default function VacantesPage() {
   );
 
   return (
-    <div className="w-full h-full p-6 md:p-8 overflow-y-auto bg-canvas font-sans flex flex-col gap-6">
+    <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans flex flex-col gap-6">
       
       {/* HEADER & FILTROS */}
       <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <span className="text-accent text-[10px] font-extrabold tracking-widest uppercase">
+          <span className="text-accent text-[10px] font-bold tracking-widest uppercase">
             PLANIFICACIÓN Y ADMISIÓN
           </span>
-          <h1 className="text-ink text-xl font-extrabold mt-0.5 tracking-tight">
+          <h1 className="text-ink text-xl font-bold mt-0.5 tracking-tight">
             Control de Vacantes por Grado
           </h1>
           <p className="text-muted text-xs font-medium mt-0.5">
@@ -85,16 +85,16 @@ export default function VacantesPage() {
                 {/* Header de la tarjeta */}
                 <div className="flex items-start justify-between mb-3 relative z-10">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center font-black text-sm shrink-0 border border-accent/20">
+                    <div className="w-9 h-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center font-bold text-sm shrink-0 border border-accent/20">
                       {grado.numero}°
                     </div>
                     <div>
-                      <h2 className="text-xs font-black text-ink leading-tight">{grado.nombre}</h2>
+                      <h2 className="text-xs font-bold text-ink leading-tight">{grado.nombre}</h2>
                       <span className="text-[9px] font-bold text-muted uppercase tracking-wider">{grado.nivel}</span>
                     </div>
                   </div>
 
-                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border ${
+                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
                     isAberto 
                       ? isLleno ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                       : 'bg-neutral text-muted border-line'
@@ -109,13 +109,13 @@ export default function VacantesPage() {
                     <span className="text-[9px] font-bold text-muted uppercase tracking-wider flex items-center gap-1">
                       <UserGroupIcon size={12} className="text-muted" /> Inscritos
                     </span>
-                    <span className="text-base font-black text-ink mt-0.5">{inscritosTotal}</span>
+                    <span className="text-base font-bold text-ink mt-0.5">{inscritosTotal}</span>
                   </div>
                   <div className="flex flex-col border-l border-line/60 pl-2.5">
                     <span className="text-[9px] font-bold text-muted uppercase tracking-wider flex items-center gap-1">
                       <Door01Icon size={12} className="text-accent" /> Vacantes
                     </span>
-                    <span className={`text-base font-black mt-0.5 ${vacantesDisponibles > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                    <span className={`text-base font-bold mt-0.5 ${vacantesDisponibles > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
                       {vacantesDisponibles}
                     </span>
                   </div>
@@ -125,7 +125,7 @@ export default function VacantesPage() {
                 <div className="flex flex-col gap-1 mb-4 relative z-10">
                   <div className="flex items-center justify-between text-[10px] font-bold">
                     <span className="text-muted">Capacidad</span>
-                    <span className="text-ink font-black">{inscritosTotal} / {capacidadTotal} ({Math.round(porcentajeOcupado)}%)</span>
+                    <span className="text-ink font-bold">{inscritosTotal} / {capacidadTotal} ({Math.round(porcentajeOcupado)}%)</span>
                   </div>
                   <div className="w-full h-1.5 bg-neutral rounded-full overflow-hidden">
                     <div 

@@ -51,7 +51,7 @@ export const GlobalLoader = () => {
         </div>
 
         {/* Texto */}
-        <h2 className="text-ink font-black tracking-[0.2em] uppercase text-sm mb-1">
+        <h2 className="text-ink font-bold tracking-[0.2em] uppercase text-sm mb-1">
           Iniciando sesión
         </h2>
         <p className="text-muted text-[11px] font-medium mb-6">

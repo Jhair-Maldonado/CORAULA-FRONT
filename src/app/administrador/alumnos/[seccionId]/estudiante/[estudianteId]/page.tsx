@@ -119,7 +119,7 @@ export default function EstudianteDetallePage() {
             
             {/* Avatar con foto y vista previa */}
             <div className="relative group shrink-0">
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-neutral border-4 border-white shadow-md flex items-center justify-center text-2xl font-black text-accent overflow-hidden">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-neutral border-4 border-white shadow-md flex items-center justify-center text-2xl font-bold text-accent overflow-hidden">
                 {fotoUrl ? (
                   <img src={fotoUrl} alt="Foto Alumno" className="w-full h-full object-cover" />
                 ) : (
@@ -134,14 +134,14 @@ export default function EstudianteDetallePage() {
                   className="absolute inset-0 bg-ink/65 rounded-full flex flex-col items-center justify-center text-white gap-1 opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
                 >
                   <Camera01Icon size={20} />
-                  <span className="text-[9px] font-extrabold uppercase">Cambiar</span>
+                  <span className="text-[9px] font-bold uppercase">Cambiar</span>
                 </button>
               )}
             </div>
 
             <div className="flex-1 text-center sm:text-left w-full sm:w-auto">
               {!isEditing ? (
-                <h1 className="text-xl md:text-2xl font-black text-ink tracking-tight mb-1">
+                <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight mb-1">
                   {nombres} {apellidos}
                 </h1>
               ) : (
@@ -237,7 +237,7 @@ export default function EstudianteDetallePage() {
           
           {/* Datos Personales */}
           <div className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm flex flex-col justify-between">
-            <h2 className="text-xs font-black text-ink uppercase tracking-wider mb-4 flex items-center gap-2">
+            <h2 className="text-xs font-bold text-ink uppercase tracking-wider mb-4 flex items-center gap-2">
               <UserCircleIcon size={18} className="text-accent" /> Datos Personales
             </h2>
             <div className="grid grid-cols-1 gap-3">
@@ -332,7 +332,7 @@ export default function EstudianteDetallePage() {
             
             {/* Contacto de Emergencia */}
             <div className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm border-l-4 border-l-rose-400">
-              <h2 className="text-xs font-black text-ink uppercase tracking-wider mb-4 flex items-center gap-2">
+              <h2 className="text-xs font-bold text-ink uppercase tracking-wider mb-4 flex items-center gap-2">
                 <HeartAddIcon size={18} className="text-rose-500" /> Contacto de Emergencia
               </h2>
               <div className="p-3 bg-rose-50/60 rounded-xl border border-rose-100 flex flex-col gap-3">
@@ -340,12 +340,12 @@ export default function EstudianteDetallePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Familiar / Apoderado</p>
-                      <p className="text-xs font-black text-ink mt-0.5">{contactoNombre}</p>
+                      <p className="text-xs font-bold text-ink mt-0.5">{contactoNombre}</p>
                       <p className="text-[11px] font-bold text-muted">{contactoRelacion}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Celular</p>
-                      <p className="text-sm font-black text-ink tracking-tight mt-0.5">{contactoTelefono}</p>
+                      <p className="text-sm font-bold text-ink tracking-tight mt-0.5">{contactoTelefono}</p>
                     </div>
                   </div>
                 ) : (
@@ -401,7 +401,7 @@ export default function EstudianteDetallePage() {
             <div className="bg-ink text-white rounded-2xl p-5 md:p-6 shadow-sm relative overflow-hidden flex-1 flex flex-col justify-between">
               <ShieldKeyIcon size={110} className="absolute -right-5 -bottom-5 text-white/5 pointer-events-none" />
               
-              <h2 className="text-xs font-black text-white uppercase tracking-wider mb-4 flex items-center gap-2 relative z-10">
+              <h2 className="text-xs font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2 relative z-10">
                 <ShieldKeyIcon size={18} className="text-accent-soft" /> Accesos al Sistema
               </h2>
               

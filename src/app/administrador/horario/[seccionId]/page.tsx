@@ -165,7 +165,7 @@ export default function DetalleHorarioPage() {
   const docentesDisponiblesObj = CURSOS_CONFIG.find(c => c.materia === materiaInput)?.docentes || ['María Fernanda Soto'];
 
   return (
-    <div className="w-full h-full p-6 md:p-8 overflow-y-auto bg-canvas font-sans flex flex-col gap-6 relative">
+    <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans flex flex-col gap-6 relative">
       
       {/* HEADER & VOLVER */}
       <div className="max-w-7xl mx-auto w-full flex flex-col gap-2">
@@ -177,10 +177,10 @@ export default function DetalleHorarioPage() {
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-1">
           <div>
-            <span className="text-accent text-[11px] font-extrabold tracking-widest uppercase">
+            <span className="text-accent text-[11px] font-bold tracking-widest uppercase">
               HORARIO ESCOLAR SEMANAL
             </span>
-            <h1 className="text-ink text-2xl font-extrabold mt-0.5 tracking-tight">
+            <h1 className="text-ink text-2xl font-bold mt-0.5 tracking-tight">
               {seccionNombre}
             </h1>
             <p className="text-muted text-xs font-medium mt-0.5">
@@ -243,14 +243,14 @@ export default function DetalleHorarioPage() {
           <table className="w-full border-collapse min-w-[850px] table-fixed">
             <thead>
               <tr className="bg-neutral/60 border-b border-line">
-                <th className="py-3 px-2 text-left text-[10px] font-extrabold text-muted uppercase tracking-wider w-24 border-r border-line">
+                <th className="py-3 px-2 text-left text-[10px] font-bold text-muted uppercase tracking-wider w-24 border-r border-line">
                   <div className="flex items-center gap-1">
                     <Clock01Icon size={13} className="text-accent" />
                     <span>Hora</span>
                   </div>
                 </th>
                 {diasFiltrados.map((dia) => (
-                  <th key={dia} className="py-3 px-2 text-center text-xs font-extrabold text-ink uppercase tracking-wider border-r border-line last:border-r-0">
+                  <th key={dia} className="py-3 px-2 text-center text-xs font-bold text-ink uppercase tracking-wider border-r border-line last:border-r-0">
                     {dia}
                   </th>
                 ))}
@@ -261,7 +261,7 @@ export default function DetalleHorarioPage() {
                 <tr key={horaIndex} className="h-14">
                   
                   {/* COLUMNA DE HORA COMPACTA Y LEGIBLE */}
-                  <td className="py-1 px-2 text-[11px] font-extrabold text-slate-600 border-r border-line bg-slate-50/80 whitespace-nowrap align-middle text-center tracking-tight">
+                  <td className="py-1 px-2 text-[11px] font-bold text-slate-600 border-r border-line bg-slate-50/80 whitespace-nowrap align-middle text-center tracking-tight">
                     {horaObj.label}
                   </td>
 
@@ -293,7 +293,7 @@ export default function DetalleHorarioPage() {
                           <div className={`w-full h-full p-2.5 rounded-xl ${bloque.colorCard} shadow-sm flex flex-col justify-between hover:brightness-105 transition-all group border border-black/10`}>
                             
                             <div>
-                              <p className="font-extrabold text-xs leading-snug truncate">
+                              <p className="font-bold text-xs leading-snug truncate">
                                 {bloque.materia}
                               </p>
                               <p className="text-[10px] font-semibold opacity-90 mt-0.5 flex items-center gap-1">
@@ -303,7 +303,7 @@ export default function DetalleHorarioPage() {
                             </div>
 
                             <div className="mt-1 flex items-center justify-between gap-1">
-                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shadow-xs ${bloque.colorBadge}`}>
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full shadow-xs ${bloque.colorBadge}`}>
                                 {bloque.modalidad}
                               </span>
                               <span className="text-[9px] font-bold opacity-80 truncate">
@@ -357,14 +357,14 @@ export default function DetalleHorarioPage() {
 
             {/* Badge Modalidad */}
             <div>
-              <span className="bg-amber-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
+              <span className="bg-amber-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                 {popoverDetalleBloque.modalidad}
               </span>
             </div>
 
             {/* Nombre del curso y día */}
             <div>
-              <h3 className="text-ink font-extrabold text-sm leading-snug">
+              <h3 className="text-ink font-bold text-sm leading-snug">
                 {popoverDetalleBloque.materia}
               </h3>
               <p className="text-muted text-xs font-semibold mt-0.5">
@@ -390,7 +390,7 @@ export default function DetalleHorarioPage() {
               <UserIcon size={18} className="shrink-0" />
               <div>
                 <span className="text-[10px] text-muted font-bold block uppercase">Profesor a cargo:</span>
-                <span className="text-ink text-xs font-extrabold">{popoverDetalleBloque.docente}</span>
+                <span className="text-ink text-xs font-bold">{popoverDetalleBloque.docente}</span>
               </div>
             </div>
 
@@ -421,7 +421,7 @@ export default function DetalleHorarioPage() {
           <div className="bg-white rounded-2xl border border-line p-6 max-w-md w-full shadow-2xl flex flex-col gap-5 animate-scale-in">
             
             <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="font-extrabold text-ink text-base">
+              <h3 className="font-bold text-ink text-base">
                 {bloqueEditandoId ? 'Editar Clase Programada' : 'Programar Nueva Clase'}
               </h3>
             </div>

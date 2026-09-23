@@ -30,5 +30,5 @@ export interface HorarioGradoSeccion {
   capacidad: number;
   tutor: string;
   totalHorasSemana: number;
-  estadoHorario: string;
+  estadoHorario?: string;
 }

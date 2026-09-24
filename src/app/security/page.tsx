@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { GuestGuard } from '@/components/GuestGuard';
 import {
   Mail01Icon,
   LockKeyIcon,
@@ -16,12 +18,19 @@ import {
 } from 'hugeicons-react';
 import { GlobalLoader } from '@/components/GlobalLoader';
 
+import { authService } from '@/services/authService';
+import { AuthContext } from '@/contexts/AuthContext';
+import { isAxiosError } from 'axios';
+
 export default function AdminSecurityLoginPage() {
   const router = useRouter();
+  const authContext = React.useContext(AuthContext);
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Estado para el modal de recuperación de contraseña
   const [modalOpen, setModalOpen] = useState(false);
@@ -30,13 +39,42 @@ export default function AdminSecurityLoginPage() {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loadingRecovery, setLoadingRecovery] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setCargando(true);
-    setTimeout(() => {
+    setErrorMsg(null);
+    
+    try {
+      const response = await authService.login(email, password);
+      
+      if (response.role === 'ESTUDIANTE' || response.role === 'APODERADO') {
+        setErrorMsg('Esta cuenta corresponde al portal de estudiantes y familias.');
+        setTimeout(() => router.push('/login'), 2000);
+        return;
+      }
+      
+      if (authContext) {
+        authContext.login(response.token, response.role);
+        if (response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO') {
+          router.push('/administrador');
+        } else if (response.role === 'DOCENTE') {
+          router.push('/docente');
+        }
+      }
+    } catch (error) {
+      if (isAxiosError(error) && error.response) {
+        const status = error.response.status;
+        if (status === 400) setErrorMsg('Revisa los datos ingresados.');
+        else if (status === 401) setErrorMsg('Credenciales inválidas.');
+        else if (status === 403) setErrorMsg('Tu cuenta se encuentra deshabilitada.');
+        else if (status === 423) setErrorMsg('Cuenta temporalmente bloqueada. Inténtalo más tarde.');
+        else setErrorMsg('Error al intentar iniciar sesión. Inténtalo más tarde.');
+      } else {
+        setErrorMsg('Error de red o servidor no disponible.');
+      }
+    } finally {
       setCargando(false);
-      router.push('/administrador');
-    }, 2500);
+    }
   };
 
   const handleSendCode = (e: React.FormEvent) => {
@@ -66,9 +104,10 @@ export default function AdminSecurityLoginPage() {
   };
 
   return (
-    <div className="w-screen h-screen min-h-screen bg-[#FAF9F6] flex flex-col font-sans overflow-hidden relative justify-center items-center">
+    <GuestGuard>
+      <div className="w-screen h-screen min-h-screen bg-[#FAF9F6] flex flex-col font-sans overflow-hidden relative justify-center items-center">
 
-      {/* ── CÍRCULOS DECORATIVOS ───────────────────────── */}
+        {/* ── CÍRCULOS DECORATIVOS ───────────────────────── */}
       <div className="absolute -top-14 -right-14 w-36 h-36 rounded-full border-[16px] border-accent/80 z-0 pointer-events-none" />
       <div className="absolute -bottom-24 -left-20 w-64 h-64 rounded-full bg-accent/90 z-0 pointer-events-none" />
       <div className="absolute bottom-4 left-4 w-44 h-44 rounded-full border border-ink/20 z-0 pointer-events-none" />
@@ -76,8 +115,14 @@ export default function AdminSecurityLoginPage() {
       <div className="absolute bottom-8 right-8 w-40 h-40 rounded-full border border-accent/80 z-0 pointer-events-none" />
 
       {/* ── CONTENIDO PRINCIPAL ──────────────────────────── */}
-      <main className="relative z-10 w-full max-w-6xl px-6 sm:px-10 lg:px-12 py-6 flex items-center justify-center">
+      <main className="relative z-10 w-full max-w-6xl px-6 sm:px-10 lg:px-12 py-6 flex flex-col items-center justify-center h-full">
         
+        <div className="w-full mb-6 flex justify-start">
+          <Link href="/" className="inline-flex items-center gap-2 text-[13px] font-bold text-muted hover:text-accent transition-colors bg-white/60 backdrop-blur-md px-4 py-2 rounded-xl border border-line/50 shadow-sm">
+            &larr; Volver a selección de usuarios
+          </Link>
+        </div>
+
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 items-center gap-8 lg:gap-12 bg-white/40 lg:bg-transparent backdrop-blur-xs p-6 lg:p-0 rounded-3xl border border-line/30 lg:border-none shadow-sm lg:shadow-none">
 
           {/* ── COLUMNA IZQUIERDA ── */}
@@ -182,6 +227,12 @@ export default function AdminSecurityLoginPage() {
                     ¿Olvidaste tu contraseña?
                   </button>
                 </div>
+
+                {errorMsg && (
+                  <div className="text-center bg-red-50 text-red-600 text-xs py-2 px-3 rounded-xl border border-red-100 font-medium">
+                    {errorMsg}
+                  </div>
+                )}
 
                 {/* Botón enviar */}
                 <button
@@ -380,7 +431,8 @@ export default function AdminSecurityLoginPage() {
         </div>
       )}
 
-      {cargando && <GlobalLoader />}
-    </div>
+        {cargando && <GlobalLoader />}
+      </div>
+    </GuestGuard>
   );
 }

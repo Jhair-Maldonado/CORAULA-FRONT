@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { 
   ArrowLeft01Icon, 
@@ -129,10 +130,11 @@ export default function DocentePerfilPage() {
             {/* Foto Avatar Docente con Upload */}
             <div className="w-full md:w-44 h-44 rounded-xl bg-neutral/80 overflow-hidden relative shrink-0 border border-line flex items-center justify-center group">
               {fotoUrl ? (
-                <img 
+                <Image 
                   src={fotoUrl} 
                   alt={docenteOriginal.nombreCompleto} 
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                 />
               ) : (
                 <div className="w-16 h-16 rounded-full bg-accent-soft text-accent font-bold text-2xl flex items-center justify-center">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { DocenteNav } from './components/DocenteNav';
+import { AuthGuard } from '@/components/AuthGuard';
 
 export default function DocenteLayout({
   children,
@@ -7,11 +8,13 @@ export default function DocenteLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <DocenteNav />
-      <main className="p-6">
-        {children}
-      </main>
-    </div>
+    <AuthGuard allowedRoles={['DOCENTE']}>
+      <div className="min-h-screen bg-slate-50">
+        <DocenteNav />
+        <main className="p-6">
+          {children}
+        </main>
+      </div>
+    </AuthGuard>
   );
 }

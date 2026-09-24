@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# CORAULA Frontend
 
-## Getting Started
+CORAULA es el Sistema de Control y Registro Académico de Aula. Este frontend proporciona la interfaz de usuario para la gestión académica, integrando flujos para diferentes tipos de usuarios (Administradores, Directivos, Docentes, Estudiantes y Apoderados).
 
-First, run the development server:
+## Stack Tecnológico
+- **Framework:** Next.js 16 (App Router)
+- **Librería UI:** React 19
+- **Lenguaje:** TypeScript (TSX)
+- **Estilos:** Tailwind CSS v4
+- **HTTP Client:** Axios
+- **Manejo JWT:** jwt-decode
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Requisitos Previos
+- Node.js (v18+)
+- npm (v9+)
+- El servidor Backend (Spring Boot) ejecutándose y accesible en la red.
+
+## Instalación
+1. Clonar el repositorio.
+2. Instalar dependencias:
+   ```bash
+   npm install
+   ```
+
+## Variables de Entorno
+Crea un archivo `.env.local` en la raíz (no versionado):
+```env
+# URL del backend para peticiones Axios (ej: http://localhost:8080)
+NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Ejecución Local
+Para arrancar el servidor de desarrollo en `http://localhost:3000`:
+```bash
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Validaciones y Build
+Para validar reglas de linter y tipeado estricto:
+```bash
+npm run lint
+```
+Para construir la versión optimizada de producción:
+```bash
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Estructura Principal
+El proyecto usa **App Router** de Next.js (`src/app`).
+- `src/app/`: Contiene las páginas, rutas y layouts.
+- `src/components/`: Componentes reutilizables, guards globales y UI.
+- `src/contexts/`: Manejo de estado global (ej. `AuthContext`).
+- `src/services/`: Capa de conexión al backend (`httpClient`, `authService`).
+- `src/types/`: Definiciones y contratos TS.
+- `docs/`: Documentación arquitectónica, técnica y de pruebas.
 
-## Learn More
+## Autenticación y Rutas
+La aplicación se divide en una zona pública y múltiples zonas privadas protegidas.
 
-To learn more about Next.js, take a look at the following resources:
+### Rutas Públicas
+- `/`: Panel de selección de usuario (Landing).
+- `/security`: Portal de autenticación para personal (Admin/Directivo/Docente).
+- `/login`: Portal de autenticación para familias (Apoderado/Estudiante).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+*(Las pantallas de autenticación están protegidas por `GuestGuard` que repele a usuarios ya logueados de vuelta a sus dashboards).*
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Roles Oficiales y Rutas Privadas
+La autenticación depende estrictamente de un JWT emitido por el backend, cuyo payload se gestiona en `AuthContext` y se verifica en `AuthGuard`. Los destinos y roles soportados son:
+- **ADMINISTRADOR** → `/administrador`
+- **DIRECTIVO** → `/administrador`
+- **DOCENTE** → `/docente`
+- **ESTUDIANTE** → `/alumno`
+- **APODERADO** → `/padre`
 
-## Deploy on Vercel
+Para un mayor detalle sobre la capa de seguridad, consulte `docs/autenticacion.md`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Comunicación con Backend
+Todo acceso al backend se realiza mediante `src/services/httpClient.ts`, una instancia de Axios pre-configurada para adjuntar automáticamente el JWT de autorización almacenado en `localStorage`. Cualquier Error HTTP 401, 403 o 423 se captura de manera proactiva a nivel global para forzar la expiración de la sesión.

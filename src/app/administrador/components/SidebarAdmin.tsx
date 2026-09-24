@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { AuthContext } from '@/contexts/AuthContext';
 import { 
   DashboardSquare01Icon, 
   TeacherIcon, 
@@ -81,6 +82,13 @@ export const SidebarAdmin = () => {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const authContext = useContext(AuthContext);
+
+  const handleLogout = () => {
+    if (authContext) {
+      authContext.logout();
+    }
+  };
 
   const toggleExpanded = (name: string) => {
     setExpandedMenus(prev => 
@@ -238,23 +246,23 @@ export const SidebarAdmin = () => {
               </div>
             </div>
 
-            <Link
-              href="/security"
-              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
+            <button
+              onClick={handleLogout}
+              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors shrink-0 cursor-pointer"
               title="Cerrar sesión"
             >
               <Logout01Icon size={16} />
-            </Link>
+            </button>
           </div>
         ) : (
           <div className="relative group flex justify-center">
-            <Link
-              href="/security"
+            <button
+              onClick={handleLogout}
               title="Cerrar sesión"
               className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center cursor-pointer hover:bg-rose-100 transition-colors"
             >
               <Logout01Icon size={16} />
-            </Link>
+            </button>
           </div>
         )}
       </div>

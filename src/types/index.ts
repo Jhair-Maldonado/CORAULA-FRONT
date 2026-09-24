@@ -6,6 +6,7 @@ export * from './docentes';
 export * from './horario';
 export * from './cursos';
 export * from './chat';
+export * from './padre';
 
 export interface User {
   id: string;
@@ -13,3 +14,4 @@ export interface User {
   email: string;
   role: UserRole;
 }
+

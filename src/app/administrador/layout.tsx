@@ -7,9 +7,9 @@ export default function AdministradorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-canvas font-sans">
+    <div className="flex h-screen w-full bg-canvas font-sans overflow-hidden">
       <SidebarAdmin />
-      <main className="flex-1 flex flex-col h-screen overflow-y-auto overflow-x-hidden">
+      <main className="flex-1 flex flex-col h-full overflow-y-auto overflow-x-hidden custom-scrollbar relative">
         {children}
       </main>
     </div>

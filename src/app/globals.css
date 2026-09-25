@@ -1,32 +1,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-:root {
-  --canvas: #F3F4F6;
-  --accent: #BE123C;
-  --accent-soft: #FFE4E6;
-  --ink: #111827;
-  --muted: #6B7280;
-  --white: #FFFFFF;
-  --success: #DCFCE7;
-  --success-ink: #15803D;
-  --warning-ink: #A16207;
-  --neutral: #F3F4F6;
-  --line: #E5E7EB;
+@layer base {
+  :root {
+    --canvas: #F3F4F6;
+    --accent: #BE123C;
+    --accent-soft: #FFE4E6;
+    --ink: #111827;
+    --muted: #6B7280;
+    --white: #FFFFFF;
+    --success: #DCFCE7;
+    --success-ink: #15803D;
+    --warning-ink: #A16207;
+    --neutral: #F3F4F6;
+    --line: #E5E7EB;
+  }
 }
 
-@theme inline {
-  --color-canvas: var(--canvas);
-  --color-accent: var(--accent);
-  --color-accent-soft: var(--accent-soft);
-  --color-ink: var(--ink);
-  --color-muted: var(--muted);
-  --color-white: var(--white);
-  --color-success: var(--success);
-  --color-success-ink: var(--success-ink);
-  --color-warning-ink: var(--warning-ink);
-  --color-neutral: var(--neutral);
-  --color-line: var(--line);
+@theme {
+  --color-canvas: #F3F4F6;
+  --color-accent: #BE123C;
+  --color-accent-soft: #FFE4E6;
+  --color-ink: #111827;
+  --color-muted: #6B7280;
+  --color-white: #FFFFFF;
+  --color-success: #DCFCE7;
+  --color-success-ink: #15803D;
+  --color-warning-ink: #A16207;
+  --color-neutral: #F3F4F6;
+  --color-line: #E5E7EB;
   --font-sans: 'Manrope', system-ui, -apple-system, sans-serif;
 }
 
@@ -37,3 +39,27 @@ body {
   margin: 0;
   padding: 0;
 }
+
+/* Custom scrollbar para contenedores internos */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

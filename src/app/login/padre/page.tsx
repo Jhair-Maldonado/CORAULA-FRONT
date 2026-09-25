@@ -2,5 +2,5 @@
 import { redirect } from 'next/navigation';
 
 export default function LoginPadrePage() {
-  redirect('/login?rol=padre');
+  redirect('/login');
 }

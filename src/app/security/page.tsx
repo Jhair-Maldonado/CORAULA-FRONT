@@ -33,10 +33,14 @@ export default function AdminSecurityLoginPage() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setCargando(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('coraula_token', 'coraula_jwt_administrador_session_token_2026');
+      localStorage.setItem('coraula_role', 'administrador');
+    }
     setTimeout(() => {
       setCargando(false);
       router.push('/administrador');
-    }, 2500);
+    }, 1800);
   };
 
   const handleSendCode = (e: React.FormEvent) => {
@@ -95,7 +99,7 @@ export default function AdminSecurityLoginPage() {
 
             <div className="text-center max-w-md">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ink/5 text-ink text-[11px] font-bold tracking-wider uppercase mb-2">
-                <SecurityCheckIcon size={14} className="text-accent" /> Panel Administrativo & Docente
+                <SecurityCheckIcon size={14} className="text-accent" /> PANEL ADMINISTRATIVO &amp; DOCENTE
               </span>
               <h2 className="text-[26px] font-bold text-ink leading-tight tracking-tight">
                 Gestión eficiente, <span className="text-accent">mejores resultados</span>
@@ -122,9 +126,9 @@ export default function AdminSecurityLoginPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-[22px] font-bold text-ink tracking-tight">
-                    Acceso Institucional
+                    CORAULA - Acceso Institucional
                   </h1>
-                  <LockPasswordIcon size={20} className="text-accent" />
+                  <LockPasswordIcon size={20} className="text-accent shrink-0" />
                 </div>
                 <p className="text-[12.5px] text-muted font-medium mt-1">
                   Ingresa credenciales de personal autorizado.
@@ -211,6 +215,13 @@ export default function AdminSecurityLoginPage() {
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('coraula_token', 'coraula_jwt_administrador_session_token_2026');
+                      localStorage.setItem('coraula_role', 'administrador');
+                    }
+                    router.push('/administrador');
+                  }}
                   className="flex items-center justify-center gap-1.5 py-2 px-2 bg-neutral/20 border border-line/60 rounded-lg hover:bg-neutral/50 transition-all text-[11px] font-semibold text-ink cursor-pointer"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
@@ -224,6 +235,13 @@ export default function AdminSecurityLoginPage() {
 
                 <button
                   type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('coraula_token', 'coraula_jwt_administrador_session_token_2026');
+                      localStorage.setItem('coraula_role', 'administrador');
+                    }
+                    router.push('/administrador');
+                  }}
                   className="flex items-center justify-center gap-1.5 py-2 px-2 bg-neutral/20 border border-line/60 rounded-lg hover:bg-neutral/50 transition-all text-[11px] font-semibold text-ink cursor-pointer"
                 >
                   <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 170 170">
@@ -234,6 +252,13 @@ export default function AdminSecurityLoginPage() {
 
                 <button
                   type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('coraula_token', 'coraula_jwt_administrador_session_token_2026');
+                      localStorage.setItem('coraula_role', 'administrador');
+                    }
+                    router.push('/administrador');
+                  }}
                   className="flex items-center justify-center gap-1.5 py-2 px-2 bg-neutral/20 border border-line/60 rounded-lg hover:bg-neutral/50 transition-all text-[11px] font-semibold text-ink cursor-pointer"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 23 23">

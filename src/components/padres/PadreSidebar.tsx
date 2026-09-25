@@ -157,7 +157,7 @@ export const PadreSidebar: React.FC = () => {
             </div>
           </div>
           <Link
-            href="/login?rol=padre"
+            href="/login"
             className="p-2 text-[#6B7280] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
             title="Cerrar sesión"
           >

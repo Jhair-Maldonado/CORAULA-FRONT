@@ -7,6 +7,7 @@ export * from './horario';
 export * from './cursos';
 export * from './chat';
 export * from './padre';
+export * from './alumno';
 
 export interface User {
   id: string;

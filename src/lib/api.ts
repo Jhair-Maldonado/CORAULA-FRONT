@@ -30,6 +30,26 @@ import {
   getMockResumenDashboard
 } from './mocks/mockPadres';
 
+import {
+  AlumnoPerfil,
+  CalificacionesAlumnoData,
+  ResumenAsistenciaAlumno,
+  HorarioAlumnoData,
+  MaterialesAlumnoData,
+  ContactoDocenteAlumno,
+  ResumenDashboardAlumno
+} from '@/types/alumno';
+
+import {
+  MOCK_ALUMNO_PERFIL,
+  MOCK_CALIFICACIONES_ALUMNO,
+  MOCK_ASISTENCIA_ALUMNO,
+  MOCK_HORARIO_ALUMNO,
+  MOCK_MATERIALES_ALUMNO,
+  MOCK_MENSAJES_DOCENTES,
+  MOCK_RESUMEN_DASHBOARD_ALUMNO
+} from './mocks/mockAlumno';
+
 // Determina si se usan mocks o backend real según variable de entorno
 const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS !== 'false';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
@@ -430,6 +450,159 @@ export async function enviarMensajeChat(contactoId: string, texto: string): Prom
   await fetchWithAuth('/chat/mensajes', {
     method: 'POST',
     body: JSON.stringify({ destinatarioId: contactoId, texto }),
+  });
+  return true;
+}
+
+// ==========================================
+// 9. MÓDULO ALUMNO (PORTAL DEL ESTUDIANTE)
+// ==========================================
+
+/**
+ * Obtiene el perfil completo del alumno autenticado
+ */
+export async function getPerfilAlumno(): Promise<AlumnoPerfil> {
+  if (USE_MOCKS) {
+    await mockDelay(200);
+    return { ...MOCK_ALUMNO_PERFIL };
+  }
+  // TODO(backend): Confirmar endpoint GET /alumno/perfil
+  return fetchWithAuth<AlumnoPerfil>('/alumno/perfil');
+}
+
+/**
+ * Obtiene el resumen del dashboard del alumno (Pantalla 1)
+ */
+export async function getResumenDashboardAlumno(): Promise<ResumenDashboardAlumno> {
+  if (USE_MOCKS) {
+    await mockDelay(300);
+    return { ...MOCK_RESUMEN_DASHBOARD_ALUMNO };
+  }
+  // TODO(backend): Confirmar endpoint GET /alumno/dashboard
+  return fetchWithAuth<ResumenDashboardAlumno>('/alumno/dashboard');
+}
+
+/**
+ * Obtiene el registro de calificaciones del alumno con desglose y tendencias (Pantalla 3)
+ */
+export async function getCalificacionesAlumno(
+  periodo?: string,
+  curso?: string
+): Promise<CalificacionesAlumnoData> {
+  if (USE_MOCKS) {
+    await mockDelay(300);
+    let data = { ...MOCK_CALIFICACIONES_ALUMNO };
+    if (curso && curso !== 'Todos los cursos') {
+      data = {
+        ...data,
+        cursos: data.cursos.filter(c => c.curso.toLowerCase() === curso.toLowerCase())
+      };
+    }
+    return data;
+  }
+  // TODO(backend): Confirmar endpoint GET /alumno/calificaciones con query params (?periodo, ?curso)
+  const query = new URLSearchParams();
+  if (periodo) query.set('periodo', periodo);
+  if (curso && curso !== 'Todos los cursos') query.set('curso', curso);
+  return fetchWithAuth<CalificacionesAlumnoData>(`/alumno/calificaciones?${query.toString()}`);
+}
+
+/**
+ * Obtiene el reporte y marcaciones de asistencia del alumno (Pantalla 2)
+ */
+export async function getAsistenciaAlumno(mes?: string): Promise<ResumenAsistenciaAlumno> {
+  if (USE_MOCKS) {
+    await mockDelay(250);
+    return { ...MOCK_ASISTENCIA_ALUMNO };
+  }
+  // TODO(backend): Confirmar endpoint GET /alumno/asistencia (?mes)
+  const query = new URLSearchParams();
+  if (mes) query.set('mes', mes);
+  return fetchWithAuth<ResumenAsistenciaAlumno>(`/alumno/asistencia?${query.toString()}`);
+}
+
+/**
+ * Obtiene el horario semanal de clases y próxima sesión (Pantalla 4)
+ */
+export async function getHorarioAlumno(): Promise<HorarioAlumnoData> {
+  if (USE_MOCKS) {
+    await mockDelay(250);
+    return { ...MOCK_HORARIO_ALUMNO };
+  }
+  // TODO(backend): Confirmar endpoint GET /alumno/horario
+  return fetchWithAuth<HorarioAlumnoData>('/alumno/horario');
+}
+
+/**
+ * Obtiene el repositorio de materiales y guías de estudio del alumno (Pantalla 5)
+ */
+export async function getMaterialesAlumno(
+  curso?: string,
+  formato?: string
+): Promise<MaterialesAlumnoData> {
+  if (USE_MOCKS) {
+    await mockDelay(250);
+    let mats = [...MOCK_MATERIALES_ALUMNO.materiales];
+    if (curso && curso !== 'Todos los cursos') {
+      mats = mats.filter(m => m.curso.toLowerCase() === curso.toLowerCase());
+    }
+    if (formato && formato !== 'Todos los archivos' && formato !== 'Todos') {
+      mats = mats.filter(m => m.formato.toLowerCase() === formato.toLowerCase());
+    }
+    return {
+      ...MOCK_MATERIALES_ALUMNO,
+      materiales: mats,
+      totalMateriales: mats.length
+    };
+  }
+  // TODO(backend): Confirmar endpoint GET /alumno/materiales con filtros
+  const query = new URLSearchParams();
+  if (curso && curso !== 'Todos los cursos') query.set('curso', curso);
+  if (formato && formato !== 'Todos los archivos') query.set('formato', formato);
+  return fetchWithAuth<MaterialesAlumnoData>(`/alumno/materiales?${query.toString()}`);
+}
+
+/**
+ * Obtiene la lista de chats y docentes asignados al alumno (Pantalla 6)
+ */
+export async function getMensajesDocentesAlumno(): Promise<ContactoDocenteAlumno[]> {
+  if (USE_MOCKS) {
+    await mockDelay(250);
+    return [...MOCK_MENSAJES_DOCENTES];
+  }
+  // TODO(backend): Confirmar endpoint GET /alumno/mensajes/docentes
+  return fetchWithAuth<ContactoDocenteAlumno[]>('/alumno/mensajes/docentes');
+}
+
+/**
+ * Envía un mensaje del alumno a un docente tutor
+ */
+export async function enviarMensajeDocenteAlumno(
+  docenteId: string,
+  texto: string
+): Promise<boolean> {
+  if (USE_MOCKS) {
+    await mockDelay(200);
+    const docente = MOCK_MENSAJES_DOCENTES.find(d => d.id === docenteId);
+    if (docente) {
+      const nuevo = {
+        id: `msg-${Date.now()}`,
+        emisorId: MOCK_ALUMNO_PERFIL.id,
+        receptorId: docenteId,
+        contenido: texto,
+        hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        esPropio: true
+      };
+      docente.mensajes.push(nuevo);
+      docente.ultimoMensaje = texto;
+      docente.horaUltimoMensaje = nuevo.hora;
+    }
+    return true;
+  }
+  // TODO(backend): Confirmar endpoint POST /alumno/mensajes
+  await fetchWithAuth('/alumno/mensajes', {
+    method: 'POST',
+    body: JSON.stringify({ docenteId, texto })
   });
   return true;
 }

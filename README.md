@@ -128,6 +128,95 @@ Cada función en `src/lib/api.ts` documenta el endpoint esperado y los parámetr
 
 ---
 
+## 🎓 Módulo: Portal del Alumno (`/alumno`)
+
+Implementación completa, 100% responsiva y accesible de las 6 pantallas de la **Sección de Alumno** diseñadas en `cary.pen` (Pencil), ubicada en la ruta base `/alumno`:
+
+### 🖥️ Pantallas Implementadas
+1. **Resumen General / Dashboard (`/alumno`) · Frame `alRes`**:
+   - Cabecera con eyebrow `PORTAL DEL ESTUDIANTE`, título institucional y subtítulo con grado y sección.
+   - Selector de estudiante y año académico con badge `Matrícula Activa` en `$success`.
+   - Grid de 4 KPIs: Promedio Ponderado (`16.8 / 20`), Asistencia General (`96.4%`), Tareas Completadas (`28 de 30`) y Cursos Inscritos (`5 Cursos`).
+   - Tabla de estado general de asignaturas con docente titular, carga horaria, notas y enlaces directos.
+   - Card lateral de próximas evaluaciones y tareas con fechas límite y prioridades urgentes.
+
+2. **Registro de Asistencia (`/alumno/asistencia`) · Frame `alAsi`**:
+   - Eyebrow `CONTROL BIOMÉTRICO` y título `Registro de Asistencia del Alumno`.
+   - Filtros por mes calendario y tipo de evento (`Puntuales`, `Tardanzas`, `Justificadas`).
+   - Tabla detallada de marcaciones diarias con fecha, hora, método (Huella Biométrica / Supervisor) y badges de estado.
+   - Card lateral con desglose mensual y medidor de cumplimiento del 85% mínimo reglamentario.
+
+3. **Registro de Calificaciones (`/alumno/calificaciones`) · Frame `alCal`**:
+   - **Réplica exacta 1:1 de la imagen de referencia**.
+   - Eyebrow `EQUIPO ACADÉMICO` y título `Registro de calificaciones del alumno`.
+   - Barra de filtros: `Periodo Académico` (Semestre 1) y `Curso` (filtro reactivo) con badge `Periodo actual` en `$accentSoft`.
+   - Tabla `Calificaciones por curso`: Curso, Exámenes, Tareas, Participación, Promedio y Final en badge píldora verde (`$success`).
+   - Card lateral `Promedio General Actual`: puntaje en display (`16.5 / 20`), comparativa (`+0.8 vs. Semestre 0`) y gráfico de barras de progreso de 6 periodos (`S1` a `S6`).
+
+4. **Horario Semanal (`/alumno/horario`) · Frame `alHor`**:
+   - Eyebrow `PROGRAMACIÓN ACADÉMICA` y título `Horario Semanal de Clases`.
+   - Filtros por semana lectiva y periodo, con badge `Turno Mañana (08:00 - 14:00)`.
+   - Matriz de bloques de clase de Lunes a Viernes con bloque de `RECESO INSTITUCIONAL` diferenciado.
+   - Card lateral de `Próxima Clase` con hora, aula y checklist de materiales requeridos.
+
+5. **Materiales de Estudio (`/alumno/materiales`) · Frame `alMat`**:
+   - Eyebrow `RECURSOS ACADÉMICOS` y título `Materiales y Guías de Estudio`.
+   - Filtros por curso y tipo de archivo (`PDF`, `PPTX`, `ZIP`).
+   - Listado de archivos con docente, fecha, peso y botón de descarga directa.
+   - Card lateral de cuota de almacenamiento en la nube (850 MB de 2 GB) y enlaces a la biblioteca digital.
+
+6. **Mensajes y Consultas Académicas (`/alumno/mensajes`) · Frame `alMen`**:
+   - Eyebrow `CANAL INSTITUCIONAL` y título `Mensajes y Consultas Académicas`.
+   - Panel izquierdo con buscador en tiempo real de docentes y lista de chats con badges de no leídos.
+   - Panel derecho con hilo de conversación interactivo con el docente tutor (Prof. Marco Aurelio), indicador en línea y formulario de envío en tiempo real.
+
+### 📂 Estructura de Archivos del Módulo Alumno
+```text
+src/
+├── app/
+│   └── alumno/                       # Rutas del Portal de Alumno
+│       ├── layout.tsx                # Layout principal con AlumnoSidebar
+│       ├── page.tsx                  # Pantalla 1: Resumen General / Dashboard
+│       ├── asistencia/page.tsx       # Pantalla 2: Registro de Asistencia
+│       ├── calificaciones/page.tsx   # Pantalla 3: Registro de Calificaciones (Base exacta)
+│       ├── horario/page.tsx          # Pantalla 4: Horario Semanal
+│       ├── materiales/page.tsx       # Pantalla 5: Materiales de Estudio
+│       └── mensajes/page.tsx         # Pantalla 6: Mensajes y Consultas Académicas
+│
+├── components/
+│   └── alumno/                       # Componentes específicos del Alumno
+│       ├── AlumnoSidebar.tsx         # Sidebar fiel a cary.pen (sbAlu0) y drawer móvil
+│       ├── AlumnoHeader.tsx          # Cabecera estándar (eyebrow, título, subtítulo)
+│       ├── AlumnoFilterBar.tsx       # Barra de filtros con selects y badges
+│       ├── CalificacionesTable.tsx   # Tabla de notas según imagen de referencia
+│       ├── TendenciaProgresoChart.tsx# Gráfico de barras S1..S6 y métricas
+│       └── index.ts
+│
+├── types/
+│   ├── alumno.ts                     # Interfaces TypeScript completas
+│   └── index.ts                      # Re-exportación global
+│
+├── lib/
+│   ├── api.ts                        # Endpoints getPerfilAlumno, getCalificacionesAlumno, etc.
+│   └── mocks/
+│       └── mockAlumno.ts             # Datos de prueba realistas para las 6 pantallas
+```
+
+### 🔌 Endpoints del Alumno en `src/lib/api.ts`
+
+| Acción Alumno | Función en `src/lib/api.ts` | Endpoint sugerido |
+| :--- | :--- | :--- |
+| Perfil del Alumno | `getPerfilAlumno()` | `GET /alumno/perfil` |
+| Resumen Dashboard | `getResumenDashboardAlumno()` | `GET /alumno/dashboard` |
+| Calificaciones y Tendencias | `getCalificacionesAlumno(periodo, curso)` | `GET /alumno/calificaciones` |
+| Asistencia Biometría | `getAsistenciaAlumno(mes)` | `GET /alumno/asistencia` |
+| Horario Semanal | `getHorarioAlumno()` | `GET /alumno/horario` |
+| Materiales y Recursos | `getMaterialesAlumno(curso, formato)` | `GET /alumno/materiales` |
+| Lista de Chats Docentes | `getMensajesDocentesAlumno()` | `GET /alumno/mensajes/docentes` |
+| Enviar Mensaje a Docente | `enviarMensajeDocenteAlumno(id, texto)` | `POST /alumno/mensajes` |
+
+---
+
 ## 🎨 Tokens de Diseño (extraídos de `cary.pen`)
 
 - **Canvas (Fondo):** `#F3F4F6`

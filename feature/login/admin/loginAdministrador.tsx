@@ -11,11 +11,10 @@ import {
   ViewIcon,
   ViewOffIcon,
   ArrowRight01Icon,
-  UserGroupIcon,
-  StudentIcon,
+  SecurityCheckIcon,
   Cancel01Icon,
   CheckmarkCircle02Icon,
-  SecurityKeyUsbIcon,
+  LockPasswordIcon,
 } from 'hugeicons-react';
 import { GlobalLoader } from '@/components/GlobalLoader';
 
@@ -23,7 +22,7 @@ import { authService } from '@/services/authService';
 import { AuthContext } from '@/contexts/AuthContext';
 import { isAxiosError } from 'axios';
 
-export default function StudentLoginPage() {
+export default function LoginAdministrador() {
   const router = useRouter();
   const authContext = React.useContext(AuthContext);
   
@@ -48,18 +47,18 @@ export default function StudentLoginPage() {
     try {
       const response = await authService.login(email, password);
       
-      if (response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO' || response.role === 'DOCENTE') {
-        setErrorMsg('Esta cuenta corresponde al portal institucional.');
-        setTimeout(() => router.push('/login/security/administrador'), 2000);
+      if (response.role === 'ESTUDIANTE' || response.role === 'APODERADO') {
+        setErrorMsg('Esta cuenta corresponde al portal de estudiantes y familias.');
+        setTimeout(() => router.push('/login'), 2000);
         return;
       }
       
       if (authContext) {
         authContext.login(response.token, response.role);
-        if (response.role === 'ESTUDIANTE') {
-          router.push('/alumno');
-        } else if (response.role === 'APODERADO') {
-          router.push('/padre');
+        if (response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO') {
+          router.push('/administrador');
+        } else if (response.role === 'DOCENTE') {
+          router.push('/docente');
         }
       }
     } catch (error) {
@@ -130,8 +129,8 @@ export default function StudentLoginPage() {
           <div className="hidden lg:flex lg:col-span-7 flex-col items-center justify-center gap-5 pr-6 border-r border-line/40">
             <div className="relative w-full max-w-sm">
               <Image
-                src="/login.png"
-                alt="Ilustración CORAULA Alumnos"
+                src="/security.png"
+                alt="Ilustración CORAULA Gestión"
                 width={440}
                 height={440}
                 priority
@@ -140,14 +139,14 @@ export default function StudentLoginPage() {
             </div>
 
             <div className="text-center max-w-md">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent text-[11px] font-bold tracking-wider uppercase mb-2">
-                <UserGroupIcon size={14} /> Portal de Estudiantes & Padres
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ink/5 text-ink text-[11px] font-bold tracking-wider uppercase mb-2">
+                <SecurityCheckIcon size={14} className="text-accent" /> Panel Administrativo & Docente
               </span>
               <h2 className="text-[26px] font-bold text-ink leading-tight tracking-tight">
-                Tu aprendizaje, <span className="text-accent">sin límites</span>
+                Gestión eficiente, <span className="text-accent">mejores resultados</span>
               </h2>
               <p className="text-[13px] text-muted font-medium mt-2 leading-relaxed max-w-sm mx-auto">
-                Accede a tu aula virtual, consulta tus calificaciones y mantente conectado con la comunidad escolar.
+                Coordina la información institucional, realiza el seguimiento académico y administra vacantes en tiempo real.
               </p>
             </div>
           </div>
@@ -162,18 +161,18 @@ export default function StudentLoginPage() {
                   <span className="text-[11px] font-bold tracking-widest uppercase text-accent">
                     CORAULA
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-neutral/80 text-muted px-2 py-0.5 rounded-md">
-                    <StudentIcon size={12} className="text-accent" /> Alumnos
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-md">
+                    <SecurityCheckIcon size={12} /> Gestión
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-[22px] font-bold text-ink tracking-tight">
-                    ¡Hola de nuevo!
+                    Acceso Institucional
                   </h1>
-                  <StudentIcon size={22} className="text-accent" />
+                  <LockPasswordIcon size={20} className="text-accent" />
                 </div>
                 <p className="text-[12.5px] text-muted font-medium mt-1">
-                  Ingresa tus datos para acceder a tu perfil.
+                  Ingresa credenciales de personal autorizado.
                 </p>
               </div>
 
@@ -190,7 +189,7 @@ export default function StudentLoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Correo institucional"
+                    placeholder="Correo de gestión / docente"
                     className="w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white focus:border-accent focus:ring-3 focus:ring-accent/10 transition-all placeholder:text-muted/60 placeholder:font-normal"
                   />
                 </div>
@@ -205,7 +204,7 @@ export default function StudentLoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Contraseña"
+                    placeholder="Contraseña de seguridad"
                     className="w-full pl-10 pr-10 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white focus:border-accent focus:ring-3 focus:ring-accent/10 transition-all placeholder:text-muted/60 placeholder:font-normal"
                   />
                   <button
@@ -239,12 +238,12 @@ export default function StudentLoginPage() {
                 <button
                   type="submit"
                   disabled={cargando}
-                  className="group w-full py-2.5 rounded-xl bg-accent text-white font-bold text-[13px] tracking-wide hover:bg-accent/90 active:scale-[0.99] transition-all shadow-md shadow-accent/20 flex items-center justify-center gap-2 cursor-pointer mt-1 disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="group w-full py-2.5 rounded-xl bg-ink text-white font-bold text-[13px] tracking-wide hover:bg-ink/90 active:scale-[0.99] transition-all shadow-md shadow-ink/15 flex items-center justify-center gap-2 cursor-pointer mt-1 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  <span>Acceder a la Plataforma</span>
+                  <span>Iniciar Sesión de Control</span>
                   <ArrowRight01Icon
                     size={16}
-                    className="transition-transform group-hover:translate-x-0.5"
+                    className="transition-transform group-hover:translate-x-0.5 text-accent"
                   />
                 </button>
               </form>
@@ -255,7 +254,7 @@ export default function StudentLoginPage() {
                   <div className="w-full border-t border-line/60" />
                 </div>
                 <span className="relative bg-white px-2.5 text-[10px] font-bold text-muted uppercase tracking-wider">
-                  o ingresar con
+                  o autenticar con
                 </span>
               </div>
 
@@ -319,16 +318,16 @@ export default function StudentLoginPage() {
               <form onSubmit={handleSendCode} className="flex flex-col gap-4">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2.5 rounded-xl bg-accent/10 text-accent">
-                    <SecurityKeyUsbIcon size={20} />
+                    <SecurityCheckIcon size={20} />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-ink">Recuperar contraseña</h3>
+                    <h3 className="text-base font-bold text-ink">Recuperar acceso</h3>
                     <p className="text-[12px] text-muted font-medium">Paso 1 de 2: Ingresa tu correo</p>
                   </div>
                 </div>
 
                 <p className="text-[12.5px] text-muted leading-relaxed">
-                  Te enviaremos un código de verificación de 6 dígitos para restablecer tu acceso.
+                  Te enviaremos un código de seguridad de 6 dígitos a tu casilla registrada.
                 </p>
 
                 <div className="relative">
@@ -340,7 +339,7 @@ export default function StudentLoginPage() {
                     required
                     value={recoveryEmail}
                     onChange={(e) => setRecoveryEmail(e.target.value)}
-                    placeholder="Correo registrado"
+                    placeholder="Correo de gestión / docente"
                     className="w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:border-accent"
                   />
                 </div>
@@ -348,12 +347,12 @@ export default function StudentLoginPage() {
                 <button
                   type="submit"
                   disabled={loadingRecovery}
-                  className="w-full py-2.5 bg-accent text-white font-bold text-[13px] rounded-xl shadow-md hover:bg-accent/90 flex justify-center items-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 bg-ink text-white font-bold text-[13px] rounded-xl shadow-md hover:bg-ink/90 flex justify-center items-center gap-2 cursor-pointer"
                 >
                   {loadingRecovery ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <span>Enviar código</span>
+                    <span>Enviar código de seguridad</span>
                   )}
                 </button>
               </form>
@@ -363,7 +362,7 @@ export default function StudentLoginPage() {
               <form onSubmit={handleVerifyCode} className="flex flex-col gap-4">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2.5 rounded-xl bg-accent/10 text-accent">
-                    <SecurityKeyUsbIcon size={20} />
+                    <SecurityCheckIcon size={20} />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-ink">Código enviado</h3>
@@ -400,7 +399,7 @@ export default function StudentLoginPage() {
                 <button
                   type="submit"
                   disabled={loadingRecovery}
-                  className="w-full py-2.5 bg-accent text-white font-bold text-[13px] rounded-xl shadow-md hover:bg-accent/90 flex justify-center items-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 bg-ink text-white font-bold text-[13px] rounded-xl shadow-md hover:bg-ink/90 flex justify-center items-center gap-2 cursor-pointer"
                 >
                   {loadingRecovery ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -416,9 +415,9 @@ export default function StudentLoginPage() {
                 <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
                   <CheckmarkCircle02Icon size={28} />
                 </div>
-                <h3 className="text-base font-bold text-ink">¡Verificación Exitosa!</h3>
+                <h3 className="text-base font-bold text-ink">¡Autenticación Exitosa!</h3>
                 <p className="text-[12.5px] text-muted leading-relaxed">
-                  Se ha enviado un enlace de restablecimiento seguro a tu correo electrónico.
+                  Se ha enviado un enlace de restablecimiento seguro a tu dirección corporativa.
                 </p>
                 <button
                   onClick={closeResetModal}

@@ -20,7 +20,7 @@ import { ArchivoSyllabus, Curso } from '@/types/cursos';
 
 export default function DetalleDelCurso() {
   const params = useParams();
-  const cursoId = params?.cursoId as string;
+  const cursoId = params?.id as string;
 
   const cursoOriginal = MOCK_CURSOS.find(c => c.id === cursoId) || MOCK_CURSOS[0];
   const [curso, setCurso] = useState<Curso>(cursoOriginal);

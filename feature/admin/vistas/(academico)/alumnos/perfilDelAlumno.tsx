@@ -34,7 +34,7 @@ const getEstudianteData = (seccionId: string, estudianteId: string) => {
 
 export default function PerfilDelAlumno() {
   const params = useParams();
-  const seccionId = params?.seccionId as string;
+  const seccionId = params?.id as string;
   const estudianteId = params?.estudianteId as string;
 
   const data = getEstudianteData(seccionId, estudianteId);

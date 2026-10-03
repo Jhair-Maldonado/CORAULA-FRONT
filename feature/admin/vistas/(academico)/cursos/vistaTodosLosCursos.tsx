@@ -123,7 +123,7 @@ export default function VistaTodosLosCursos() {
         {filteredCursos.map(curso => (
           <Link
             key={curso.id}
-            href={`/administrador/cursos/${curso.id}`}
+            href={`/administrador/cursos/asignatura/${curso.id}`}
             className="bg-white rounded-2xl border border-line p-4 shadow-xs hover:shadow-md hover:border-accent/40 transition-all flex flex-col justify-between group cursor-pointer"
           >
             <div>

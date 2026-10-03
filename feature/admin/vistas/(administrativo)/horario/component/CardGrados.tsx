@@ -88,7 +88,7 @@ export const CardGrados: React.FC<CardGradosProps> = ({
 
       {/* Botón Acción Ver Horario */}
       <Link 
-        href={`/administrador/horario/${seccionId}`}
+        href={`/administrador/horario/gradoHorario/${seccionId}`}
         className="w-full mt-4 py-2 px-3 rounded-lg bg-neutral/80 hover:bg-accent hover:text-white transition-all text-xs font-bold text-ink flex items-center justify-center gap-1.5 group/btn border border-line/50 hover:border-accent"
       >
         <Calendar01Icon size={14} />

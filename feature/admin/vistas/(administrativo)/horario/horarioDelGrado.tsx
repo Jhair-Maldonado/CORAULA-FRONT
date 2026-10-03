@@ -46,7 +46,7 @@ const formatRangoHora = (horaInicioVal: number, duracionVal: number) => {
 
 export default function HorarioDelGrado() {
   const params = useParams();
-  const seccionId = params?.seccionId as string;
+  const seccionId = params?.id as string;
 
   // Nombre de la sección
   let seccionNombre = '1° Grado A';

@@ -15,7 +15,7 @@ export const StudentsGrid = ({ seccion }: StudentsGridProps) => {
       {/* Header */}
       <div>
         <Link 
-          href="/administrador/alumnos/alumnado"
+          href="/administrador/alumnos"
           className="text-muted text-[13px] font-medium hover:text-accent transition-colors flex items-center gap-2 mb-2 w-fit"
         >
           &larr; Regresar al panel general

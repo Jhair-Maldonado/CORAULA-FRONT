@@ -9,11 +9,11 @@ import { ArrowDown01Icon, ArrowRight01Icon, Folder01Icon, FolderOpenIcon, BookOp
 export const GradosSidebar = () => {
   const pathname = usePathname();
   
-  // Extraer el id de sección de la ruta (ej: /administrador/alumnos/sec-1a)
+  // Extraer el id de sección de la ruta (ej: /administrador/alumnos/grado/sec-1a)
   const segments = pathname.split('/');
-  const alumnosIndex = segments.indexOf('alumnos');
-  const currentSeccionId = alumnosIndex !== -1 && segments.length > alumnosIndex + 1 
-    ? segments[alumnosIndex + 1] 
+  const gradoIndex = segments.indexOf('grado');
+  const currentSeccionId = gradoIndex !== -1 && segments.length > gradoIndex + 1 
+    ? segments[gradoIndex + 1] 
     : null;
   
   // Buscar qué grado contiene esta sección activa
@@ -89,7 +89,7 @@ export const GradosSidebar = () => {
                   return (
                     <Link
                       key={seccion.id}
-                      href={`/administrador/alumnos/${seccion.id}`}
+                      href={`/administrador/alumnos/grado/${seccion.id}`}
                       className={`w-full flex items-center justify-between px-4 py-2 ml-2 rounded-lg text-[12px] transition-all relative ${
                         isActive 
                           ? 'bg-accent-soft text-accent font-bold' 

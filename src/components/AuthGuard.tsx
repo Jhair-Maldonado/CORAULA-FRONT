@@ -45,7 +45,7 @@ export const AuthGuard = ({ children, allowedRoles }: AuthGuardProps) => {
 
     if (authContext.status === 'unauthenticated' || !authContext.sessionValid || !authContext.isSessionPhysicallyValid()) {
       if (pathname.startsWith('/administrador') || pathname.startsWith('/docente')) {
-        router.replace('/security');
+        router.replace('/login/security/administrador');
       } else {
         router.replace('/login');
       }

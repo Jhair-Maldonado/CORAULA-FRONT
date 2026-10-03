@@ -23,7 +23,7 @@ import { authService } from '@/services/authService';
 import { AuthContext } from '@/contexts/AuthContext';
 import { isAxiosError } from 'axios';
 
-export default function StudentLoginPage() {
+export default function LoginUsuario() {
   const router = useRouter();
   const authContext = React.useContext(AuthContext);
   

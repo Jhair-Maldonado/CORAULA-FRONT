@@ -13,6 +13,8 @@ export * from './docentes';
 export * from './horario';
 export * from './cursos';
 export * from './chat';
+export * from './padre';
+export * from './alumno';
 
 export interface User {
   id: string;
@@ -20,3 +22,4 @@ export interface User {
   email: string;
   role: UserRole; // A futuro debería ser estrictamente BackendRole
 }
+

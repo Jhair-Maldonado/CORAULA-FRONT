@@ -35,7 +35,7 @@ export const PadreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ]);
       setPadre(padreData);
       setHijos(hijosData);
-      if (hijosData.length > 0 && !selectedHijoId) {
+      if (hijosData.length === 1 && !selectedHijoId) {
         setSelectedHijoId(hijosData[0].id);
       }
     } catch (err) {
@@ -59,7 +59,7 @@ export const PadreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (!mounted) return;
         setPadre(padreData);
         setHijos(hijosData);
-        if (hijosData.length > 0 && !selectedHijoId) {
+        if (hijosData.length === 1 && !selectedHijoId) {
           setSelectedHijoId(hijosData[0].id);
         }
       } catch (err) {
@@ -74,7 +74,7 @@ export const PadreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => { mounted = false; };
   }, [selectedHijoId]);
 
-  const selectedHijo = hijos.find((h) => h.id === selectedHijoId) || hijos[0] || null;
+  const selectedHijo = hijos.find((h) => h.id === selectedHijoId) || null;
 
   return (
     <PadreContext.Provider

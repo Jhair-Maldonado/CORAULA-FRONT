@@ -49,6 +49,14 @@ export const MOCK_HIJOS: HijoResumen[] = [
     estadoPension: 'Al Día',
     avisosPendientes: 2,
     incidenciasCount: 0, // Cary.pen: "0 Incidencias"
+    asistencia: 96,
+    asistenciaDelta: 2,
+    promedio: 17.8,
+    promedioDelta: 0.5,
+    tareasEntregadas: 18,
+    tareasTotales: 20,
+    faltasSinJustificar: 0,
+    conducta: 'Buena',
     fechaNacimiento: '2016-05-14',
     tipoSangre: 'O Positivo (O+)',
     alergias: 'Alergia al polen y penicilina',
@@ -75,9 +83,16 @@ export const MOCK_HIJOS: HijoResumen[] = [
     estadoPension: 'Pendiente',
     avisosPendientes: 1,
     incidenciasCount: 1, // Cary.pen: "1 Incidencia"
+    asistencia: 92,
+    asistenciaDelta: -1.5,
+    promedio: 16.2,
+    promedioDelta: -0.2,
+    tareasEntregadas: 12,
+    tareasTotales: 15,
+    faltasSinJustificar: 1,
+    conducta: 'Regular',
     fechaNacimiento: '2012-09-21',
     tipoSangre: 'A Positivo (A+)',
-
     alergias: 'Ninguna conocida',
     seguroMedico: 'Pacífico Salud Escolar - Póliza #88310'
   }
@@ -543,12 +558,31 @@ export const MOCK_CHAT_CONTACTOS_PADRE: ContactoChat[] = [
   }
 ];
 
-export const getMockResumenDashboard = (hijoId: string): ResumenDashboardPadre => {
-  const hijo = MOCK_HIJOS.find(h => h.id === hijoId) || MOCK_HIJOS[0];
-  const isSofia = hijo.id === 'hijo-001';
-
+export const getMockResumenDashboard = (hijoId?: string): ResumenDashboardPadre => {
+  const hijo = hijoId ? MOCK_HIJOS.find(h => h.id === hijoId) : MOCK_HIJOS[0];
+  const isSofia = hijo?.id === 'hijo-001';
+  
   return {
-    hijo,
+    hijo: hijo ? [{
+      ...hijo,
+      promedio: isSofia ? 18.5 : 14.2,
+      promedioDelta: isSofia ? 0.5 : -1.2,
+      asistencia: isSofia ? 98 : 85,
+      tareasTotales: 15,
+      tareasEntregadas: isSofia ? 15 : 12,
+      faltasSinJustificar: isSofia ? 0 : 2,
+      cursosBajos: isSofia ? 0 : 2
+    }] : MOCK_HIJOS.map(h => ({
+      ...h,
+      promedio: h.id === 'hijo-001' ? 18.5 : 14.2,
+      promedioDelta: h.id === 'hijo-001' ? 0.5 : -1.2,
+      asistencia: h.id === 'hijo-001' ? 98 : 85,
+      tareasTotales: 15,
+      tareasEntregadas: h.id === 'hijo-001' ? 15 : 12,
+      faltasSinJustificar: h.id === 'hijo-001' ? 0 : 2,
+      cursosBajos: h.id === 'hijo-001' ? 0 : 2
+    })),
+    ultimaActualizacion: new Date().toISOString(),
     asistenciaHoy: {
       estado: 'Presente',
       horaIngreso: isSofia ? '07:46 AM' : '07:38 AM'

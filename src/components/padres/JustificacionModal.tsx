@@ -13,6 +13,7 @@ interface JustificacionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  hijoIdPrecargado?: string;
 }
 
 const MOTIVOS: MotivoJustificacion[] = [
@@ -27,14 +28,21 @@ export const JustificacionModal: React.FC<JustificacionModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  hijoIdPrecargado,
 }) => {
   const { hijos, selectedHijoId } = usePadre();
-  const [hijoId, setHijoId] = useState(selectedHijoId || (hijos[0]?.id ?? ''));
+  const [hijoId, setHijoId] = useState(hijoIdPrecargado || selectedHijoId || (hijos[0]?.id ?? ''));
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [motivo, setMotivo] = useState<MotivoJustificacion>('Salud / Médico');
   const [descripcion, setDescripcion] = useState('');
   const [archivoNombre, setArchivoNombre] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    if (hijoIdPrecargado) {
+      setHijoId(hijoIdPrecargado);
+    }
+  }, [hijoIdPrecargado]);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 

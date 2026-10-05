@@ -40,21 +40,32 @@ export interface PadrePerfil {
 export interface HijoResumen {
   id: string;
   nombres: string;
+  asistenciaHoy?: boolean;   // nuevo
+  horaEntrada?: string; 
   apellidos: string;
   nombreCompleto: string;
   dni: string;
   codigoEstudiante: string;
   grado: string; // Ej: "4° Grado"
   nivel: NivelEducativo;
+  asistenciaDelta?: number; 
+  asistencia: number;
   seccion: string; // Ej: "A"
   seccionId: string;
   fotoUrl?: string;
   tutor: string;
+  curso?: string;
   tutorEmail?: string;
   tutorTelefono?: string;
   estado: EstadoEstudiante;
   promedioGeneral: number;
+  promedio: number;
+  promedioDelta?: number;
   porcentajeAsistencia: number;
+  tareasTotales: number;
+  tareasEntregadas: number;
+  faltasSinJustificar: number;
+  cursosBajos?: number;
   estadoPension: EstadoPension;
   avisosPendientes: number;
   incidenciasCount?: number; // Cary.pen: "0 Incidencias", "1 Incidencia", "3 Incidencias"
@@ -63,6 +74,7 @@ export interface HijoResumen {
   tipoSangre?: string;
   alergias?: string;
   seguroMedico?: string;
+  conducta?: 'Buena' | 'Regular' | 'Mala';
 }
 
 export type TipoAlertaAsistencia = 
@@ -214,7 +226,8 @@ export interface CuotaPension {
 }
 
 export interface ResumenDashboardPadre {
-  hijo: HijoResumen;
+  hijo: HijoResumen[];
+  ultimaActualizacion?: string;
   asistenciaHoy: {
     estado: EstadoAsistencia | 'Pendiente';
     horaIngreso?: string;

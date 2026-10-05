@@ -58,9 +58,9 @@ export async function getHijoById(hijoId: string): Promise<HijoResumen | null> {
   return hijo ? { ...hijo } : null;
 }
 
-export async function getDashboardResumen(hijoId: string): Promise<ResumenDashboardPadre> {
+export async function getDashboardResumen(id?: string, periodo?: string): Promise<ResumenDashboardPadre> {
   await mockDelay(350);
-  return getMockResumenDashboard(hijoId);
+  return getMockResumenDashboard(id);
 }
 
 export async function getCalificaciones(hijoId: string, bimestre?: number): Promise<CursoCalificacion[]> {

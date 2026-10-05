@@ -43,6 +43,7 @@ export default function PantallaPrincipalPadre() {
   const [activeTab, setActiveTab] = useState<'resumen' | 'calificaciones' | 'horario' | 'asistencia'>('resumen');
 
   // Auto-seleccionar el primer hijo si no hay uno seleccionado
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
   useEffect(() => {
     if (!selectedHijoId && hijos.length > 0) {
       setSelectedHijoId(hijos[0].id);

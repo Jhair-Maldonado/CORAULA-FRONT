@@ -48,7 +48,7 @@ export function ChildSelectorCards() {
                 {hijo.nombres.split(' ')[0]} {hijo.apellidos.split(' ')[0]}
               </h3>
               <p className={`text-[10px] font-semibold truncate ${isSelected ? 'text-muted' : 'text-muted'}`}>
-                {hijo.grado} "{hijo.seccion}"
+                {hijo.grado} &quot;{hijo.seccion}&quot;
               </p>
             </div>
           </button>

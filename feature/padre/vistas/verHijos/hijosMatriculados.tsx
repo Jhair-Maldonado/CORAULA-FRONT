@@ -17,6 +17,7 @@ export default function HijosMatriculados() {
   const [hijosLocal, setHijosLocal] = useState<HijoResumen[]>([]);
 
   // Sincronizar hijos locales si cambian
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
   React.useEffect(() => {
     if (hijos.length > 0 && hijosLocal.length === 0) {
       setHijosLocal(hijos);
@@ -86,7 +87,7 @@ export default function HijosMatriculados() {
                     </h2>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[9px] font-bold text-muted uppercase tracking-wider bg-neutral px-1.5 py-0.5 rounded">
-                        {hijo.grado} "{hijo.seccion}" - {hijo.nivel}
+                        {hijo.grado} &quot;{hijo.seccion}&quot; - {hijo.nivel}
                       </span>
                       <span className="text-[9px] font-bold text-muted">
                         Tutor: <span className="text-ink">{hijo.tutor}</span>

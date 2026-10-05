@@ -3,13 +3,13 @@
 
 import React from 'react';
 import { LogOut } from 'lucide-react';
-import { useAlumnoSession, DEFAULT_ALUMNO_SESSION } from './AlumnoSessionContext';
+import { useAlumnoSession, DEFAULT_ALUMNO_SESSION } from '@/components/alumno/AlumnoSessionContext';
 
-interface AlumnoUserBarProps {
+interface AlumnoNavbarProps {
   className?: string;
 }
 
-export const AlumnoUserBar: React.FC<AlumnoUserBarProps> = ({ className = '' }) => {
+export const AlumnoNavbar: React.FC<AlumnoNavbarProps> = ({ className = '' }) => {
   const { session, logout } = useAlumnoSession();
 
   // Si aún no ha cargado la sesión, usar fallback con Ana Torres

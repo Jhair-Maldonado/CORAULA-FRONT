@@ -52,6 +52,7 @@ export const FormularioInasistencia: React.FC<FormularioInasistenciaProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (hijoIdPrecargado) {
       setHijoId(hijoIdPrecargado);
     }

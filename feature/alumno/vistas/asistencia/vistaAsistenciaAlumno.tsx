@@ -8,7 +8,6 @@ import { CardSkeleton, TableSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ShieldCheck } from 'lucide-react';
-import { ArrowLeft01Icon, ArrowRight01Icon } from 'hugeicons-react';
 import { CalendarioAsistenciaAlumno } from './calendarioAsistenciaAlumno';
 
 const MESES = ['Junio 2026', 'Julio 2026', 'Agosto 2026', 'Septiembre 2026'];
@@ -34,6 +33,7 @@ export default function VistaAsistenciaAlumno() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
   useEffect(() => {
     fetchData();
   }, [selectedMes]);

@@ -14,7 +14,7 @@ import {
   LogOut,
   Bell
 } from 'lucide-react';
-import { useAlumnoSession, DEFAULT_ALUMNO_SESSION } from './AlumnoSessionContext';
+import { useAlumnoSession, DEFAULT_ALUMNO_SESSION } from '@/components/alumno/AlumnoSessionContext';
 
 type MenuItem = {
   name: string;

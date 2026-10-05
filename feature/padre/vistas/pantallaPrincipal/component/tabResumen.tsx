@@ -42,6 +42,20 @@ interface TabResumenProps {
   resumen: ResumenDashboardPadre;
 }
 
+// Tooltip custom minimalista
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  const v = payload[0].value as number;
+  const ref = v >= 14 ? 'Buen rendimiento' : v >= 11 ? 'En proceso' : 'En riesgo';
+  return (
+    <div className="rounded-xl bg-white px-3 py-2 shadow-md border border-line">
+      <p className="text-[9px] font-bold text-muted uppercase tracking-wider">{label}</p>
+      <p className="text-[11px] font-black text-ink">{v.toFixed(1)} / 20</p>
+      <p className="text-[9px] text-muted mt-0.5">{ref}</p>
+    </div>
+  );
+};
+
 export function TabResumen({ resumen }: TabResumenProps) {
   const hijo = resumen.hijo?.[0];
 
@@ -88,20 +102,6 @@ export function TabResumen({ resumen }: TabResumenProps) {
   const ultimo = MOCK_HISTORIAL[MOCK_HISTORIAL.length - 1];
   const penultimo = MOCK_HISTORIAL[MOCK_HISTORIAL.length - 2];
   const delta = ultimo.promedio - penultimo.promedio;
-
-  // Tooltip custom minimalista
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    const v = payload[0].value as number;
-    const ref = v >= 14 ? 'Buen rendimiento' : v >= 11 ? 'En proceso' : 'En riesgo';
-    return (
-      <div className="rounded-xl bg-white px-3 py-2 shadow-md border border-line">
-        <p className="text-[9px] font-bold text-muted uppercase tracking-wider">{label}</p>
-        <p className="text-[11px] font-black text-ink">{v.toFixed(1)} / 20</p>
-        <p className="text-[9px] text-muted mt-0.5">{ref}</p>
-      </div>
-    );
-  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

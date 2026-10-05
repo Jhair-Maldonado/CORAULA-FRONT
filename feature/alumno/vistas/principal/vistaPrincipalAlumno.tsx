@@ -11,6 +11,7 @@ import { CardSkeleton, TableSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Badge } from '@/components/ui/Badge';
 import { Award, CalendarCheck, CheckCircle2, BookOpen, Clock, ArrowRight } from 'lucide-react';
+import { KpiCard } from './component/kpiCard';
 
 export default function VistaPrincipalAlumno() {
   const [data, setData] = useState<ResumenDashboardAlumno | null>(null);
@@ -30,6 +31,7 @@ export default function VistaPrincipalAlumno() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
   useEffect(() => {
     fetchData();
   }, []);
@@ -85,85 +87,39 @@ export default function VistaPrincipalAlumno() {
 
       {/* 4 KPIs Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1 */}
-        <div className="bg-white rounded-xl border border-[#E5E7EB] p-4 sm:p-5 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-[#6B7280]">
-              Promedio Ponderado
-            </span>
-            <div className="w-7 h-7 rounded-lg bg-[#FFE4E6] flex items-center justify-center text-[#BE123C]">
-              <Award className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="my-2">
-            <span className="text-2xl sm:text-[26px] font-extrabold text-[#BE123C] block leading-none">
-              {kpis.promedioPonderado.toFixed(1)} / 20
-            </span>
-          </div>
-          <span className="text-[11px] font-bold text-[#15803D]">
-            +0.5 vs. ciclo previo
-          </span>
-        </div>
-
-        {/* KPI 2 */}
-        <div className="bg-white rounded-xl border border-[#E5E7EB] p-4 sm:p-5 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-[#6B7280]">
-              Asistencia General
-            </span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-[#15803D]">
-              <CalendarCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="my-2">
-            <span className="text-2xl sm:text-[26px] font-extrabold text-[#111827] block leading-none">
-              {kpis.asistenciaGeneral}%
-            </span>
-          </div>
-          <span className="text-[11px] font-medium text-[#6B7280]">
-            0 inasistencias injustificadas
-          </span>
-        </div>
-
-        {/* KPI 3 */}
-        <div className="bg-white rounded-xl border border-[#E5E7EB] p-4 sm:p-5 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-[#6B7280]">
-              Tareas Completadas
-            </span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-[#A16207]">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="my-2">
-            <span className="text-2xl sm:text-[26px] font-extrabold text-[#111827] block leading-none">
-              {kpis.tareasCompletadas} de {kpis.tareasTotales}
-            </span>
-          </div>
-          <span className="text-[11px] font-bold text-[#A16207]">
-            2 pendientes esta semana
-          </span>
-        </div>
-
-        {/* KPI 4 */}
-        <div className="bg-white rounded-xl border border-[#E5E7EB] p-4 sm:p-5 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-[#6B7280]">
-              Cursos Inscritos
-            </span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-              <BookOpen className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="my-2">
-            <span className="text-2xl sm:text-[26px] font-extrabold text-[#111827] block leading-none">
-              {kpis.cursosInscritos} Cursos
-            </span>
-          </div>
-          <span className="text-[11px] font-bold text-[#15803D]">
-            Todos en estado regular
-          </span>
-        </div>
+        <KpiCard
+          title="Promedio Ponderado"
+          value={`${kpis.promedioPonderado.toFixed(1)} / 20`}
+          subtitle={<span className="text-[11px] font-bold text-[#15803D]">+0.5 vs. ciclo previo</span>}
+          icon={Award}
+          iconBgColor="bg-[#FFE4E6]"
+          iconColor="text-[#BE123C]"
+          valueColor="text-[#BE123C]"
+        />
+        <KpiCard
+          title="Asistencia General"
+          value={`${kpis.asistenciaGeneral}%`}
+          subtitle={<span className="text-[11px] font-medium text-[#6B7280]">0 inasistencias injustificadas</span>}
+          icon={CalendarCheck}
+          iconBgColor="bg-emerald-50"
+          iconColor="text-[#15803D]"
+        />
+        <KpiCard
+          title="Tareas Completadas"
+          value={`${kpis.tareasCompletadas} de ${kpis.tareasTotales}`}
+          subtitle={<span className="text-[11px] font-bold text-[#A16207]">2 pendientes esta semana</span>}
+          icon={CheckCircle2}
+          iconBgColor="bg-amber-50"
+          iconColor="text-[#A16207]"
+        />
+        <KpiCard
+          title="Cursos Inscritos"
+          value={`${kpis.cursosInscritos} Cursos`}
+          subtitle={<span className="text-[11px] font-bold text-[#15803D]">Todos en estado regular</span>}
+          icon={BookOpen}
+          iconBgColor="bg-blue-50"
+          iconColor="text-blue-600"
+        />
       </div>
 
       {/* Main Content Columns */}

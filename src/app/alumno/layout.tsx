@@ -3,8 +3,8 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { AlumnoSidebar } from '@/components/alumno/AlumnoSidebar';
-import { AlumnoUserBar } from '@/components/alumno/AlumnoUserBar';
+import { AlumnoSidebar } from '../../../layout/alumno/alumnoSidebar'; 
+import { AlumnoNavbar } from '../../../layout/alumno/alumnoNavbar'; 
 import { AlumnoSessionProvider } from '@/components/alumno/AlumnoSessionContext';
 import { Menu } from 'lucide-react';
 
@@ -53,7 +53,7 @@ function AlumnoLayoutContent({ children }: { children: React.ReactNode }) {
 
             {/* Reusable Indicador de Sesión */}
             <div className="flex items-center gap-4">
-              <AlumnoUserBar />
+              <AlumnoNavbar />
             </div>
           </div>
         </header>

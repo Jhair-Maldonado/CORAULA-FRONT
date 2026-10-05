@@ -5,7 +5,7 @@ import { getCalificacionesAlumno } from '@/lib/api';
 import { CalificacionesAlumnoData } from '@/types/alumno';
 import { AlumnoHeader } from '@/components/alumno/AlumnoHeader';
 import { AlumnoFilterBar } from '@/components/alumno/AlumnoFilterBar';
-import { CalificacionesTable } from '@/components/alumno/CalificacionesTable';
+import { CalificacionesTable } from './calificacionesTable';
 import { TendenciaProgresoChart } from '@/components/alumno/TendenciaProgresoChart';
 import { CardSkeleton, TableSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -33,6 +33,7 @@ export default function VistaCalificacionesAlumno() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
   useEffect(() => {
     fetchData();
   }, [selectedPeriodo, selectedCurso]);

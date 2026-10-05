@@ -48,6 +48,7 @@ export const AlumnoSessionProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (stored) {
         setSession(JSON.parse(stored));
       } else {

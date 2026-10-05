@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { usePadre } from '@/components/padres/padreContext'; 
+import { usePadre } from '@/components/padres/PadreContext'; 
 import { 
   Notification01Icon, 
   UserSwitchIcon,

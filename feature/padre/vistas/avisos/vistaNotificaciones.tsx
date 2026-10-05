@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { usePadre } from '@/components/padres/padreContext';
+import { usePadre } from '@/components/padres/PadreContext';
 import { 
   Notification01Icon, 
   CheckmarkBadge01Icon, 

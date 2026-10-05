@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { usePadre } from '@/components/padres/padreContext'; 
+import { usePadre } from '@/components/padres/PadreContext'; 
 import { 
   Alert02Icon, 
   CheckmarkCircle01Icon,
@@ -42,20 +42,24 @@ const MOCK_HISTORIAL = [
   }
 ];
 
-// Generar mock de días del mes (Mayo 2026 aprox)
+const MESES = ['Marzo 2026', 'Abril 2026', 'Mayo 2026', 'Junio 2026'];
+
+// Generar mock de días del mes
 const MOCK_CALENDARIO = Array.from({ length: 31 }, (_, i) => {
   const day = i + 1;
   let estado = 'asistio'; 
+  let hora = '07:45 AM';
   
   if ([2, 3, 9, 10, 16, 17, 23, 24, 30, 31].includes(day)) {
     estado = 'fin_semana';
+    hora = '';
   } else {
-    if (day === 15) estado = 'falta_justificada'; // Cita Médica
-    if (day === 8) estado = 'tardanza_injustificada'; // Falta Justificar
-    if (day === 2) estado = 'tardanza_justificada'; // Tráfico (rechazada o no, está justificada)
-    if (day >= 26) estado = 'futuro'; // Días que aún no pasan
+    if (day === 15) { estado = 'falta_justificada'; hora = '--:--'; } // Cita Médica
+    if (day === 8) { estado = 'tardanza_injustificada'; hora = '08:20 AM'; } // Falta Justificar
+    if (day === 2) { estado = 'tardanza_justificada'; hora = '08:15 AM'; } // Tráfico
+    if (day >= 26) { estado = 'futuro'; hora = ''; } // Días que aún no pasan
   }
-  return { dia: day, estado };
+  return { dia: day, estado, hora };
 });
 
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -66,6 +70,18 @@ export default function VistaPrincipalJustificacion() {
   const [fechaJustificar, setFechaJustificar] = useState<string | undefined>(undefined);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [selectedMes, setSelectedMes] = useState('Mayo 2026');
+  const mesIndex = MESES.indexOf(selectedMes);
+  const canPrev = mesIndex > 0;
+  const canNext = mesIndex < MESES.length - 1;
+
+  const handlePrevMes = () => {
+    if (canPrev) setSelectedMes(MESES[mesIndex - 1]);
+  };
+  const handleNextMes = () => {
+    if (canNext) setSelectedMes(MESES[mesIndex + 1]);
+  };
 
   const hijoActivo = hijos.find(h => h.id === selectedHijoId) || hijos[0];
 
@@ -91,6 +107,7 @@ export default function VistaPrincipalJustificacion() {
 
   const handleJustificarDia = (dia: number) => {
     const diaFormateado = dia < 10 ? `0${dia}` : dia;
+    // Extraer año y mes si fuera necesario, mockeado a mayo
     setFechaJustificar(`2026-05-${diaFormateado}`);
     setIsModalOpen(true);
   };
@@ -106,8 +123,8 @@ export default function VistaPrincipalJustificacion() {
       {/* Encabezado Principal */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 px-2">
         <div>
-          <h1 className="text-[14px] font-black text-ink uppercase tracking-wider">Control de Asistencia</h1>
-          <p className="text-[10px] text-muted font-medium mt-1">
+          <h1 className="text-base font-black text-ink uppercase tracking-wider">Control de Asistencia</h1>
+          <p className="text-xs text-muted font-medium mt-1">
             Gestione las inasistencias y tardanzas de {hijoActivo.nombres}.
           </p>
         </div>
@@ -226,6 +243,11 @@ export default function VistaPrincipalJustificacion() {
         <div className="lg:col-span-2">
           <CalendarioAsistencia 
             calendario={MOCK_CALENDARIO} 
+            mesActual={selectedMes}
+            onPrevMes={handlePrevMes}
+            onNextMes={handleNextMes}
+            canPrev={canPrev}
+            canNext={canNext}
             onJustificarDia={handleJustificarDia} 
           />
         </div>
@@ -234,13 +256,13 @@ export default function VistaPrincipalJustificacion() {
         <div className="lg:col-span-1">
           <div className="bg-white border border-line rounded-xl shadow-sm h-full flex flex-col">
             <div className="p-3 border-b border-line bg-neutral/30 flex justify-between items-center">
-              <h3 className="text-[11px] font-black text-ink uppercase tracking-wider flex items-center gap-1.5">
-                <DocumentValidationIcon size={14} className="text-muted" />
+              <h3 className="text-xs font-black text-ink uppercase tracking-wider flex items-center gap-1.5">
+                <DocumentValidationIcon size={16} className="text-muted" />
                 Historial de Registro
               </h3>
             </div>
             
-            <div className="p-3 flex flex-col gap-2.5 flex-1 overflow-y-auto">
+            <div className="p-3 flex flex-col gap-3 flex-1 overflow-y-auto">
               {MOCK_HISTORIAL.map((item) => (
                 <CardJustificacion 
                   key={item.id} 

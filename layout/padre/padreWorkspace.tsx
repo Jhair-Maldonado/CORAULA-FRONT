@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { usePadre } from '../../src/components/padres/padreContext'; 
+import { usePadre } from '@/components/padres/PadreContext'; 
 import { PadreSidebar } from './padreSidebar'; 
 import { PadreNavbar } from './padreNavbar'; 
 

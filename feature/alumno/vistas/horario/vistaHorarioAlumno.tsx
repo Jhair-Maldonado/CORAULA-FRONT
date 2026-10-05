@@ -92,124 +92,139 @@ export default function VistaHorarioAlumno() {
       {data && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Main Table Card (8 cols) */}
-          <div className="lg:col-span-8 bg-white rounded-xl border border-[#E5E7EB] p-5 sm:p-6 shadow-xs flex flex-col gap-4">
-            <div>
-              <h3 className="text-base font-bold text-[#111827]">
-                Distribución de Bloques de Clase
-              </h3>
-              <p className="text-[11px] text-[#6B7280] font-medium mt-0.5">
-                Horario oficial · {data.aula}
-              </p>
+          <div className="lg:col-span-8 bg-white rounded-xl border border-[#E5E7EB] shadow-xs flex flex-col h-full">
+            <div className="p-4 border-b border-[#E5E7EB] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-[#111827]">
+                  Distribución de Bloques de Clase
+                </h3>
+                <p className="text-[11px] text-[#6B7280] font-medium mt-0.5">
+                  Horario oficial · {data.aula}
+                </p>
+              </div>
             </div>
 
-            <div className="overflow-x-auto -mx-5 sm:mx-0 px-5 sm:px-0">
-              <table className="w-full text-left border-collapse min-w-[580px]">
-                <thead>
-                  <tr className="border-b border-[#E5E7EB]">
-                    <th className="py-2.5 px-3 text-[11px] font-semibold text-[#6B7280]">
-                      Horario
-                    </th>
-                    <th className="py-2.5 px-3 text-[11px] font-semibold text-[#6B7280]">
-                      Lunes
-                    </th>
-                    <th className="py-2.5 px-3 text-[11px] font-semibold text-[#6B7280]">
-                      Martes
-                    </th>
-                    <th className="py-2.5 px-3 text-[11px] font-semibold text-[#6B7280]">
-                      Miércoles
-                    </th>
-                    <th className="py-2.5 px-3 text-[11px] font-semibold text-[#6B7280]">
-                      Jueves
-                    </th>
-                    <th className="py-2.5 px-3 text-[11px] font-semibold text-[#6B7280]">
-                      Viernes
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {data.bloques.map((b) => {
-                    if (b.esReceso) {
+            <div className="overflow-x-auto p-4 flex-1">
+              <div className="border border-[#E5E7EB] rounded-xl overflow-hidden h-full flex flex-col">
+                <table className="w-full text-left min-w-[500px] h-full flex-1">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-[#E5E7EB]">
+                      <th className="p-2.5 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider w-20 text-center border-r border-[#E5E7EB]">Hora</th>
+                      <th className="p-2.5 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center border-r border-[#E5E7EB]">Lun</th>
+                      <th className="p-2.5 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center border-r border-[#E5E7EB]">Mar</th>
+                      <th className="p-2.5 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center border-r border-[#E5E7EB]">Mié</th>
+                      <th className="p-2.5 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center border-r border-[#E5E7EB]">Jue</th>
+                      <th className="p-2.5 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center">Vie</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[11px] font-medium text-[#111827]">
+                    {data.bloques.map((b, rIdx) => {
+                      if (b.esReceso) {
+                        return (
+                          <tr key={b.id} className="border-b border-[#E5E7EB] bg-[#FEF3C7]">
+                            <td className="p-3 text-[10px] font-bold text-[#6B7280] text-center border-r border-[#E5E7EB] bg-white">
+                              {b.horaInicio}
+                            </td>
+                            <td colSpan={5} className="p-3 text-center font-bold text-amber-700 tracking-widest border-y border-[#FDE68A]">
+                              RECESO ({parseInt(b.horaFin.split(':')[1]) - parseInt(b.horaInicio.split(':')[1]) || 30} MIN)
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      // Alternar colores pastel por bloque
+                      const bgClass = rIdx % 2 === 0 ? 'bg-[#F0FDF4]/50' : 'bg-[#EFF6FF]/50';
+
                       return (
-                        <tr key={b.id} className="bg-slate-50/80">
-                          <td
-                            colSpan={6}
-                            className="py-2 px-3 text-center text-[11px] font-bold text-[#6B7280] tracking-wide"
-                          >
-                            {b.rangoHora} · RECESO INSTITUCIONAL (30 MIN)
+                        <tr key={b.id} className={`border-b border-[#E5E7EB] h-20 ${bgClass}`}>
+                          <td className="p-2 text-[10px] font-bold text-[#6B7280] text-center border-r border-[#E5E7EB] bg-white">
+                            {b.horaInicio}
                           </td>
+                          {[b.lunes, b.martes, b.miercoles, b.jueves, b.viernes].map((curso, cIdx) => (
+                            <td key={cIdx} className="p-2 text-center border-r border-[#E5E7EB] hover:bg-white hover:shadow-sm cursor-pointer transition-all">
+                              <span className="font-bold text-[#111827]">{curso}</span>
+                            </td>
+                          ))}
                         </tr>
                       );
-                    }
-
-                    return (
-                      <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="py-3 px-3 text-[11px] font-bold text-[#6B7280] whitespace-nowrap">
-                          {b.rangoHora}
-                        </td>
-                        <td className="py-3 px-3 text-[12px] font-semibold text-[#111827]">
-                          {b.lunes}
-                        </td>
-                        <td className="py-3 px-3 text-[12px] font-semibold text-[#111827]">
-                          {b.martes}
-                        </td>
-                        <td className="py-3 px-3 text-[12px] font-semibold text-[#111827]">
-                          {b.miercoles}
-                        </td>
-                        <td className="py-3 px-3 text-[12px] font-semibold text-[#111827]">
-                          {b.jueves}
-                        </td>
-                        <td className="py-3 px-3 text-[12px] font-semibold text-[#111827]">
-                          {b.viernes}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
           {/* Right Card: Next Class (4 cols) */}
-          <div className="lg:col-span-4 bg-white rounded-xl border border-[#E5E7EB] p-5 sm:p-6 shadow-xs flex flex-col gap-4">
-            <div className="flex items-center justify-between">
+          <div className="lg:col-span-4 bg-white rounded-xl border border-[#E5E7EB] shadow-xs flex flex-col h-full overflow-hidden">
+            <div className="p-4 border-b border-[#E5E7EB] bg-slate-50 flex items-center justify-between">
               <h4 className="text-sm font-bold text-[#111827]">Próxima Clase</h4>
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#BE123C] bg-[#FFE4E6] px-2 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#BE123C] bg-[#FFE4E6] px-2 py-0.5 rounded-full shadow-sm">
                 <Sparkles className="w-3 h-3" /> En curso
               </span>
             </div>
 
-            <div className="bg-[#FFE4E6]/60 border border-[#FECDD3] rounded-xl p-4 flex flex-col gap-2">
-              <span className="text-lg font-black text-[#BE123C] leading-none">
-                {data.proximaClase.curso}
-              </span>
-              <span className="text-xs text-[#111827] font-medium">
-                {data.proximaClase.docente}
-              </span>
-              <div className="flex flex-col gap-1 mt-1 text-[11px] text-[#6B7280]">
-                <span className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-[#BE123C]" />
-                  {data.proximaClase.horario}
+            <div className="p-5 flex flex-col gap-5 flex-1 overflow-y-auto">
+              {/* Bloque en curso */}
+              <div className="bg-[#FFE4E6]/40 border border-[#FECDD3] rounded-xl p-4 flex flex-col gap-2 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-[#BE123C]" />
+                <span className="text-xl font-black text-[#BE123C] leading-none mb-1">
+                  {data.proximaClase.curso}
                 </span>
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#BE123C]" />
-                  {data.proximaClase.aula}
+                <span className="text-xs text-[#111827] font-bold">
+                  {data.proximaClase.docente}
                 </span>
+                <div className="flex flex-col gap-1.5 mt-1 text-[11px] font-medium text-[#6B7280]">
+                  <span className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-[#BE123C]" />
+                    {data.proximaClase.horario}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#BE123C]" />
+                    {data.proximaClase.aula}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <h5 className="text-xs font-bold text-[#111827] mb-2 flex items-center gap-1.5">
-                <CheckSquare className="w-3.5 h-3.5 text-[#6B7280]" />
-                Materiales Requeridos:
-              </h5>
-              <ul className="flex flex-col gap-1.5 text-xs text-[#6B7280]">
-                {data.proximaClase.materialesRequeridos.map((mat, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#BE123C] mt-1.5 shrink-0" />
-                    <span>{mat}</span>
-                  </li>
-                ))}
-              </ul>
+              <div>
+                <h5 className="text-[11px] font-bold text-[#111827] mb-2.5 flex items-center gap-1.5 uppercase tracking-wider">
+                  <CheckSquare className="w-4 h-4 text-[#6B7280]" />
+                  Materiales Requeridos:
+                </h5>
+                <ul className="flex flex-col gap-2 text-xs text-[#6B7280] font-medium bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  {data.proximaClase.materialesRequeridos.map((mat, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#BE123C] mt-1.5 shrink-0" />
+                      <span>{mat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="h-px w-full bg-[#E5E7EB]" />
+
+              {/* Siguientes Clases */}
+              <div>
+                <h5 className="text-[11px] font-bold text-[#111827] mb-3 uppercase tracking-wider text-center">
+                  Siguientes Clases
+                </h5>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between p-2.5 rounded-lg border border-[#E5E7EB] hover:border-gray-300 transition-colors bg-white">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-[#111827]">Comunicación</span>
+                      <span className="text-[10px] text-[#6B7280]">Prof. Elena Valdivia</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-[#111827] bg-slate-100 px-2 py-1 rounded">10:00 AM</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2.5 rounded-lg border border-[#E5E7EB] hover:border-gray-300 transition-colors bg-white">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-[#111827]">Ciencia y Tec.</span>
+                      <span className="text-[10px] text-[#6B7280]">Prof. Carlos Rivas</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-[#111827] bg-slate-100 px-2 py-1 rounded">11:30 AM</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>

@@ -107,6 +107,7 @@ export interface MaterialEstudioAlumno {
   formato: 'PDF' | 'PPTX' | 'ZIP' | 'DOCX';
   tamanio: string; // Ej: "2.4 MB"
   urlDescarga?: string;
+  semana?: string; // Ej: "Semana 1", "Semana 2"
 }
 
 export interface MaterialesAlumnoData {

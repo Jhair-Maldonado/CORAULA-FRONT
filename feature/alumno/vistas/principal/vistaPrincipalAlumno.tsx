@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, ReferenceArea } from 'recharts';
 import Link from 'next/link';
 import { getResumenDashboardAlumno } from '@/lib/api';
 import { ResumenDashboardAlumno } from '@/types/alumno';
@@ -63,9 +64,13 @@ export default function VistaPrincipalAlumno() {
     <div className="flex flex-col gap-6">
       {/* Header */}
       <AlumnoHeader
-        eyebrow="Portal del Estudiante"
-        title="Resumen Académico del Alumno"
-        subtitle={`Bienvenido a tu ciclo escolar ${perfil.anioLectivo} · ${perfil.grado} Sección ${perfil.seccion}`}
+        title="Resumen Académico"
+        subtitle={`Bienvenido a tu ciclo escolar · ${perfil.grado} Sección ${perfil.seccion}`}
+        actionRight={
+          <div className="bg-[#111827] text-white px-4 py-2 rounded-xl flex items-center justify-center font-bold shadow-sm">
+            Año Académico {perfil.anioLectivo}
+          </div>
+        }
       />
 
       {/* Filter / Context Bar */}
@@ -182,51 +187,45 @@ export default function VistaPrincipalAlumno() {
             </Link>
           </div>
 
-          <div className="overflow-x-auto -mx-5 sm:mx-0 px-5 sm:px-0">
-            <table className="w-full text-left border-collapse min-w-[500px]">
-              <thead>
-                <tr className="border-b border-[#E5E7EB]">
-                  <th className="py-2.5 px-3 text-[11px] font-semibold text-[#6B7280]">
-                    Curso
-                  </th>
-                  <th className="py-2.5 px-3 text-[11px] font-semibold text-[#6B7280]">
-                    Docente Titular
-                  </th>
-                  <th className="py-2.5 px-3 text-[11px] font-semibold text-[#6B7280] text-center">
-                    Carga
-                  </th>
-                  <th className="py-2.5 px-3 text-[11px] font-semibold text-[#6B7280] text-center">
-                    Promedio
-                  </th>
-                  <th className="py-2.5 px-3 text-[11px] font-semibold text-[#6B7280] text-center">
-                    Estado
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {cursos.map((c) => (
-                  <tr key={c.curso} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3 px-3 text-[13px] font-bold text-[#111827]">
-                      {c.curso}
-                    </td>
-                    <td className="py-3 px-3 text-[12px] text-[#6B7280]">
-                      {c.docente}
-                    </td>
-                    <td className="py-3 px-3 text-[12px] text-[#111827] text-center">
-                      {c.horasSemanales}
-                    </td>
-                    <td className="py-3 px-3 text-[13px] font-bold text-[#BE123C] text-center">
-                      {c.promedio.toFixed(1)}
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#DCFCE7] text-[#15803D]">
-                        {c.estado}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="h-[250px] mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={cursos} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis 
+                  dataKey="curso" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 600 }}
+                  dy={10}
+                />
+                <YAxis 
+                  domain={[0, 20]} 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 600 }}
+                  dx={-10}
+                />
+                <Tooltip
+                  cursor={{ stroke: '#F3F4F6', strokeWidth: 2 }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-[#111827] text-white text-xs p-3 rounded-lg shadow-lg border border-gray-700">
+                          <p className="font-bold mb-1">{data.curso}</p>
+                          <p className="text-gray-300">Promedio: <span className={data.promedio >= 12 ? "text-emerald-400 font-black" : "text-[#FECDD3] font-black"}>{data.promedio.toFixed(1)}</span></p>
+                          <p className="text-gray-300">Estado: <span className={data.promedio >= 12 ? "text-emerald-400 font-bold" : "text-[#FECDD3] font-bold"}>{data.promedio >= 12 ? 'Aprobado' : 'Desaprobado'}</span></p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <ReferenceArea y1={0} y2={12} fill="#FFE4E6" fillOpacity={0.5} />
+                <ReferenceLine y={12} stroke="#BE123C" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Mínimo: 12', fill: '#BE123C', fontSize: 10, fontWeight: 'bold' }} />
+                <Line type="monotone" dataKey="promedio" stroke="#111827" strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 6 }} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 

@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { CheckmarkBadge01Icon } from 'hugeicons-react';
-import { usePadre } from '@/components/padres/padreContext'; 
+import { usePadre } from '@/components/padres/PadreContext';
 
 export function ChildSelectorCards() {
   const { hijos, selectedHijoId, setSelectedHijoId } = usePadre();

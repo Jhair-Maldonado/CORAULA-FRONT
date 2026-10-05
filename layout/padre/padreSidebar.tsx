@@ -11,7 +11,7 @@ import {
   Logout01Icon,
   AlertCircleIcon,
 } from 'hugeicons-react';
-import { usePadre } from '@/components/padres/padreContext'; 
+import { usePadre } from '@/components/padres/PadreContext'; 
 import { AuthContext } from '@/contexts/AuthContext';
 
 type MenuItem = {

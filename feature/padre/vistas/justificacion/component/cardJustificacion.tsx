@@ -16,12 +16,12 @@ export function CardJustificacion({ item, onJustificar }: CardJustificacionProps
   const esInjustificada = item.estado === 'Falta Justificar';
 
   return (
-    <div className={`border rounded-xl p-2.5 shadow-sm transition-colors bg-white ${
+    <div className={`border rounded-xl p-3 shadow-sm transition-colors bg-white ${
       esInjustificada ? 'border-red-300 bg-red-50/50' : 'border-line hover:border-muted'
     }`}>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[8px] font-black text-ink">{item.fecha}</span>
-        <span className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-black text-ink">{item.fecha}</span>
+        <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
           item.estado === 'Aprobada' ? 'bg-emerald-100 text-emerald-700' : 
           item.estado === 'Rechazada' ? 'bg-amber-100 text-amber-700' : 
           'bg-red-600 text-white animate-pulse'
@@ -30,8 +30,8 @@ export function CardJustificacion({ item, onJustificar }: CardJustificacionProps
         </span>
       </div>
       
-      <div className="mb-1.5 flex items-center gap-1">
-        <span className={`text-[8px] font-bold uppercase ${
+      <div className="mb-2 flex items-center gap-1">
+        <span className={`text-xs font-bold uppercase ${
           item.tipoIncidencia.includes('Falta') ? 'text-red-500' : 'text-amber-500'
         }`}>
           • {item.tipoIncidencia}
@@ -39,17 +39,17 @@ export function CardJustificacion({ item, onJustificar }: CardJustificacionProps
       </div>
 
       {!esInjustificada && (
-        <h4 className="text-[10px] font-black text-ink leading-tight mb-1">{item.motivo}</h4>
+        <h4 className="text-sm font-black text-ink leading-tight mb-1">{item.motivo}</h4>
       )}
       
-      <p className={`text-[9px] font-medium leading-relaxed ${esInjustificada ? 'text-red-800' : 'text-muted'}`}>
+      <p className={`text-xs font-medium leading-relaxed ${esInjustificada ? 'text-red-800' : 'text-muted'}`}>
         {item.detalle}
       </p>
 
       {esInjustificada && (
         <button 
           onClick={() => onJustificar(parseInt(item.fecha.split(' ')[0]))}
-          className="mt-2 w-full py-1.5 bg-red-100 text-red-700 text-[8px] font-black uppercase tracking-wider rounded border border-red-200 hover:bg-red-200 transition-colors"
+          className="mt-3 w-full py-2 bg-red-100 text-red-700 text-xs font-black uppercase tracking-wider rounded-lg border border-red-200 hover:bg-red-200 transition-colors"
         >
           Justificar Ahora
         </button>

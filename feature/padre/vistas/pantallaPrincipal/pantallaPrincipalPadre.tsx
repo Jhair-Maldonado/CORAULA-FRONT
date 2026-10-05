@@ -8,7 +8,7 @@ import {
   Folder01Icon,
   DashboardSquare01Icon
 } from 'hugeicons-react';
-import { usePadre } from '@/components/padres/padreContext'; 
+import { usePadre } from '@/components/padres/PadreContext'; 
 import { getDashboardResumen } from '@/services/padres/padreService';
 import { ChildSelectorCards } from './component/cardFichaHijo';
 import { TabCalificaciones } from './component/tabCalificaciones';

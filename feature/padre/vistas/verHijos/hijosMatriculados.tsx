@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { usePadre } from '@/components/padres/padreContext'; 
+import { usePadre } from '@/components/padres/PadreContext'; 
 import { CheckmarkCircle01Icon, Alert01Icon, PencilEdit02Icon, StarIcon } from 'hugeicons-react';
 import { EdicionHijoModal } from './component/edicionHijoModal'; 
 import { HijoResumen } from '@/types/padre';
@@ -45,8 +45,8 @@ export default function HijosMatriculados() {
   return (
     <div className="flex flex-col h-full animate-in fade-in w-full">
       <div className="mb-6 px-2">
-        <h1 className="text-[14px] font-black text-ink uppercase tracking-wider">Estudiantes a Cargo</h1>
-        <p className="text-[10px] text-muted font-medium mt-1">
+        <h1 className="text-base font-black text-ink uppercase tracking-wider">Estudiantes a Cargo</h1>
+        <p className="text-xs text-muted font-medium mt-1">
           Seleccione un estudiante para visualizar su rendimiento y asistencia en el tablero principal.
         </p>
       </div>

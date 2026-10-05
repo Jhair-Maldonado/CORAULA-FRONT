@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { MotivoJustificacion } from '@/types/padre';
 import { enviarJustificacion } from '@/services/padres/padreService';
-import { usePadre } from '@/components/padres/padreContext';
+import { usePadre } from '@/components/padres/PadreContext';
 import { 
   Alert02Icon, 
   Clock01Icon, 
@@ -142,7 +142,7 @@ export const FormularioInasistencia: React.FC<FormularioInasistenciaProps> = ({
       onClose={onClose}
       title="Formulario de Justificación"
       description="Envíe una justificación formal dirigida a la coordinación académica y al tutor."
-      maxWidth="3xl"
+      maxWidth="2xl"
     >
       {submittedSuccess ? (
         <div className="py-12 text-center space-y-3">
@@ -157,48 +157,48 @@ export const FormularioInasistencia: React.FC<FormularioInasistenciaProps> = ({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 pt-2">
           
           {/* LADO IZQUIERDO: Info de Incidencia (2/5) */}
-          <div className="md:col-span-2 bg-slate-50 border border-line rounded-2xl p-5 flex flex-col justify-center">
+          <div className="md:col-span-2 bg-slate-50 border border-line rounded-2xl p-4 flex flex-col justify-center">
             
-            <div className="text-center mb-6">
-              <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-1">
+            <div className="text-center mb-4">
+              <h3 className="text-xs font-black text-muted uppercase tracking-widest mb-1">
                 Incidencia a Justificar
               </h3>
-              <p className="text-sm font-bold text-ink">{fecha}</p>
+              <p className="text-base font-bold text-ink">{fecha}</p>
             </div>
 
             {tipoIncidencia === 'Tardanza' ? (
-              <div className="bg-amber-100 border border-amber-200 rounded-xl p-5 text-center shadow-sm">
-                <div className="w-14 h-14 bg-amber-500 rounded-full text-white mx-auto flex items-center justify-center shadow-md mb-4 animate-pulse-slow">
-                  <Clock01Icon size={28} />
+              <div className="bg-amber-100 border border-amber-200 rounded-xl p-4 text-center shadow-sm">
+                <div className="w-12 h-12 bg-amber-500 rounded-full text-white mx-auto flex items-center justify-center shadow-md mb-3 animate-pulse-slow">
+                  <Clock01Icon size={24} />
                 </div>
-                <h4 className="text-xl font-black text-amber-900 uppercase tracking-wider mb-2">Tardanza</h4>
+                <h4 className="text-lg font-black text-amber-900 uppercase tracking-wider mb-2">Tardanza</h4>
                 
-                <div className="bg-white/60 rounded-lg p-3 inline-block mx-auto">
+                <div className="bg-white/60 rounded-lg p-2 inline-block mx-auto">
                   <p className="text-xs font-bold text-amber-800 mb-1">
-                    Mora de <span className="text-amber-600 text-lg">{minutosMora} min</span>
+                    Mora de <span className="text-amber-600 text-base">{minutosMora} min</span>
                   </p>
-                  <p className="text-[10px] font-black text-amber-900/60 uppercase">
+                  <p className="text-xs font-black text-amber-900/60 uppercase">
                     Hora de Ingreso: {horaLlegada}
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="bg-red-100 border border-red-200 rounded-xl p-6 text-center shadow-sm">
-                <div className="w-16 h-16 bg-red-600 rounded-full text-white mx-auto flex items-center justify-center shadow-md mb-4 rotate-[-10deg]">
-                  <Alert02Icon size={32} />
+              <div className="bg-red-100 border border-red-200 rounded-xl p-5 text-center shadow-sm">
+                <div className="w-14 h-14 bg-red-600 rounded-full text-white mx-auto flex items-center justify-center shadow-md mb-3 rotate-[-10deg]">
+                  <Alert02Icon size={28} />
                 </div>
-                <h4 className="text-3xl font-black text-red-700 uppercase tracking-widest">Falta</h4>
-                <p className="text-xs font-bold text-red-800 mt-2">
+                <h4 className="text-2xl font-black text-red-700 uppercase tracking-widest">Falta</h4>
+                <p className="text-sm font-bold text-red-800 mt-2">
                   Inasistencia de día completo
                 </p>
               </div>
             )}
             
-            <div className="mt-6 text-center">
-              <p className="text-[9px] font-medium text-muted px-4 leading-relaxed">
+            <div className="mt-4 text-center">
+              <p className="text-xs font-medium text-muted px-2 leading-relaxed">
                 Asegúrese de adjuntar la justificación válida (receta médica, constancia, etc.) en formato de imagen para ser evaluada por la coordinación.
               </p>
             </div>

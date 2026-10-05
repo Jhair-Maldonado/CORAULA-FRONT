@@ -1,5 +1,5 @@
 import React from 'react';
-import { PadreProvider } from '@/components/padres/padreContext';
+import { PadreProvider } from '@/components/padres/PadreContext';
 import { AuthGuard } from '@/components/AuthGuard';
 import { PadreWorkspace } from '../../../layout/padre/padreWorkspace'; 
 

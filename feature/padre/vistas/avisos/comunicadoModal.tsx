@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { ComunicadoPadre } from '@/types/padre';
 import { firmarComunicado, marcarComunicadoLeido } from '@/services/padres/padreService';
-import { usePadre } from '@/components/padres/padreContext'; 
+import { usePadre } from '@/components/padres/PadreContext'; 
 
 interface ComunicadoModalProps {
   isOpen: boolean;

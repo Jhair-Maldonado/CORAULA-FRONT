@@ -1,7 +1,7 @@
 // src/components/alumno/AlumnoSidebar.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -11,149 +11,103 @@ import {
   Calendar,
   FolderPlus,
   MessageSquare,
-  Menu,
-  X
+  LogOut,
+  Bell
 } from 'lucide-react';
+import { useAlumnoSession, DEFAULT_ALUMNO_SESSION } from './AlumnoSessionContext';
 
-interface NavItem {
+type MenuItem = {
   name: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
+  path: string;
+  icon: any;
+  badge?: string | number;
+};
 
-const NAV_ITEMS: NavItem[] = [
-  { name: 'Resumen', href: '/alumno', icon: LayoutDashboard },
-  { name: 'Asistencia', href: '/alumno/asistencia', icon: ClipboardCheck },
-  { name: 'Calificaciones', href: '/alumno/calificaciones', icon: BarChart2 },
-  { name: 'Horario', href: '/alumno/horario', icon: Calendar },
-  { name: 'Materiales', href: '/alumno/materiales', icon: FolderPlus },
-  { name: 'Mensajes', href: '/alumno/mensajes', icon: MessageSquare },
+const MENU_ITEMS: MenuItem[] = [
+  { name: 'Resumen', path: '/alumno', icon: LayoutDashboard },
+  { name: 'Asistencia', path: '/alumno/asistencia', icon: ClipboardCheck },
+  { name: 'Notas', path: '/alumno/calificaciones', icon: BarChart2 },
+  { name: 'Horario', path: '/alumno/horario', icon: Calendar },
+  { name: 'Materiales', path: '/alumno/materiales', icon: FolderPlus },
+  { name: 'Mensajes', path: '/alumno/mensajes', icon: MessageSquare, badge: 1 },
 ];
 
 export const AlumnoSidebar: React.FC = () => {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  const isActive = (href: string) => {
-    if (href === '/alumno') return pathname === '/alumno';
-    return pathname.startsWith(href);
-  };
-
-  const navContent = (
-    <div className="flex flex-col h-full justify-between">
-      {/* Top Header & Navigation */}
-      <div>
-        {/* Brand Header */}
-        <div className="mb-6">
-          <Link
-            href="/alumno"
-            onClick={() => setMobileOpen(false)}
-            className="block group focus-visible:outline-none"
-          >
-            <span className="text-[22px] font-black tracking-tight text-[#BE123C] block leading-tight">
-              CORAULA
-            </span>
-            <span className="text-[11px] text-[#6B7280] font-normal block mt-0.5">
-              Gestión educativa
-            </span>
-          </Link>
-        </div>
-
-        {/* Navigation List */}
-        <nav className="flex flex-col gap-2" aria-label="Navegación del alumno">
-          {NAV_ITEMS.map((item) => {
-            const active = isActive(item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-2.5 h-[42px] px-3 rounded-lg text-[13px] font-medium transition-all duration-150 ${
-                  active
-                    ? 'bg-[#FFE4E6] text-[#BE123C] font-bold shadow-2xs'
-                    : 'text-[#6B7280] hover:text-[#111827] hover:bg-slate-100/70'
-                }`}
-              >
-                <Icon
-                  className={`w-[18px] h-[18px] shrink-0 transition-colors ${
-                    active ? 'text-[#BE123C]' : 'text-[#6B7280]'
-                  }`}
-                />
-                <span className="truncate">{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Footer */}
-      <div className="pt-4 border-t border-[#E5E7EB] mt-auto">
-        <div className="text-[12px] font-bold text-[#111827]">
-          Colegio San Marcos
-        </div>
-        <div className="text-[11px] text-[#6B7280]">
-          Alumno · 2026
-        </div>
-      </div>
-    </div>
-  );
+  const { session, logout } = useAlumnoSession();
+  const alumno = session || DEFAULT_ALUMNO_SESSION;
 
   return (
     <>
-      {/* Mobile Top Bar with Hamburger */}
-      <div className="lg:hidden sticky top-0 z-40 bg-white border-b border-[#E5E7EB] px-4 py-3 flex items-center justify-between shadow-2xs">
-        <Link href="/alumno" className="flex items-center gap-2">
-          <span className="text-xl font-black text-[#BE123C]">CORAULA</span>
-          <span className="text-xs text-[#6B7280]">· Alumno</span>
-        </Link>
-        <button
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="p-2 rounded-lg text-[#111827] hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#BE123C]/20"
-          aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
-        >
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
-      </div>
-
-      {/* Mobile Drawer Backdrop */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs lg:hidden transition-opacity"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
-      {/* Mobile Drawer Panel */}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white p-6 shadow-2xl transition-transform duration-300 lg:hidden flex flex-col ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="flex items-center justify-between pb-4 border-b border-[#E5E7EB] mb-4">
-          <div>
-            <span className="text-xl font-black text-[#BE123C]">CORAULA</span>
-            <span className="text-[11px] text-[#6B7280] block">Gestión educativa</span>
+      <aside className="w-[72px] bg-white border-r border-line flex flex-col h-full shrink-0 z-40 hidden md:flex">
+        {/* Logo Mini */}
+        <div className="h-16 flex items-center justify-center shrink-0 border-b border-line">
+          <div className="w-8 h-8 rounded-xl bg-accent flex items-center justify-center text-white shadow-sm shrink-0 font-black text-sm tracking-tight">
+            C
           </div>
+        </div>
+
+        {/* Navigation Items */}
+        <div className="flex-1 overflow-y-auto py-4 px-2 flex flex-col gap-2 custom-scrollbar">
+          {MENU_ITEMS.map((item) => {
+            const isActive = item.path === '/alumno'
+              ? pathname === '/alumno'
+              : pathname === item.path || pathname?.startsWith(`${item.path}/`);
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                className={`group relative flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl transition-all
+                  ${isActive 
+                    ? 'bg-accent text-white' 
+                    : 'text-muted hover:bg-neutral hover:text-ink'
+                  }`}
+              >
+                <div className="relative">
+                  <item.icon size={20} className={isActive ? 'text-white' : 'text-muted group-hover:text-ink'} />
+                  {item.badge && (
+                    <span className="absolute -top-1 -right-2 w-4 h-4 bg-accent text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-white shadow-sm">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[9px] font-bold text-center tracking-tight leading-tight w-full truncate">
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* User / Logout */}
+        <div className="p-2 border-t border-line flex flex-col gap-2">
+          {alumno && (
+            <div className="flex flex-col items-center justify-center gap-1 p-2">
+              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[#BE123C] font-bold text-xs uppercase overflow-hidden shadow-2xs">
+                {alumno.nombre.substring(0, 2).toUpperCase()}
+              </div>
+            </div>
+          )}
           <button
-            onClick={() => setMobileOpen(false)}
-            className="p-1.5 rounded-lg text-[#6B7280] hover:text-[#111827] hover:bg-slate-100"
+            onClick={logout}
+            className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl text-muted hover:bg-accent-soft hover:text-accent transition-all group"
+            title="Cerrar sesión"
           >
-            <X className="w-5 h-5" />
+            <LogOut size={20} className="group-hover:text-accent" />
+            <span className="text-[9px] font-bold text-center tracking-tight leading-tight">Salir</span>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {navContent}
-        </div>
-      </div>
-
-      {/* Desktop Fixed Sidebar (Frame sbAlu0) */}
-      <aside
-        className="hidden lg:flex w-[220px] h-screen bg-white border-r border-[#E5E7EB] p-6 flex-col fixed inset-y-0 left-0 z-30 shrink-0 select-none"
-        aria-label="Barra lateral del alumno"
-      >
-        {navContent}
       </aside>
+
+      {/* Mobile Navbar Placeholder (Minimalist) */}
+      <div className="md:hidden flex items-center justify-between h-14 bg-white border-b border-line px-4 shrink-0">
+         <div className="w-8 h-8 rounded-xl bg-accent flex items-center justify-center text-white font-black text-sm">
+            C
+         </div>
+         <button className="p-2 text-muted">
+           <Bell size={20} />
+         </button>
+      </div>
     </>
   );
 };

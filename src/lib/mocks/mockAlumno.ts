@@ -240,7 +240,19 @@ export const MOCK_MATERIALES_ALUMNO: MaterialesAlumnoData = {
       fecha: '06/09/2026',
       formato: 'PDF',
       tamanio: '2.4 MB',
-      urlDescarga: '#'
+      urlDescarga: '#',
+      semana: 'Semana 2'
+    },
+    {
+      id: 'mat-01-2',
+      titulo: 'Ejercicios de Matrices',
+      curso: 'Matemática',
+      docente: 'Prof. Marco Aurelio',
+      fecha: '30/08/2026',
+      formato: 'PDF',
+      tamanio: '1.2 MB',
+      urlDescarga: '#',
+      semana: 'Semana 1'
     },
     {
       id: 'mat-02',
@@ -250,17 +262,30 @@ export const MOCK_MATERIALES_ALUMNO: MaterialesAlumnoData = {
       fecha: '05/09/2026',
       formato: 'PPTX',
       tamanio: '5.1 MB',
-      urlDescarga: '#'
+      urlDescarga: '#',
+      semana: 'Semana 2'
+    },
+    {
+      id: 'mat-02-2',
+      titulo: 'Lectura: Poesía Contemporánea',
+      curso: 'Comunicación',
+      docente: 'Prof. Elena Valdivia',
+      fecha: '28/08/2026',
+      formato: 'PDF',
+      tamanio: '3.4 MB',
+      urlDescarga: '#',
+      semana: 'Semana 1'
     },
     {
       id: 'mat-03',
       titulo: 'Manual de Laboratorio Químico N° 3',
-      curso: 'Ciencia y Tec.',
+      curso: 'Ciencia y Tecnología',
       docente: 'Prof. Carlos Rivas',
       fecha: '03/09/2026',
       formato: 'PDF',
       tamanio: '3.8 MB',
-      urlDescarga: '#'
+      urlDescarga: '#',
+      semana: 'Semana 2'
     },
     {
       id: 'mat-04',
@@ -270,7 +295,8 @@ export const MOCK_MATERIALES_ALUMNO: MaterialesAlumnoData = {
       fecha: '01/09/2026',
       formato: 'PDF',
       tamanio: '4.2 MB',
-      urlDescarga: '#'
+      urlDescarga: '#',
+      semana: 'Semana 2'
     },
     {
       id: 'mat-05',
@@ -280,7 +306,8 @@ export const MOCK_MATERIALES_ALUMNO: MaterialesAlumnoData = {
       fecha: '28/08/2026',
       formato: 'ZIP',
       tamanio: '12.5 MB',
-      urlDescarga: '#'
+      urlDescarga: '#',
+      semana: 'Semana 1'
     }
   ]
 };

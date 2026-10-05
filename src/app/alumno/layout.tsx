@@ -6,10 +6,21 @@ import { usePathname } from 'next/navigation';
 import { AlumnoSidebar } from '@/components/alumno/AlumnoSidebar';
 import { AlumnoUserBar } from '@/components/alumno/AlumnoUserBar';
 import { AlumnoSessionProvider } from '@/components/alumno/AlumnoSessionContext';
+import { Menu } from 'lucide-react';
 
 function AlumnoLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLoginPage = pathname === '/alumno/login';
+
+  const getPageTitle = (path: string) => {
+    if (path === '/alumno') return 'Panel General';
+    if (path.includes('/asistencia')) return 'Asistencia';
+    if (path.includes('/calificaciones')) return 'Calificaciones';
+    if (path.includes('/horario')) return 'Horario';
+    if (path.includes('/materiales')) return 'Materiales';
+    if (path.includes('/mensajes')) return 'Mensajería';
+    return 'Portal de Alumnos';
+  };
 
   // Si estamos en la página de login (/alumno/login), no mostrar sidebar ni topbar del dashboard
   if (isLoginPage) {
@@ -21,26 +32,34 @@ function AlumnoLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6] text-[#111827] flex flex-col antialiased">
-      {/* Sidebar (Desktop 220px fixed + Mobile Drawer) */}
+    <div className="flex h-screen w-full bg-[#F3F4F6] font-sans overflow-hidden text-[#111827]">
+      {/* Sidebar (Siempre visible en desktop) */}
       <AlumnoSidebar />
 
-      {/* Main Content Area */}
-      <div className="flex-1 lg:pl-[220px] flex flex-col min-w-0">
-        {/* Top Header Bar with Indicador de Sesión */}
-        <header className="sticky top-0 z-20 w-full bg-white/90 backdrop-blur-md border-b border-[#E5E7EB] px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between shadow-2xs">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider hidden md:inline-block">
-              Colegio San Marcos · Periodo 2026
-            </span>
-          </div>
+      {/* Contenedor Principal con Scroll */}
+      <div className="flex-1 flex flex-col h-full overflow-y-auto overflow-x-hidden custom-scrollbar relative bg-[#F8FAFC]">
+        {/* Top Header Bar */}
+        <header className="sticky top-0 z-40 bg-white border-b border-line shadow-sm flex justify-center shrink-0">
+          <div className="w-full max-w-[1600px] px-4 sm:px-6 h-16 flex items-center justify-between">
+            {/* Lado Izquierdo: Título y Mobile Menu Button */}
+            <div className="flex items-center gap-3">
+              <button className="md:hidden text-muted hover:text-ink">
+                <Menu size={20} />
+              </button>
+              <h1 className="text-sm font-black text-ink uppercase tracking-wider hidden sm:block">
+                {getPageTitle(pathname)}
+              </h1>
+            </div>
 
-          {/* Reusable Indicador de Sesión (Avatar + Nombre + Botón Cerrar sesión) */}
-          <AlumnoUserBar />
+            {/* Reusable Indicador de Sesión */}
+            <div className="flex items-center gap-4">
+              <AlumnoUserBar />
+            </div>
+          </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 xl:p-9 max-w-6xl w-full mx-auto flex flex-col">
+        <main className="flex-1 p-4 sm:p-6 w-full mx-auto pb-16 max-w-[1200px] flex flex-col">
           {children}
         </main>
       </div>

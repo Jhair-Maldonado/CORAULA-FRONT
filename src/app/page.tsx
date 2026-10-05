@@ -5,7 +5,7 @@ const ROLES = [
   {
     id: 'administrador',
     name: 'Administrador',
-    path: '/login/security/administrador?rol=administrador',
+    path: '/administrador',
     desc: 'Gestión académica, matrícula, reportes institucionales y usuarios.',
     badge: 'Gestión Escolar',
     color: 'bg-rose-700 text-white',
@@ -14,7 +14,7 @@ const ROLES = [
   {
     id: 'directivo',
     name: 'Directivo',
-    path: '/login/security/administrador?rol=directivo',
+    path: '/administrador',
     desc: 'Supervisión general, reportes estadísticos y control institucional.',
     badge: 'Dirección',
     color: 'bg-orange-700 text-white',
@@ -23,7 +23,7 @@ const ROLES = [
   {
     id: 'docente',
     name: 'Docente',
-    path: '/login/security/administrador?rol=docente',
+    path: '/docente',
     desc: 'Registro de asistencia, publicaciones, calificaciones y aula virtual.',
     badge: 'Docencia',
     color: 'bg-blue-700 text-white',
@@ -32,7 +32,7 @@ const ROLES = [
   {
     id: 'padre',
     name: 'Padre / Apoderado',
-    path: '/login?rol=apoderado',
+    path: '/padre',
     desc: 'Seguimiento en tiempo real de notas, asistencia y avisos escolares.',
     badge: 'Familia',
     color: 'bg-emerald-700 text-white',
@@ -41,7 +41,7 @@ const ROLES = [
   {
     id: 'estudiante',
     name: 'Estudiante',
-    path: '/login?rol=estudiante',
+    path: '/alumno',
     desc: 'Consulta de horario, tareas asignadas, notas y recursos académicos.',
     badge: 'Estudiante',
     color: 'bg-indigo-700 text-white',

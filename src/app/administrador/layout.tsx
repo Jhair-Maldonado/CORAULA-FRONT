@@ -1,5 +1,5 @@
 import React from 'react';
-import { AdminSidebar } from '../../../layout/adminSidebar';
+import { AdminSidebar } from '../../../layout/admin/adminSidebar';
 import { AuthGuard } from '@/components/AuthGuard';
 
 export default function AdministradorLayout({

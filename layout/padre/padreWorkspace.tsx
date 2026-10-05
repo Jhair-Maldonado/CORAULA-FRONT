@@ -3,10 +3,9 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { usePadre } from './PadreContext';
-import { SelectorHijosWelcome } from './SelectorHijosWelcome';
-import { PadreSidebar } from './PadreSidebar';
-import { PadreNavbar } from './PadreNavbar';
+import { usePadre } from '../../src/components/padres/padreContext'; 
+import { PadreSidebar } from './padreSidebar'; 
+import { PadreNavbar } from './padreNavbar'; 
 
 export const PadreWorkspace: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isLoading } = usePadre();

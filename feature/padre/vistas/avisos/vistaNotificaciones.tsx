@@ -1,208 +1,221 @@
-// src/app/(padres)/padre/comunicados/page.tsx
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { getComunicados } from '@/services/padres/padreService';
-import { ComunicadoPadre, TipoComunicado } from '@/types/padre';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  Badge,
-  Button,
-  Tabs,
-  CardSkeleton,
-  EmptyState,
-  ErrorState,
-} from '@/components/ui';
-import { ComunicadoModal } from '@/components/padres/ComunicadoModal';
-import {
-  Notification01Icon,
+import React, { useState, useRef, useEffect } from 'react';
+import { usePadre } from '@/components/padres/padreContext';
+import { 
+  Notification01Icon, 
+  CheckmarkBadge01Icon, 
+  UserSwitchIcon,
+  Alert02Icon,
+  BookOpen01Icon,
   Calendar01Icon,
-  FileAttachmentIcon,
-  Edit01Icon,
+  FilterIcon,
+  Message01Icon
 } from 'hugeicons-react';
+import { TipoComunicado, ComunicadoPadre } from '@/types/padre';
 
-export default function VistaNotificaciones() {
-  const [comunicados, setComunicados] = useState<ComunicadoPadre[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filtroTipo, setFiltroTipo] = useState<string>('todos');
-  const [modalComunicado, setModalComunicado] = useState<ComunicadoPadre | null>(null);
+// Datos Mockeados de Comunicados
+const MOCK_COMUNICADOS: ComunicadoPadre[] = [
+  {
+    id: 'c-1',
+    titulo: 'Suspensión de clases presenciales por lluvias',
+    resumen: 'Debido a las fuertes lluvias, las clases se realizarán de manera virtual este viernes.',
+    contenido: 'Estimados padres de familia, se les comunica que...',
+    tipo: 'Urgente',
+    fecha: 'Hoy, 08:30 AM',
+    emisor: 'Dirección General',
+    emisorCargo: 'Director',
+    leido: false,
+    requiereFirma: true
+  },
+  {
+    id: 'c-2',
+    titulo: 'Entrega de libretas del 1er Bimestre',
+    resumen: 'La reunión de entrega de libretas se realizará el próximo miércoles a las 4:00 PM.',
+    contenido: 'Estimados padres, los invitamos a la entrega de libretas...',
+    tipo: 'Académico',
+    fecha: 'Ayer, 04:15 PM',
+    emisor: 'Coordinación Académica',
+    emisorCargo: 'Coordinador',
+    leido: false,
+    requiereFirma: false
+  },
+  {
+    id: 'c-3',
+    titulo: 'Olimpiadas Deportivas 2026',
+    resumen: 'Inscripciones abiertas para participar en las disciplinas deportivas del colegio.',
+    contenido: 'Inscriba a sus hijos en las próximas olimpiadas...',
+    tipo: 'Evento',
+    fecha: '12 de Mayo, 10:00 AM',
+    emisor: 'Departamento de Ed. Física',
+    emisorCargo: 'Profesor',
+    leido: true,
+    requiereFirma: false
+  },
+  {
+    id: 'c-4',
+    titulo: 'Recordatorio de pago de pensión de Mayo',
+    resumen: 'Se recuerda que el vencimiento de la pensión del mes de Mayo es el 15.',
+    contenido: 'Evite moras pagando a tiempo...',
+    tipo: 'Administrativo',
+    fecha: '05 de Mayo, 09:00 AM',
+    emisor: 'Tesorería',
+    emisorCargo: 'Tesorero',
+    leido: true,
+    requiereFirma: false
+  }
+];
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getComunicados();
-      setComunicados(data);
-    } catch (err) {
-      console.error('Error cargando comunicados:', err);
-      setError(err instanceof Error ? err.message : 'Error al cargar los comunicados');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+export default function VistaNotficaciones() {
+  const { hijos, selectedHijoId, setSelectedHijoId } = usePadre();
+  const [filtro, setFiltro] = useState<'Todas' | 'Leídas' | 'Faltantes'>('Todas');
+  
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const hijoActivo = hijos.find(h => h.id === selectedHijoId) || hijos[0];
 
   useEffect(() => {
-    const run = async () => {
-      await fetchData();
-    };
-    run();
-  }, [fetchData]);
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [dropdownRef]);
 
-  const filteredComunicados = comunicados.filter((c) => {
-    if (filtroTipo === 'todos') return true;
-    return c.tipo.toLowerCase() === filtroTipo.toLowerCase();
+  if (!hijoActivo) {
+    return (
+      <div className="p-6 text-center text-[11px] font-bold text-muted">
+        Cargando datos del estudiante...
+      </div>
+    );
+  }
+
+  // Filtrado
+  const comunicadosFiltrados = MOCK_COMUNICADOS.filter(c => {
+    if (filtro === 'Leídas') return c.leido;
+    if (filtro === 'Faltantes') return !c.leido;
+    return true; // 'Todas'
   });
 
-  const noLeidosCount = comunicados.filter((c) => !c.leido).length;
+  const noLeidasCount = MOCK_COMUNICADOS.filter(c => !c.leido).length;
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-6 w-48 bg-slate-200 rounded animate-pulse" />
-        <CardSkeleton />
-        <CardSkeleton />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="py-12">
-        <ErrorState
-          title="No pudimos cargar los comunicados"
-          message={error}
-          onRetry={fetchData}
-        />
-      </div>
-    );
-  }
+  const getTipoEstilo = (tipo: TipoComunicado) => {
+    switch (tipo) {
+      case 'Urgente': return { bg: 'bg-red-500', text: 'text-red-700', bgLight: 'bg-red-50', icon: <Alert02Icon size={14} className="text-white" /> };
+      case 'Académico': return { bg: 'bg-amber-500', text: 'text-amber-700', bgLight: 'bg-amber-50', icon: <BookOpen01Icon size={14} className="text-white" /> };
+      case 'Administrativo': return { bg: 'bg-blue-500', text: 'text-blue-700', bgLight: 'bg-blue-50', icon: <Message01Icon size={14} className="text-white" /> };
+      case 'Evento': return { bg: 'bg-emerald-500', text: 'text-emerald-700', bgLight: 'bg-emerald-50', icon: <Calendar01Icon size={14} className="text-white" /> };
+      default: return { bg: 'bg-slate-500', text: 'text-slate-700', bgLight: 'bg-slate-50', icon: <Notification01Icon size={14} className="text-white" /> };
+    }
+  };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-200">
-      {/* Header */}
-      <div>
-        <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#BE123C] bg-[#FFE4E6] px-2.5 py-1 rounded-full inline-block mb-1">
-          CIRCULARES Y NOTIFICACIONES
-        </span>
-        <h1 className="text-2xl sm:text-3xl font-black text-[#111827] tracking-tight">
-          Comunicados Oficiales
-        </h1>
-        <p className="text-xs sm:text-sm text-[#6B7280] mt-1">
-          Avisos de dirección, coordinación académica y autorizaciones para salidas y eventos.
-        </p>
-      </div>
-
-      {/* Tabs Filter */}
-      <Tabs
-        tabs={[
-          { id: 'todos', label: 'Todos los Comunicados', count: comunicados.length },
-          { id: 'urgente', label: 'Urgentes' },
-          { id: 'evento', label: 'Eventos y Salidas' },
-          { id: 'académico', label: 'Académicos' },
-        ]}
-        activeTab={filtroTipo}
-        onChange={setFiltroTipo}
-      />
-
-      {/* List of Notices */}
-      {filteredComunicados.length === 0 ? (
-        <EmptyState
-          title="No hay comunicados en esta categoría"
-          description="Todos los avisos de esta sección se encuentran al día."
-        />
-      ) : (
-        <div className="space-y-4">
-          {filteredComunicados.map((item) => (
-            <Card
-              key={item.id}
-              hoverable
-              onClick={() => setModalComunicado(item)}
-              className={`cursor-pointer transition-all duration-200 ${
-                !item.leido ? 'border-l-4 border-l-[#BE123C]' : ''
+    <div className="flex flex-col h-full animate-in fade-in w-full">
+      
+      {/* Contenedor Principal de Comunicados */}
+      <div className="bg-white border border-line rounded-xl shadow-sm overflow-hidden flex flex-col h-full min-h-[500px]">
+        
+        {/* Barra de Filtros */}
+        <div className="p-3 border-b border-line bg-neutral/30 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FilterIcon size={14} className="text-muted mr-1" />
+            <button
+              onClick={() => setFiltro('Todas')}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
+                filtro === 'Todas' ? 'bg-ink text-white' : 'bg-white border border-line text-muted hover:bg-slate-50'
               }`}
             >
-              <CardContent className="p-5 sm:p-6 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={
-                        item.tipo === 'Urgente'
-                          ? 'danger'
-                          : item.tipo === 'Evento'
-                          ? 'accent'
-                          : 'info'
-                      }
-                      size="sm"
-                    >
-                      {item.tipo}
-                    </Badge>
-                    {!item.leido && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#BE123C] text-white">
-                        Nuevo
-                      </span>
-                    )}
-                    {item.requiereFirma && (
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          item.firmado
-                            ? 'bg-[#DCFCE7] text-[#15803D]'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {item.firmado ? '✓ Autorización Firmada' : '✍ Requiere Firma Digital'}
-                      </span>
-                    )}
+              Todas
+            </button>
+            <button
+              onClick={() => setFiltro('Faltantes')}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors flex items-center gap-1 ${
+                filtro === 'Faltantes' ? 'bg-red-600 text-white' : 'bg-white border border-line text-muted hover:bg-slate-50'
+              }`}
+            >
+              Faltantes {noLeidasCount > 0 && <span className="bg-white text-red-600 px-1 rounded-sm text-[8px]">{noLeidasCount}</span>}
+            </button>
+            <button
+              onClick={() => setFiltro('Leídas')}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
+                filtro === 'Leídas' ? 'bg-emerald-600 text-white' : 'bg-white border border-line text-muted hover:bg-slate-50'
+              }`}
+            >
+              Leídas
+            </button>
+          </div>
+        </div>
+
+        {/* Lista de Comunicados */}
+        <div className="flex-1 overflow-y-auto flex flex-col">
+          {comunicadosFiltrados.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted">
+              <Notification01Icon size={32} className="mb-2 opacity-30" />
+              <p className="text-[11px] font-bold">No se encontraron comunicados</p>
+              <p className="text-[9px]">Prueba cambiando el filtro de búsqueda.</p>
+            </div>
+          ) : (
+            comunicadosFiltrados.map((com, index) => {
+              const estilos = getTipoEstilo(com.tipo);
+              const isFaltante = !com.leido;
+
+              return (
+                <div 
+                  key={com.id} 
+                  className={`group relative flex items-start gap-4 p-4 border-b border-line hover:bg-slate-50/80 transition-colors cursor-pointer ${isFaltante ? 'bg-white' : 'bg-neutral/20'}`}
+                >
+                  {/* Punto indicador de "no leído" */}
+                  {isFaltante && (
+                    <div className="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                  )}
+
+                  {/* Icono de Prioridad */}
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${estilos.bg}`}>
+                    {estilos.icon}
                   </div>
-                  <span className="text-xs text-[#6B7280] font-mono flex items-center gap-1">
-                    <Calendar01Icon size={14} />
-                    {item.fecha}
-                  </span>
-                </div>
 
-                <div>
-                  <h3 className="text-base sm:text-lg font-bold text-[#111827]">
-                    {item.titulo}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-[#6B7280] mt-1 line-clamp-2 leading-relaxed">
-                    {item.resumen}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between pt-3 border-t border-[#E5E7EB] text-xs text-[#6B7280]">
-                  <span>
-                    Emitido por: <strong className="text-[#111827]">{item.emisor}</strong> ({item.emisorCargo})
-                  </span>
-
-                  <div className="flex items-center gap-2">
-                    {item.adjuntos && item.adjuntos.length > 0 && (
-                      <span className="flex items-center gap-1 text-[11px] text-slate-500">
-                        <FileAttachmentIcon size={14} />
-                        {item.adjuntos.length} adjunto(s)
+                  {/* Contenido (Truncado para ahorrar espacio) */}
+                  <div className="flex-1 min-w-0 pr-4">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${estilos.bgLight} ${estilos.text}`}>
+                        {com.tipo}
                       </span>
-                    )}
-                    <span className="text-[#BE123C] font-bold text-xs hover:underline">
-                      Leer comunicado &rarr;
+                      {com.requiereFirma && (
+                        <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                          Requiere Firma
+                        </span>
+                      )}
+                    </div>
+                    
+                    <h3 className={`text-[12px] font-black truncate leading-tight mb-1 ${isFaltante ? 'text-ink' : 'text-slate-600'}`}>
+                      {com.titulo}
+                    </h3>
+                    
+                    <p className={`text-[10px] font-medium truncate ${isFaltante ? 'text-slate-600' : 'text-slate-400'}`}>
+                      {com.resumen}
+                    </p>
+                    
+                    <p className="text-[8px] font-bold text-muted uppercase mt-1">
+                      De: {com.emisor} ({com.emisorCargo})
+                    </p>
+                  </div>
+
+                  {/* Fecha / Hora a la derecha */}
+                  <div className="shrink-0 text-right">
+                    <span className={`text-[9px] font-black uppercase whitespace-nowrap ${isFaltante ? 'text-accent' : 'text-muted'}`}>
+                      {com.fecha}
                     </span>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              );
+            })
+          )}
         </div>
-      )}
 
-      {/* Modal de Lectura y Firma */}
-      <ComunicadoModal
-        isOpen={Boolean(modalComunicado)}
-        onClose={() => setModalComunicado(null)}
-        comunicado={modalComunicado}
-        onSuccess={fetchData}
-      />
+      </div>
     </div>
   );
 }

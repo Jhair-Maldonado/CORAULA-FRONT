@@ -1,8 +1,7 @@
-// src/app/(padres)/padre/layout.tsx
 import React from 'react';
-import { PadreProvider } from '@/components/padres/PadreContext';
+import { PadreProvider } from '@/components/padres/padreContext';
 import { AuthGuard } from '@/components/AuthGuard';
-import { PadreWorkspace } from '@/components/padres/PadreWorkspace';
+import { PadreWorkspace } from '../../../layout/padre/padreWorkspace'; 
 
 export const metadata = {
   title: 'Portal de Padres y Apoderados | CORAULA',

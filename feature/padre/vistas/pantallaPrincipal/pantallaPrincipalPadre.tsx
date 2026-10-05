@@ -1,18 +1,14 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import Image from 'next/image';
 import {
   Calendar01Icon,
   Task01Icon,
   Clock01Icon,
   Folder01Icon,
-  ChartHistogramIcon,
-  BookOpen01Icon,
-  CheckmarkBadge01Icon,
   DashboardSquare01Icon
 } from 'hugeicons-react';
-import { usePadre } from '@/components/padres/PadreContext';
+import { usePadre } from '@/components/padres/padreContext'; 
 import { getDashboardResumen } from '@/services/padres/padreService';
 import { ChildSelectorCards } from './component/cardFichaHijo';
 import { TabCalificaciones } from './component/tabCalificaciones';

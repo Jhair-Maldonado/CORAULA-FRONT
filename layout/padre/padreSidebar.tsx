@@ -11,7 +11,7 @@ import {
   Logout01Icon,
   AlertCircleIcon,
 } from 'hugeicons-react';
-import { usePadre } from './PadreContext';
+import { usePadre } from '@/components/padres/padreContext'; 
 import { AuthContext } from '@/contexts/AuthContext';
 
 type MenuItem = {
@@ -24,9 +24,9 @@ type MenuItem = {
 const MENU_ITEMS: MenuItem[] = [
   { name: 'Ficha', path: '/padre', icon: DashboardSquare01Icon },
   { name: 'Hijos', path: '/padre/hijos', icon: UserGroupIcon },
-  { name: 'Chats', path: '/padre/chat', icon: Comment01Icon, badge: 1 },
-  { name: 'Justificar', path: '/padre/justificaciones', icon: AlertCircleIcon, badge: '1' },
-  { name: 'Avisos', path: '/padre/comunicados', icon: Notification01Icon, badge: 2 },
+  { name: 'Chats', path: '/padre/mensajeria', icon: Comment01Icon, badge: 1 },
+  { name: 'Justificar', path: '/padre/justificacion', icon: AlertCircleIcon, badge: '1' },
+  { name: 'Avisos', path: '/padre/avisos', icon: Notification01Icon, badge: 2 },
 ];
 
 export const PadreSidebar: React.FC = () => {

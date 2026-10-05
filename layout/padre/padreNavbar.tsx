@@ -2,10 +2,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { usePadre } from './PadreContext';
+import { usePadre } from '@/components/padres/padreContext'; 
 import { 
   Notification01Icon, 
-  UserSwitchIcon, 
+  UserSwitchIcon,
   CheckmarkBadge01Icon,
   Menu01Icon
 } from 'hugeicons-react';
@@ -34,11 +34,8 @@ export const PadreNavbar: React.FC = () => {
     if (path === '/padre') return 'Panel General';
     if (path.includes('/hijos')) return 'Mis Estudiantes';
     if (path.includes('/asistencia')) return 'Asistencia General';
-    if (path.includes('/calificaciones')) return 'Calificaciones';
-    if (path.includes('/horario')) return 'Horario Escolar';
-    if (path.includes('/pagos')) return 'Estado de Cuenta';
     if (path.includes('/comunicados')) return 'Centro de Comunicados';
-    if (path.includes('/justificaciones')) return 'Control de Asistencia (Justificaciones)';
+    if (path.includes('/justificacion')) return 'Control de Asistencia (Justificacion)';
     if (path.includes('/chat')) return 'Mensajería';
     return 'Portal de Padres';
   };

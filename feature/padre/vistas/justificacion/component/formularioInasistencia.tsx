@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { MotivoJustificacion } from '@/types/padre';
 import { enviarJustificacion } from '@/services/padres/padreService';
-import { usePadre } from '@/components/padres/PadreContext';
+import { usePadre } from '@/components/padres/padreContext';
 import { 
   Alert02Icon, 
   Clock01Icon, 

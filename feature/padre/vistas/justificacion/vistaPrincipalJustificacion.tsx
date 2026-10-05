@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { usePadre } from '@/components/padres/PadreContext';
+import { usePadre } from '@/components/padres/padreContext'; 
 import { 
   Alert02Icon, 
-  Clock01Icon, 
   CheckmarkCircle01Icon,
   DocumentValidationIcon,
   UserSwitchIcon
@@ -12,7 +11,6 @@ import {
 import { FormularioInasistencia } from './component/formularioInasistencia';
 import { CalendarioAsistencia } from './component/calendarioAsistencia';
 import { CardJustificacion } from './component/cardJustificacion'; 
-import { HijoResumen } from '@/types/padre';
 
 // Datos Mockeados
 const MOCK_ALERTAS: any[] = [];

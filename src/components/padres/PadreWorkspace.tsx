@@ -6,9 +6,10 @@ import { usePathname } from 'next/navigation';
 import { usePadre } from './PadreContext';
 import { SelectorHijosWelcome } from './SelectorHijosWelcome';
 import { PadreSidebar } from './PadreSidebar';
+import { PadreNavbar } from './PadreNavbar';
 
 export const PadreWorkspace: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { selectedHijoId, hijos, isLoading } = usePadre();
+  const { isLoading } = usePadre();
 
   if (isLoading) {
     return (
@@ -18,8 +19,6 @@ export const PadreWorkspace: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   }
 
-
-
   return (
     <div className="flex h-screen w-full bg-[#F3F4F6] font-sans overflow-hidden">
       {/* Barra Lateral de Navegación (Siempre visible) */}
@@ -27,6 +26,7 @@ export const PadreWorkspace: React.FC<{ children: React.ReactNode }> = ({ childr
 
       {/* Contenedor Principal con Scroll */}
       <div className="flex-1 flex flex-col h-full overflow-y-auto overflow-x-hidden custom-scrollbar relative bg-[#F8FAFC]">
+        <PadreNavbar />
         <main className="p-4 sm:p-6 flex-1 w-full mx-auto pb-16 max-w-[1600px]">
           {children}
         </main>

@@ -76,7 +76,7 @@ export default function PantallaPrincipalPadre() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="w-full space-y-6 animate-in fade-in duration-500">
       
       {/* 1. ZONA SUPERIOR: Selector de Hijos (Cards Horizontales) */}
       <section>

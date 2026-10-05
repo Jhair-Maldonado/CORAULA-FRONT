@@ -43,7 +43,7 @@ export default function HijosMatriculados() {
   }
 
   return (
-    <div className="flex flex-col h-full animate-in fade-in max-w-4xl mx-auto py-6">
+    <div className="flex flex-col h-full animate-in fade-in w-full">
       <div className="mb-6 px-2">
         <h1 className="text-[14px] font-black text-ink uppercase tracking-wider">Estudiantes a Cargo</h1>
         <p className="text-[10px] text-muted font-medium mt-1">
@@ -66,21 +66,12 @@ export default function HijosMatriculados() {
             return (
               <div 
                 key={hijo.id}
-                className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-all shadow-sm gap-4 ${
-                  isSelected 
-                    ? 'border-accent bg-accent/5 ring-1 ring-accent' 
-                    : 'border-line bg-white hover:border-muted'
-                }`}
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-all shadow-sm gap-4 border-line bg-white hover:border-muted"
               >
-                {/* Lado Izquierdo: Click para seleccionar */}
-                <div 
-                  onClick={() => setSelectedHijoId(hijo.id)}
-                  className="flex items-center gap-4 cursor-pointer flex-1"
-                >
+                {/* Lado Izquierdo: Info (No clickable) */}
+                <div className="flex items-center gap-4 flex-1">
                   {/* Avatar */}
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-sm shrink-0 border ${
-                    isSelected ? 'bg-accent text-white border-accent' : 'bg-slate-100 text-slate-500 border-slate-200'
-                  }`}>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-sm shrink-0 border bg-slate-100 text-slate-500 border-slate-200">
                     {hijo.fotoUrl ? (
                       <img src={hijo.fotoUrl} alt={hijo.nombres} className="w-full h-full rounded-full object-cover" />
                     ) : (
@@ -90,7 +81,7 @@ export default function HijosMatriculados() {
                   
                   {/* Info Básica */}
                   <div>
-                    <h2 className={`text-[12px] font-black leading-tight ${isSelected ? 'text-accent' : 'text-ink'}`}>
+                    <h2 className="text-[12px] font-black leading-tight text-ink">
                       {hijo.nombreCompleto}
                     </h2>
                     <div className="flex items-center gap-2 mt-1">
@@ -108,10 +99,7 @@ export default function HijosMatriculados() {
                 <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-3 sm:pt-0 border-t sm:border-t-0 border-line/60">
                   
                   {/* Resumen de Rendimiento (Promedio y Cursos) */}
-                  <div 
-                    onClick={() => setSelectedHijoId(hijo.id)}
-                    className="flex items-center gap-4 cursor-pointer"
-                  >
+                  <div className="flex items-center gap-4">
                     {/* Promedio General */}
                     <div className="flex flex-col items-center justify-center bg-white border border-line px-2.5 py-1.5 rounded-lg shadow-sm">
                       <span className="text-[8px] font-bold text-muted uppercase tracking-wider mb-0.5">Promedio</span>
@@ -155,14 +143,6 @@ export default function HijosMatriculados() {
                     >
                       <PencilEdit02Icon size={14} /> Editar Ficha
                     </button>
-                    <div 
-                      onClick={() => setSelectedHijoId(hijo.id)}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
-                        isSelected ? 'bg-accent text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
-                      }`}
-                    >
-                      <ArrowRight01Icon size={16} />
-                    </div>
                   </div>
 
                 </div>

@@ -50,6 +50,29 @@ import {
   MOCK_RESUMEN_DASHBOARD_ALUMNO
 } from './mocks/mockAlumno';
 
+import {
+  CursoDocente,
+  BloqueHorarioDocente,
+  CursoDetalleDocente,
+  AsistenciaCursoDocente,
+  NotasCursoDocente,
+  ChatContactoDocente,
+  DocenteDashboardData,
+  ClaseDocente
+} from '@/types/docentes';
+
+import {
+  MOCK_CURSOS_DOCENTE,
+  MOCK_HORARIO_HOY_DOCENTE,
+  MOCK_CURSO_DETALLE_MATEMATICAS,
+  MOCK_ASISTENCIA_DOCENTE,
+  MOCK_ASISTENCIA_MAP,
+  MOCK_NOTAS_DOCENTE,
+  MOCK_NOTAS_MAP,
+  MOCK_CHAT_CONTACTOS_DOCENTE,
+  MOCK_DOCENTE_DASHBOARD
+} from './mocks/mockDocente';
+
 // Determina si se usan mocks o backend real según variable de entorno
 const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS !== 'false';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
@@ -606,3 +629,252 @@ export async function enviarMensajeDocenteAlumno(
   });
   return true;
 }
+
+// ==========================================
+// 10. MÓDULO DOCENTE (PORTAL DEL PROFESOR)
+// ==========================================
+
+/**
+ * Obtiene los datos consolidados del dashboard del docente (cursos y horario de hoy)
+ */
+export async function getDocenteDashboard(): Promise<DocenteDashboardData> {
+  if (USE_MOCKS) {
+    await mockDelay(250);
+    return { ...MOCK_DOCENTE_DASHBOARD };
+  }
+  // TODO(backend): Confirmar endpoint GET /docente/dashboard
+  return fetchWithAuth<DocenteDashboardData>('/docente/dashboard');
+}
+
+/**
+ * Obtiene la lista de cursos asignados al docente autenticado (Frame J9iwQi)
+ */
+export async function getCursosDocente(): Promise<CursoDocente[]> {
+  if (USE_MOCKS) {
+    await mockDelay(200);
+    return [...MOCK_CURSOS_DOCENTE];
+  }
+  // TODO(backend): Confirmar endpoint GET /docente/cursos
+  return fetchWithAuth<CursoDocente[]>('/docente/cursos');
+}
+
+/**
+ * Obtiene el detalle de un curso específico por su ID con sus semanas y clases (Frame Db3dl)
+ */
+export async function getCursoDetalleDocente(cursoId: string): Promise<CursoDetalleDocente> {
+  if (USE_MOCKS) {
+    await mockDelay(250);
+    const encontrado = MOCK_CURSOS_DOCENTE.find(c => c.id === cursoId);
+    if (encontrado && cursoId !== 'mat-3a') {
+      return {
+        ...MOCK_CURSO_DETALLE_MATEMATICAS,
+        id: encontrado.id,
+        nombre: encontrado.nombre,
+        grado: encontrado.grado,
+        seccion: encontrado.seccion,
+        color: encontrado.color
+      };
+    }
+    return { ...MOCK_CURSO_DETALLE_MATEMATICAS };
+  }
+  // TODO(backend): Confirmar endpoint GET /docente/cursos/:id
+  return fetchWithAuth<CursoDetalleDocente>(`/docente/cursos/${encodeURIComponent(cursoId)}`);
+}
+
+/**
+ * Obtiene el horario de clases de la jornada de hoy (Frame J9iwQi)
+ */
+export async function getHorarioHoyDocente(): Promise<BloqueHorarioDocente[]> {
+  if (USE_MOCKS) {
+    await mockDelay(200);
+    return [...MOCK_HORARIO_HOY_DOCENTE];
+  }
+  // TODO(backend): Confirmar endpoint GET /docente/horario/hoy
+  return fetchWithAuth<BloqueHorarioDocente[]>('/docente/horario/hoy');
+}
+
+/**
+ * Registra o publica un nuevo material o clase en el curso (Frame fYgNB)
+ */
+export async function crearMaterialDocente(
+  cursoId: string,
+  data: {
+    semanaNumero?: number;
+    titulo: string;
+    tipo: 'documento' | 'video' | 'ejercicios' | 'evaluacion';
+    tieneTarea: boolean;
+    archivoNombre?: string;
+  }
+): Promise<ClaseDocente> {
+  if (USE_MOCKS) {
+    await mockDelay(350);
+    const nuevaClase: ClaseDocente = {
+      id: `clase-${Date.now()}`,
+      numero: 7,
+      nombre: data.titulo,
+      tipo: data.tipo,
+      tieneTarea: data.tieneTarea,
+      archivoNombre: data.archivoNombre || 'Material_Complementario.pdf',
+      fecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+    };
+    if (MOCK_CURSO_DETALLE_MATEMATICAS.semanas[0]) {
+      MOCK_CURSO_DETALLE_MATEMATICAS.semanas[0].clases.push(nuevaClase);
+    }
+    return nuevaClase;
+  }
+  // TODO(backend): Confirmar endpoint POST /docente/cursos/:id/materiales
+  return fetchWithAuth<ClaseDocente>(`/docente/cursos/${encodeURIComponent(cursoId)}/materiales`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+/**
+ * Obtiene el reporte y lista de asistencia de estudiantes del curso (Frame Ud5N0 / kL1ib)
+ */
+export async function getAsistenciaCursoDocente(cursoId: string, mes?: string): Promise<AsistenciaCursoDocente> {
+  if (USE_MOCKS) {
+    await mockDelay(250);
+    const curso = MOCK_CURSOS_DOCENTE.find(c => c.id === cursoId);
+    const mockBase = MOCK_ASISTENCIA_MAP[cursoId] || MOCK_ASISTENCIA_DOCENTE;
+    return {
+      ...mockBase,
+      cursoId: curso?.id || cursoId,
+      cursoNombre: curso?.nombre || mockBase.cursoNombre,
+      grado: curso?.grado || mockBase.grado,
+      mes: mes || 'Septiembre 2026',
+      estudiantes: mockBase.estudiantes.map(e => ({ ...e }))
+    };
+  }
+  // TODO(backend): Confirmar endpoint GET /docente/asistencias?cursoId=:id&mes=:mes
+  const query = new URLSearchParams({ cursoId });
+  if (mes) query.set('mes', mes);
+  return fetchWithAuth<AsistenciaCursoDocente>(`/docente/asistencias?${query.toString()}`);
+}
+
+/**
+ * Guarda o actualiza el registro diario de asistencia (Frame lVoY0)
+ */
+export async function guardarAsistenciaDocente(
+  cursoId: string,
+  registros: { estudianteId: string; estado: 'Presente' | 'Tardanza' | 'Falta' | 'Justificada' }[]
+): Promise<boolean> {
+  if (USE_MOCKS) {
+    await mockDelay(300);
+    const mockBase = MOCK_ASISTENCIA_MAP[cursoId] || MOCK_ASISTENCIA_DOCENTE;
+    registros.forEach(reg => {
+      const est = mockBase.estudiantes.find(e => e.id === reg.estudianteId);
+      if (est) est.estadoHoy = reg.estado;
+    });
+    return true;
+  }
+  // TODO(backend): Confirmar endpoint POST /docente/asistencias/guardar
+  await fetchWithAuth('/docente/asistencias/guardar', {
+    method: 'POST',
+    body: JSON.stringify({ cursoId, registros, fecha: new Date().toISOString().slice(0, 10) })
+  });
+  return true;
+}
+
+/**
+ * Obtiene la matriz de notas de estudiantes por curso (Frame K24L9)
+ */
+export async function getNotasCursoDocente(
+  cursoId: string,
+  mes?: string,
+  periodo?: string
+): Promise<NotasCursoDocente> {
+  if (USE_MOCKS) {
+    await mockDelay(250);
+    const curso = MOCK_CURSOS_DOCENTE.find(c => c.id === cursoId);
+    const mockBase = MOCK_NOTAS_MAP[cursoId] || MOCK_NOTAS_DOCENTE;
+    return {
+      ...mockBase,
+      cursoId: curso?.id || cursoId,
+      cursoNombre: curso?.nombre || mockBase.cursoNombre,
+      grado: curso?.grado || mockBase.grado,
+      mes: mes || 'Septiembre 2026',
+      periodo: periodo || '3er Bimestre',
+      estudiantes: mockBase.estudiantes.map(e => ({ ...e }))
+    };
+  }
+  // TODO(backend): Confirmar endpoint GET /docente/notas?cursoId=:id&mes=:mes
+  const query = new URLSearchParams({ cursoId });
+  if (mes) query.set('mes', mes);
+  if (periodo) query.set('periodo', periodo);
+  return fetchWithAuth<NotasCursoDocente>(`/docente/notas?${query.toString()}`);
+}
+
+/**
+ * Actualiza calificaciones de estudiantes de un curso (Frame K24L9)
+ */
+export async function guardarNotasDocente(
+  cursoId: string,
+  estudiantesNotas: Partial<NotasCursoDocente['estudiantes'][0]>[]
+): Promise<boolean> {
+  if (USE_MOCKS) {
+    await mockDelay(300);
+    const mockBase = MOCK_NOTAS_MAP[cursoId] || MOCK_NOTAS_DOCENTE;
+    estudiantesNotas.forEach(nota => {
+      const idx = mockBase.estudiantes.findIndex(e => e.estudianteId === nota.estudianteId);
+      if (idx !== -1) {
+        mockBase.estudiantes[idx] = {
+          ...mockBase.estudiantes[idx],
+          ...nota
+        } as any;
+      }
+    });
+    return true;
+  }
+  // TODO(backend): Confirmar endpoint PUT /docente/notas/actualizar
+  await fetchWithAuth('/docente/notas/actualizar', {
+    method: 'PUT',
+    body: JSON.stringify({ cursoId, estudiantesNotas })
+  });
+  return true;
+}
+
+/**
+ * Obtiene las conversaciones de mensajería del docente clasificadas por tab (Frame AVY9a)
+ */
+export async function getDocenteChats(tab?: 'alumnos' | 'padres'): Promise<ChatContactoDocente[]> {
+  if (USE_MOCKS) {
+    await mockDelay(200);
+    if (!tab) return [...MOCK_CHAT_CONTACTOS_DOCENTE];
+    const tipoTarget = tab === 'alumnos' ? 'alumno' : 'padre';
+    return MOCK_CHAT_CONTACTOS_DOCENTE.filter(c => c.tipo === tipoTarget);
+  }
+  // TODO(backend): Confirmar endpoint GET /docente/chat/contactos?tipo=:tipo
+  const query = new URLSearchParams();
+  if (tab) query.set('tipo', tab);
+  return fetchWithAuth<ChatContactoDocente[]>(`/docente/chat/contactos?${query.toString()}`);
+}
+
+/**
+ * Envía un mensaje en el chat con un alumno o padre (Frame AVY9a)
+ */
+export async function enviarMensajeDocenteChat(contactoId: string, texto: string): Promise<boolean> {
+  if (USE_MOCKS) {
+    await mockDelay(150);
+    const contacto = MOCK_CHAT_CONTACTOS_DOCENTE.find(c => c.id === contactoId);
+    if (contacto) {
+      const nuevo = {
+        id: `msg-${Date.now()}`,
+        remitente: 'docente' as const,
+        texto,
+        hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      contacto.mensajes.push(nuevo);
+      contacto.ultimoMensaje = texto;
+      contacto.hora = nuevo.hora;
+    }
+    return true;
+  }
+  // TODO(backend): Confirmar endpoint POST /docente/chat/mensajes
+  await fetchWithAuth('/docente/chat/mensajes', {
+    method: 'POST',
+    body: JSON.stringify({ destinatarioId: contactoId, texto })
+  });
+  return true;
+}
+

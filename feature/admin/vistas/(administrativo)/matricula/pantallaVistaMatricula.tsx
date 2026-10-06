@@ -14,15 +14,16 @@ import {
   Folder01Icon
 } from 'hugeicons-react';
 
+import * as XLSX from 'xlsx';
+import { IMatriculaExcelRow, IImportarMatriculaPayload } from '@/types/matricula';
+
 interface RegistroImportado {
   id: string;
-  // Datos Alumno
   alumnoNombres: string;
   alumnoApellidos: string;
   alumnoDni: string;
   grado: string;
   seccion: string;
-  // Datos Apoderado
   padreNombres: string;
   padreApellidos: string;
   padreDni: string;
@@ -31,117 +32,169 @@ interface RegistroImportado {
   padreCorreo: string;
 }
 
-const MOCK_IMPORTADOS: RegistroImportado[] = [
-  {
-    id: 'IMP-001',
-    alumnoNombres: 'Mateo Alejandro',
-    alumnoApellidos: 'Sánchez Flores',
-    alumnoDni: '74839201',
-    grado: '1° Secundaria',
-    seccion: 'Sección A',
-    padreNombres: 'Carlos Alberto',
-    padreApellidos: 'Sánchez Ríos',
-    padreDni: '10492837',
-    parentesco: 'Padre',
-    padreTelefono: '984512039',
-    padreCorreo: 'carlos.sanchez@email.com'
-  },
-  {
-    id: 'IMP-002',
-    alumnoNombres: 'Lucía Fernanda',
-    alumnoApellidos: 'Gómez Peralta',
-    alumnoDni: '75920184',
-    grado: '1° Secundaria',
-    seccion: 'Sección B',
-    padreNombres: 'Elena Beatriz',
-    padreApellidos: 'Peralta Castro',
-    padreDni: '09382019',
-    parentesco: 'Madre',
-    padreTelefono: '912384920',
-    padreCorreo: 'elena.peralta@email.com'
-  },
-  {
-    id: 'IMP-003',
-    alumnoNombres: 'Sebastián',
-    alumnoApellidos: 'Rojas Mendoza',
-    alumnoDni: '71029384',
-    grado: '2° Secundaria',
-    seccion: 'Sección A',
-    padreNombres: 'Jorge Mario',
-    padreApellidos: 'Rojas Salazar',
-    padreDni: '08192834',
-    parentesco: 'Padre',
-    padreTelefono: '976453821',
-    padreCorreo: 'jorge.rojas@email.com'
-  },
-  {
-    id: 'IMP-004',
-    alumnoNombres: 'Camila Valeria',
-    alumnoApellidos: 'Torres Benítez',
-    alumnoDni: '72839401',
-    grado: '3° Secundaria',
-    seccion: 'Sección A',
-    padreNombres: 'Rosa María',
-    padreApellidos: 'Benítez Huamán',
-    padreDni: '10928374',
-    parentesco: 'Madre',
-    padreTelefono: '934810293',
-    padreCorreo: 'rosa.benitez@email.com'
-  }
-];
-
 export default function PantallaVistaMatricula() {
   const [fileUploaded, setFileUploaded] = useState<boolean>(false);
   const [fileName, setFileName] = useState<string>('');
   const [registros, setRegistros] = useState<RegistroImportado[]>([]);
+  const [payloads, setPayloads] = useState<IImportarMatriculaPayload[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [procesando, setProcesando] = useState<boolean>(false);
   const [matriculadoExito, setMatriculadoExito] = useState<boolean>(false);
+  const [errorMsj, setErrorMsj] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const processRealExcel = (file: File) => {
+    setFileName(file.name);
+    setProcesando(true);
+    setErrorMsj(null);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        
+        const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: '' });
+        
+        // rawData[0] son los super-titulos
+        // rawData[1] son los titulos reales
+        // rawData[2] en adelante son los datos
+        
+        if (rawData.length <= 2) {
+          setErrorMsj('El archivo no contiene datos válidos a partir de la fila 3.');
+          setProcesando(false);
+          return;
+        }
+
+        const dataRows = rawData.slice(2).filter(row => row.length > 0 && row[0]); // filtrar filas vacías
+
+        if (dataRows.length === 0) {
+          setErrorMsj('No se encontraron registros en el archivo.');
+          setProcesando(false);
+          return;
+        }
+
+        const newRegistros: RegistroImportado[] = [];
+        const newPayloads: IImportarMatriculaPayload[] = [];
+
+        dataRows.forEach((row, idx) => {
+          // Extraemos por índice exacto basado en la imagen del usuario
+          const dni_est = row[0]?.toString().trim() || '';
+          const ape_pat_est = row[1]?.toString().trim() || '';
+          const ape_mat_est = row[2]?.toString().trim() || '';
+          const nom_est = row[3]?.toString().trim() || '';
+          const cod_est = row[5]?.toString().trim() || '';
+          const est_est = row[6]?.toString().trim() || 'ACTIVO';
+          
+          const dni_apo = row[7]?.toString().trim() || '';
+          const ape_pat_apo = row[8]?.toString().trim() || '';
+          const ape_mat_apo = row[9]?.toString().trim() || '';
+          const nom_apo = row[10]?.toString().trim() || '';
+          const tel_apo = row[11]?.toString().trim() || '';
+          
+          const relacion = row[13]?.toString().trim() || 'Apoderado';
+          const es_principal = row[14]?.toString().toUpperCase() === 'VERDADERO' || row[14]?.toString().toUpperCase() === 'SI' || row[14] === true;
+          const aut_recoger = row[15]?.toString().toUpperCase() === 'VERDADERO' || row[15]?.toString().toUpperCase() === 'SI' || row[15] === true;
+          
+          const fec_mat = row[17]?.toString().trim() || new Date().toISOString().split('T')[0];
+          const est_mat = row[18]?.toString().trim() || 'MATRICULADO';
+          const per_acad = row[19]?.toString().trim() || '';
+          const seccion = row[20]?.toString().trim() || '';
+
+          // Para la vista
+          newRegistros.push({
+            id: `row-${idx}`,
+            alumnoNombres: nom_est,
+            alumnoApellidos: `${ape_pat_est} ${ape_mat_est}`.trim(),
+            alumnoDni: dni_est,
+            grado: per_acad,
+            seccion: seccion,
+            padreNombres: nom_apo,
+            padreApellidos: `${ape_pat_apo} ${ape_mat_apo}`.trim(),
+            padreDni: dni_apo,
+            parentesco: relacion,
+            padreTelefono: tel_apo,
+            padreCorreo: ''
+          });
+
+          // Para el backend
+          newPayloads.push({
+            estudiante_persona: {
+              dni: dni_est,
+              nombres: nom_est,
+              apellidos: `${ape_pat_est} ${ape_mat_est}`.trim(),
+            },
+            estudiante: {
+              codigo_estudiante: cod_est,
+              estado: est_est,
+            },
+            apoderado_persona: {
+              dni: dni_apo,
+              nombres: nom_apo,
+              apellidos: `${ape_pat_apo} ${ape_mat_apo}`.trim(),
+              telefono: tel_apo,
+            },
+            apoderado: { estado: true },
+            relacion_apoderado: {
+              relacion: relacion,
+              es_principal: es_principal,
+              autorizado_recoger: aut_recoger,
+              activo: true
+            },
+            matricula: {
+              fecha_matricula: fec_mat,
+              estado: est_mat,
+            },
+            referencias: {
+              periodo_academico: per_acad,
+              seccion: seccion,
+            }
+          });
+        });
+
+        setRegistros(newRegistros);
+        setPayloads(newPayloads);
+        setFileUploaded(true);
+      } catch (err) {
+        setErrorMsj('Error al procesar el Excel.');
+      } finally {
+        setProcesando(false);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      setProcesando(true);
-      setTimeout(() => {
-        setProcesando(false);
-        setFileUploaded(true);
-        setRegistros(MOCK_IMPORTADOS);
-      }, 1200);
-    }
+    if (file) processRealExcel(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) processRealExcel(file);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      setProcesando(true);
-      setTimeout(() => {
-        setProcesando(false);
-        setFileUploaded(true);
-        setRegistros(MOCK_IMPORTADOS);
-      }, 1200);
-    }
-  };
-
   const handleConfirmarMatricula = () => {
+    // Aquí es donde se enviaría "payloads" al backend
+    console.log("Enviando al backend:", payloads);
     setMatriculadoExito(true);
     setTimeout(() => setMatriculadoExito(false), 4000);
   };
 
   const filteredRegistros = registros.filter(r => 
-    r.alumnoNombres.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.alumnoApellidos.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.alumnoDni.includes(searchTerm) ||
-    r.padreNombres.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.padreDni.includes(searchTerm)
+    r.alumnoNombres?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.alumnoApellidos?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.alumnoDni?.includes(searchTerm) ||
+    r.padreNombres?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.padreDni?.includes(searchTerm)
   );
 
   return (
@@ -233,6 +286,13 @@ export default function PantallaVistaMatricula() {
                 <p className="text-xs text-muted font-medium max-w-md">
                   El sistema detectará las columnas de Alumno y Apoderado en una vista dividida de rápida verificación.
                 </p>
+                
+                {errorMsj && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg flex items-center gap-2 text-red-600">
+                    <AlertCircleIcon size={18} />
+                    <p className="text-xs font-bold">{errorMsj}</p>
+                  </div>
+                )}
                 
                 <div className="flex items-center gap-4 mt-6 text-[11px] font-bold text-muted bg-neutral/60 px-4 py-2 rounded-xl border border-line/60">
                   <span className="flex items-center gap-1.5"><Folder01Icon size={14} className="text-accent" /> Formato .XLSX / .CSV</span>

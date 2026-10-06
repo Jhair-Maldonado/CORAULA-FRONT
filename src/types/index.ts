@@ -23,3 +23,5 @@ export interface User {
   role: UserRole; // A futuro debería ser estrictamente BackendRole
 }
 
+
+export * from './matricula';

@@ -1,264 +1,199 @@
-'use client';
+﻿'use client';
 
-import React, { useState, useRef } from 'react';
-import * as XLSX from 'xlsx';
-import { IMatriculaExcelRow, IImportarMatriculaPayload } from '@/types/matricula';
-import { 
-  CloudUploadIcon, 
-  CheckmarkCircle02Icon, 
-  Cancel01Icon, 
-  File01Icon 
-} from 'hugeicons-react';
+import { useRef, useState } from 'react';
+import { studentImportService, studentImportErrorMessage, studentImportErrorPreview } from '@/services/admin/studentImportService';
+import type { StudentImportConfirmation, StudentImportIssue, StudentImportPreview } from '@/types/studentImport';
 
-interface ImportadorProps {
-  onImportar: (payloads: IImportarMatriculaPayload[]) => Promise<void>;
+function Issues({ issues, warning = false }: { issues: StudentImportIssue[]; warning?: boolean }) {
+  return <ul className="flex flex-col gap-2">{issues.map((issue, index) => (
+    <li key={`${issue.code}-${issue.field}-${index}`} className={`rounded-lg p-2 ${warning ? 'bg-amber-50 text-amber-900' : 'bg-red-50 text-red-800'}`}>
+      <span className="text-xs font-bold rounded border border-current px-1" data-issue-code={issue.code}>{issue.code}</span>
+      <p className="mt-1">{issue.field}: {issue.message}</p>
+    </li>
+  ))}</ul>;
 }
 
-export default function ImportadorMatricula({ onImportar }: ImportadorProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<IMatriculaExcelRow[]>([]);
-  const [payloads, setPayloads] = useState<IImportarMatriculaPayload[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  
+/** Single implementation; backend owns structure and business validation. */
+export default function ImportadorMatricula() {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [preview, setPreview] = useState<StudentImportPreview | null>(null);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirmation, setConfirmation] = useState<StudentImportConfirmation | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [needsNewPreview, setNeedsNewPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Synchronous locks prevent repeated clicks before React updates state.
+  const requestInProgress = useRef(false);
+  const confirmed = useRef(false);
+  const busy = previewLoading || confirmLoading;
+  const canConfirm = !!selectedFile && !!preview && previewFile === selectedFile &&
+    preview.totalRows > 0 && preview.invalidRows === 0 && preview.validRows === preview.totalRows &&
+    preview.rows.length === preview.totalRows &&
+    preview.rows.every(row => row.valid === true && row.errors.length === 0) &&
+    !busy && !confirmation && !needsNewPreview;
 
-  const processFile = (selectedFile: File) => {
-    setError(null);
-    setFile(selectedFile);
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        
-        // Extraemos los datos crudos del excel
-        const jsonData = XLSX.utils.sheet_to_json<IMatriculaExcelRow>(worksheet, { defval: '' });
-        
-        if (jsonData.length === 0) {
-          setError('El archivo está vacío o no tiene el formato correcto.');
-          return;
-        }
-
-        // Validación de columnas: verificar si al menos existe la columna dni_estudiante
-        const firstRow = jsonData[0];
-        if (!('dni_estudiante' in firstRow)) {
-          setError('Las columnas del archivo no coinciden con la plantilla. Por favor usa la plantilla proporcionada que incluye dni_estudiante, nombres_estudiante, etc.');
-          setParsedData([]);
-          return;
-        }
-
-        setParsedData(jsonData);
-
-        // Transformamos los datos al formato IImportarMatriculaPayload
-        const newPayloads: IImportarMatriculaPayload[] = jsonData.map(row => {
-          
-          const esPrincipalStr = row.es_principal?.toString().toUpperCase();
-          const isPrincipal = esPrincipalStr === 'SI' || esPrincipalStr === 'SÍ' || esPrincipalStr === 'TRUE' || esPrincipalStr === '1';
-
-          const autorizadoStr = row.autorizado_recoger?.toString().toUpperCase();
-          const isAutorizado = autorizadoStr === 'SI' || autorizadoStr === 'SÍ' || autorizadoStr === 'TRUE' || autorizadoStr === '1';
-
-          return {
-            estudiante_persona: {
-              dni: row.dni_estudiante?.toString() || '',
-              nombres: row.nombres_estudiante || '',
-              apellidos: row.apellidos_estudiante || '',
-              telefono: row.telefono_estudiante?.toString() || '',
-            },
-            estudiante: {
-              codigo_estudiante: row.codigo_estudiante?.toString() || '',
-              estado: row.estado_estudiante || 'ACTIVO',
-            },
-            apoderado_persona: {
-              dni: row.dni_apoderado?.toString() || '',
-              nombres: row.nombres_apoderado || '',
-              apellidos: row.apellidos_apoderado || '',
-              telefono: row.telefono_apoderado?.toString() || '',
-            },
-            apoderado: {
-              estado: true
-            },
-            relacion_apoderado: {
-              relacion: row.relacion || 'Apoderado',
-              es_principal: isPrincipal,
-              autorizado_recoger: isAutorizado,
-              activo: true
-            },
-            matricula: {
-              fecha_matricula: row.fecha_matricula || new Date().toISOString().split('T')[0],
-              estado: row.estado_matricula || 'MATRICULADO',
-            },
-            referencias: {
-              periodo_academico: row.nombre_periodo || '',
-              seccion: row.nombre_seccion || '',
-            }
-          };
-        });
-
-        setPayloads(newPayloads);
-      } catch (err) {
-        console.error(err);
-        setError('Error al leer el archivo Excel. Asegúrate de que tenga el formato correcto.');
-      }
-    };
-
-    reader.onerror = () => {
-      setError('Error al cargar el archivo.');
-    };
-
-    reader.readAsBinaryString(selectedFile);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.name.endsWith('.xlsx') || droppedFile.name.endsWith('.csv')) {
-        processFile(droppedFile);
-      } else {
-        setError('Por favor, sube un archivo Excel (.xlsx) o CSV (.csv).');
-      }
+  const selectFile = (file: File) => {
+    if (requestInProgress.current) return;
+    setPreview(null);
+    setPreviewFile(null);
+    setConfirmation(null);
+    setPreviewError(null);
+    setConfirmError(null);
+    setNeedsNewPreview(false);
+    confirmed.current = false;
+    if (!/\.xlsx$/i.test(file.name)) {
+      setSelectedFile(null);
+      setPreviewError('Solo se permiten archivos .XLSX.');
+      return;
     }
+    setSelectedFile(file);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      processFile(e.target.files[0]);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (payloads.length === 0) return;
-    setLoading(true);
+  const requestPreview = async () => {
+    if (!selectedFile || requestInProgress.current || confirmed.current) return;
+    const file = selectedFile;
+    requestInProgress.current = true;
+    setPreviewLoading(true);
+    setPreview(null);
+    setPreviewFile(null);
+    setPreviewError(null);
+    setConfirmError(null);
+    setNeedsNewPreview(false);
     try {
-      await onImportar(payloads);
-      // Limpiar luego de enviar
-      setFile(null);
-      setParsedData([]);
-      setPayloads([]);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch (err) {
-      setError('Error al enviar los datos al servidor.');
+      setPreview(await studentImportService.preview(file));
+      setPreviewFile(file);
+    } catch (error) {
+      const refreshedPreview = studentImportErrorPreview(error);
+      if (refreshedPreview) {
+        setPreview(refreshedPreview);
+        setPreviewFile(file);
+        setNeedsNewPreview(true);
+      }
+      setPreviewError(studentImportErrorMessage(error));
     } finally {
-      setLoading(false);
+      requestInProgress.current = false;
+      setPreviewLoading(false);
     }
   };
 
+  const requestConfirmation = async () => {
+    if (!canConfirm || !selectedFile || requestInProgress.current || confirmed.current) return;
+    const file = selectedFile;
+    requestInProgress.current = true;
+    setConfirmLoading(true);
+    setConfirmError(null);
+    try {
+      const result = await studentImportService.confirm(file);
+      confirmed.current = true;
+      setConfirmation(result);
+    } catch (error) {
+      const refreshedPreview = studentImportErrorPreview(error);
+      if (refreshedPreview) {
+        setPreview(refreshedPreview);
+        setPreviewFile(file);
+        // An error response never re-enables confirmation, even if counters look valid.
+        setNeedsNewPreview(true);
+      }
+      setConfirmError(studentImportErrorMessage(error));
+    } finally {
+      requestInProgress.current = false;
+      setConfirmLoading(false);
+    }
+  };
+
+  const buttonClass = 'px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed';
+  const display = (value: string | number | null) => value ?? '—';
+  const fullName = (...parts: (string | null)[]) => parts.filter(Boolean).join(' ') || '—';
   return (
-    <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-2xl border border-line/70 shadow-sm font-sans">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-ink mb-2">Importar Matrículas Masivas</h2>
-        <p className="text-sm text-muted">Sube tu archivo Excel o CSV con la plantilla para registrar a los estudiantes de forma rápida.</p>
-      </div>
-
-      {/* DRAG AND DROP ZONE */}
-      <div 
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-        className={`w-full border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer transition-colors ${
-          isDragging ? 'border-accent bg-accent/5' : 'border-line/80 hover:border-accent hover:bg-neutral/30'
-        }`}
+    <section className="w-full bg-white rounded-2xl border border-line p-6 flex flex-col gap-5" aria-busy={busy}>
+      <div
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          const file = event.dataTransfer.files[0];
+          if (file) selectFile(file);
+        }}
+        className="border-2 border-dashed border-line rounded-xl p-8 text-center"
       >
-        <input 
-          type="file" 
-          accept=".xlsx, .xls, .csv" 
-          className="hidden" 
+        <p className="text-ink font-bold">Selecciona o arrastra un archivo .XLSX</p>
+        <p className="text-sm text-muted mt-2">Usa la hoja ESTUDIANTES con las 21 columnas del contrato V2. El servidor revisará su estructura y la validez de cada fila.</p>
+        <input
           ref={fileInputRef}
-          onChange={handleFileChange}
+          type="file"
+          accept=".xlsx"
+          disabled={busy}
+          aria-label="Seleccionar archivo de matrícula .XLSX"
+          className="mt-4 max-w-full text-sm"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) selectFile(file);
+            event.target.value = '';
+          }}
         />
-        
-        <div className="w-16 h-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mb-4">
-          <CloudUploadIcon size={32} />
-        </div>
-        
-        <h3 className="text-base font-bold text-ink">Haz clic o arrastra un archivo aquí</h3>
-        <p className="text-sm text-muted mt-2 text-center max-w-sm">
-          Soporta archivos Excel (.xlsx, .xls) o CSV. Por favor usa la plantilla proporcionada.
-        </p>
+        {confirmation && <button type="button" className={`${buttonClass} mt-4`} onClick={() => fileInputRef.current?.click()}>Cargar otro archivo</button>}
       </div>
-
-      {error && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg flex items-start gap-2 text-red-600">
-          <Cancel01Icon size={18} className="mt-0.5 flex-shrink-0" />
-          <p className="text-sm font-medium">{error}</p>
+      {selectedFile && (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-ink">Archivo: {selectedFile.name}</p>
+          <button type="button" className={buttonClass} disabled={busy || !!confirmation} onClick={requestPreview}>
+            {previewLoading ? 'Validando en servidor...' : 'Obtener preview'}
+          </button>
+          <button type="button" className={buttonClass} disabled={!canConfirm} onClick={requestConfirmation}>
+            {confirmLoading ? 'Confirmando...' : 'Confirmar matrícula'}
+          </button>
         </div>
       )}
-
-      {/* PREVIEW */}
-      {file && parsedData.length > 0 && !error && (
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                <File01Icon size={20} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-ink">{file.name}</h4>
-                <p className="text-xs text-muted font-medium">{parsedData.length} registros listos para importar</p>
-              </div>
-            </div>
-            
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="px-5 py-2.5 bg-accent text-white rounded-xl text-sm font-bold shadow-md hover:bg-accent/90 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
-            >
-              {loading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <CheckmarkCircle02Icon size={18} />
-              )}
-              {loading ? 'Procesando...' : 'Confirmar Matrículas'}
-            </button>
-          </div>
-
-          <div className="border border-line/60 rounded-xl overflow-hidden max-h-96 overflow-y-auto">
-            <table className="w-full text-left border-collapse text-sm relative">
-              <thead className="bg-neutral/50 sticky top-0 border-b border-line/60 backdrop-blur-md z-10">
-                <tr>
-                  <th className="py-2.5 px-4 font-bold text-muted text-xs uppercase tracking-wider">Estudiante</th>
-                  <th className="py-2.5 px-4 font-bold text-muted text-xs uppercase tracking-wider">Apoderado</th>
-                  <th className="py-2.5 px-4 font-bold text-muted text-xs uppercase tracking-wider">Sección</th>
-                  <th className="py-2.5 px-4 font-bold text-muted text-xs uppercase tracking-wider">Periodo</th>
-                  <th className="py-2.5 px-4 font-bold text-muted text-xs uppercase tracking-wider">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line/40 bg-white">
-                {parsedData.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-neutral/20 transition-colors">
-                    <td className="py-2.5 px-4 text-ink">
-                      <div className="font-medium">{row.nombres_estudiante} {row.apellidos_estudiante}</div>
-                      <div className="text-[11px] text-muted">DNI: {row.dni_estudiante}</div>
+      {selectedFile && !preview && !confirmation && !previewLoading && !previewError && (
+        <p className="text-sm text-muted">Archivo seleccionado. Pendiente de validación por el servidor.</p>
+      )}
+      {previewError && <p role="alert" className="text-sm text-red-700">{previewError}</p>}
+      {confirmError && <p role="alert" className="text-sm text-red-700">{confirmError}</p>}
+      {needsNewPreview && <p className="text-sm text-muted">Revisa el resultado actualizado. Obtén un nuevo preview antes de volver a confirmar.</p>}
+      {preview && (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-ink">Total: {preview.totalRows} · Válidas: {preview.validRows} · Inválidas: {preview.invalidRows}</p>
+          {preview.invalidRows > 0 && <p className="text-sm text-red-700">Corrige el archivo y vuelve a validarlo antes de confirmar.</p>}
+          {preview.validRows === 0 && <p className="text-sm text-muted">No hay filas válidas para confirmar.</p>}
+          <div className="max-h-[36rem] overflow-auto border border-line rounded-xl">
+            <table className="w-full text-left text-sm">
+              <caption className="p-3 text-muted text-left">Resultado de validación por fila. Las advertencias no bloquean la confirmación.</caption>
+              <thead><tr>{['Fila / Estado', 'Estudiante', 'Apoderado', 'Académico', 'Errores / Advertencias'].map(label => <th key={label} scope="col" className="p-3">{label}</th>)}</tr></thead>
+              <tbody>
+                {preview.rows.map((row, index) => (
+                  <tr key={`${row.rowNumber}-${index}`} className="border-t border-line align-top">
+                    <td className="p-3">
+                      <p>Fila {row.rowNumber}</p>
+                      <span className={`inline-block rounded px-2 py-1 mt-1 ${row.valid && row.errors.length === 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>{row.valid && row.errors.length === 0 ? 'Válida' : 'Inválida'}</span>
+                      {row.warnings.length > 0 && <span className="inline-block rounded px-2 py-1 mt-1 bg-amber-50 text-amber-900">{row.warnings.length} advertencias</span>}
                     </td>
-                    <td className="py-2.5 px-4 text-ink">
-                      <div className="font-medium">{row.nombres_apoderado} {row.apellidos_apoderado}</div>
-                      <div className="text-[11px] text-muted">{row.relacion} - DNI: {row.dni_apoderado}</div>
+                    <td className="p-3">
+                      <p>{fullName(row.data.studentFirstNames, row.data.studentLastNamePaternal, row.data.studentLastNameMaternal)}</p>
+                      <p>DNI: {display(row.data.studentDni)}</p>
+                      <p className="break-all">Email: {display(row.data.studentEmail)}</p>
+                      <p>Fecha de nacimiento: {display(row.data.studentBirthDate)}</p>
+                      {row.data.studentPhone && <p>Teléfono: {row.data.studentPhone}</p>}
+                      {row.data.studentCode != null && <p>Código: {row.data.studentCode}</p>}
                     </td>
-                    <td className="py-2.5 px-4 text-muted">{row.nombre_seccion}</td>
-                    <td className="py-2.5 px-4 text-muted">{row.nombre_periodo}</td>
-                    <td className="py-2.5 px-4 text-muted">
-                      <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
-                        {row.estado_matricula || 'MATRICULADO'}
-                      </span>
+                    <td className="p-3">
+                      <p>{fullName(row.data.guardianFirstNames, row.data.guardianLastNamePaternal, row.data.guardianLastNameMaternal)}</p>
+                      <p>DNI: {display(row.data.guardianDni)}</p>
+                      <p>Relación: {display(row.data.guardianRelationship)}</p>
+                      {row.data.guardianEmail && <p className="break-all">Email: {row.data.guardianEmail}</p>}
+                      {row.data.guardianPhone && <p>Teléfono: {row.data.guardianPhone}</p>}
+                    </td>
+                    <td className="p-3">
+                      <p>Periodo: {display(row.data.academicPeriod)}</p>
+                      <p>Nivel: {display(row.data.level)}</p>
+                      <p>Grado: {display(row.data.grade)}</p>
+                      <p>Sección: {display(row.data.section)}</p>
+                      <p>Fecha: {display(row.data.enrollmentDate)}</p>
+                    </td>
+                    <td className="p-3 min-w-64">
+                      {row.errors.length > 0 ? <><p className="font-bold mb-1">Errores</p><Issues issues={row.errors} /></> : <p>Sin errores</p>}
+                      {row.warnings.length > 0 && <div className="mt-3"><p className="font-bold mb-1">Advertencias</p><Issues issues={row.warnings} warning /></div>}
                     </td>
                   </tr>
                 ))}
@@ -267,6 +202,20 @@ export default function ImportadorMatricula({ onImportar }: ImportadorProps) {
           </div>
         </div>
       )}
-    </div>
+      {confirmation && (
+        <div role="status" className="rounded-xl p-4 bg-emerald-50 text-emerald-800 text-sm">
+          <p className="font-bold">Confirmación recibida del servidor</p>
+          <ul className="mt-2">
+            <li>Filas procesadas: {confirmation.totalRows}</li>
+            <li>Estudiantes creados: {confirmation.studentsCreated}</li>
+            <li>Apoderados creados: {confirmation.guardiansCreated}</li>
+            <li>Apoderados reutilizados por relación: {confirmation.guardiansReused}</li>
+            <li>Usuarios creados: {confirmation.usersCreated}</li>
+            <li>Relaciones creadas: {confirmation.relationshipsCreated}</li>
+            <li>Matrículas creadas: {confirmation.enrollmentsCreated}</li>
+          </ul>
+        </div>
+      )}
+    </section>
   );
 }

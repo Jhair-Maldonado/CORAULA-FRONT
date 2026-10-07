@@ -1,4 +1,0 @@
-﻿DATOS DEL ESTUDIANTE,,,,,,DATOS DEL APODERADO,,,,RELACIÓN,,,DATOS DE MATRÍCULA,,
-dni_estudiante,nombres_estudiante,apellidos_estudiante,telefono_estudiante,codigo_estudiante,estado_estudiante,dni_apoderado,nombres_apoderado,apellidos_apoderado,telefono_apoderado,relacion,es_principal,autorizado_recoger,nombre_periodo,nombre_seccion,fecha_matricula,estado_matricula
-70123456,Juan,Perez Torres,987654321,EST-001,ACTIVO,10223344,Carlos,Perez Diaz,912345678,Padre,SI,SI,2026-I,1ro A Secundaria,2026-03-01,MATRICULADO
-70123457,Maria,Lopez Silva,,EST-002,ACTIVO,10556677,Ana,Silva Castro,999888777,Madre,SI,SI,2026-I,1ro A Secundaria,2026-03-01,MATRICULADO

@@ -106,6 +106,7 @@ export default function ImportadorMatricula() {
 
   const buttonClass = 'px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed';
   const display = (value: string | number | null) => value ?? '—';
+  const fullName = (...parts: (string | null)[]) => parts.filter(Boolean).join(' ') || '—';
   return (
     <section className="w-full bg-white rounded-2xl border border-line p-6 flex flex-col gap-5" aria-busy={busy}>
       <div
@@ -118,7 +119,7 @@ export default function ImportadorMatricula() {
         className="border-2 border-dashed border-line rounded-xl p-8 text-center"
       >
         <p className="text-ink font-bold">Selecciona o arrastra un archivo .XLSX</p>
-        <p className="text-sm text-muted mt-2">Usa la hoja ESTUDIANTES. El servidor revisará su estructura y la validez de cada fila.</p>
+        <p className="text-sm text-muted mt-2">Usa la hoja ESTUDIANTES con las 21 columnas del contrato V2. El servidor revisará su estructura y la validez de cada fila.</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -169,15 +170,19 @@ export default function ImportadorMatricula() {
                       {row.warnings.length > 0 && <span className="inline-block rounded px-2 py-1 mt-1 bg-amber-50 text-amber-900">{row.warnings.length} advertencias</span>}
                     </td>
                     <td className="p-3">
-                      <p>{display(row.data.firstNames)} {display(row.data.lastNames)}</p>
+                      <p>{fullName(row.data.studentFirstNames, row.data.studentLastNamePaternal, row.data.studentLastNameMaternal)}</p>
                       <p>DNI: {display(row.data.studentDni)}</p>
                       <p className="break-all">Email: {display(row.data.studentEmail)}</p>
+                      <p>Fecha de nacimiento: {display(row.data.studentBirthDate)}</p>
+                      {row.data.studentPhone && <p>Teléfono: {row.data.studentPhone}</p>}
+                      {row.data.studentCode != null && <p>Código: {row.data.studentCode}</p>}
                     </td>
                     <td className="p-3">
-                      <p>{display(row.data.guardianFirstNames)} {display(row.data.guardianLastNames)}</p>
+                      <p>{fullName(row.data.guardianFirstNames, row.data.guardianLastNamePaternal, row.data.guardianLastNameMaternal)}</p>
                       <p>DNI: {display(row.data.guardianDni)}</p>
                       <p>Relación: {display(row.data.guardianRelationship)}</p>
                       {row.data.guardianEmail && <p className="break-all">Email: {row.data.guardianEmail}</p>}
+                      {row.data.guardianPhone && <p>Teléfono: {row.data.guardianPhone}</p>}
                     </td>
                     <td className="p-3">
                       <p>Periodo: {display(row.data.academicPeriod)}</p>

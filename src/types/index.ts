@@ -22,6 +22,3 @@ export interface User {
   email: string;
   role: UserRole; // A futuro debería ser estrictamente BackendRole
 }
-
-
-export * from './matricula';

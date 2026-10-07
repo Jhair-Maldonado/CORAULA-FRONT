@@ -7,13 +7,16 @@ export interface StudentImportIssue {
 export interface StudentImportRowData {
   studentDni: string | null;
   studentEmail: string | null;
-  firstNames: string | null;
-  lastNames: string | null;
-  phone: string | null;
+  studentFirstNames: string | null;
+  studentLastNamePaternal: string | null;
+  studentLastNameMaternal: string | null;
+  studentBirthDate: string | null;
+  studentPhone: string | null;
   guardianDni: string | null;
   guardianEmail: string | null;
   guardianFirstNames: string | null;
-  guardianLastNames: string | null;
+  guardianLastNamePaternal: string | null;
+  guardianLastNameMaternal: string | null;
   guardianPhone: string | null;
   guardianRelationship: string | null;
   guardianPrimary: boolean | null;

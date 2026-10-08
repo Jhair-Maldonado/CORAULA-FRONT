@@ -1,198 +1,85 @@
-'use client';
+﻿'use client';
 
-import React, { useState, useMemo } from 'react';
-import Link from 'next/link';
-import { MOCK_GRADOS } from '@/data/mockAlumnos';
+import { useEffect, useState } from 'react';
 import { Search01Icon, ArrowLeft01Icon, ArrowRight02Icon } from 'hugeicons-react';
+import { studentsService, studentErrorMessage } from '@/services/admin/studentsService';
+import { studentLevelLabels, studentStatusLabels, toAdminStudent } from '@/adapters/studentAdapter';
+import type { PagedStudentsResponse, StudentLevel, StudentListParams, StudentStatus } from '@/types/studentApi';
 import { TarjetaEstudiante } from './components/TarjetaEstudiante';
 
+type ListResult = { key: string; data?: PagedStudentsResponse; error?: string };
+
 export default function VistaTotalAlumnado() {
-  // Shared Filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterGrado, setFilterGrado] = useState('Todos');
-  const [filterSeccion, setFilterSeccion] = useState('Todas');
+  const [searchInput, setSearchInput] = useState('');
+  const [query, setQuery] = useState<StudentListParams>({ page: 0, size: 20 });
+  const [revision, setRevision] = useState(0);
+  const [result, setResult] = useState<ListResult | null>(null);
+  const key = JSON.stringify([query, revision]);
+  const loading = result?.key !== key;
+  const data = loading ? undefined : result?.data;
+  const error = loading ? undefined : result?.error;
 
-  // Pagination for Alumnos
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 12;
-
-  // Flatten all sections
-  const allSections = useMemo(() => {
-    return MOCK_GRADOS.flatMap(grado => 
-      grado.secciones.map(seccion => ({
-        ...seccion,
-        gradoNombre: grado.nombre,
-        gradoNumero: grado.numero,
-        nivel: grado.nivel,
-        vacantes: seccion.capacidadMaxima - seccion.estudiantes.length
-      }))
-    );
-  }, []);
-
-  // Flatten all ALUMNOS
-  const allStudents = useMemo(() => {
-    return allSections.flatMap(seccion => 
-      seccion.estudiantes.map(est => ({
-        ...est,
-        seccionId: seccion.id,
-        seccionNombre: seccion.nombre,
-        gradoNumero: seccion.gradoNumero,
-        letra: seccion.letra,
-        nivel: seccion.nivel
-      }))
-    );
-  }, [allSections]);
-
-  // Filter logic for ALUMNOS
-  const filteredStudents = useMemo(() => {
-    return allStudents.filter(student => {
-      const matchesSearch = student.nombres.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            student.apellidos.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            student.dni.includes(searchTerm);
-      const matchesGrado = filterGrado === 'Todos' || student.gradoNumero.toString() === filterGrado;
-      const matchesSeccion = filterSeccion === 'Todas' || student.letra === filterSeccion;
-      
-      return matchesSearch && matchesGrado && matchesSeccion;
-    });
-  }, [allStudents, searchTerm, filterGrado, filterSeccion]);
-
-  // Pagination Math
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
-  const paginatedStudents = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredStudents.slice(start, start + itemsPerPage);
-  }, [filteredStudents, currentPage]);
-
-  const uniqueGrados = Array.from(new Set(allSections.map(s => s.gradoNumero))).sort();
-  const uniqueLetras = Array.from(new Set(allSections.map(s => s.letra))).sort();
+  useEffect(() => {
+    let current = true;
+    studentsService.list(query)
+      .then(data => { if (current) setResult({ key, data }); })
+      .catch(error => { if (current) setResult({ key, error: studentErrorMessage(error) }); });
+    return () => { current = false; };
+  }, [query, revision, key]);
 
   return (
-    <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans flex flex-col">
-      <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col">
-        
-        {/* Header */}
-        <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <span className="text-accent text-[11px] font-bold tracking-widest uppercase">
-              Alumnado
-            </span>
-            <h1 className="text-ink text-2xl font-bold mt-1">
-              Listado de Alumnos
-            </h1>
-          </div>
+    <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans">
+      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+        <header>
+          <span className="text-accent text-[11px] font-bold tracking-widest uppercase">Alumnado</span>
+          <h1 className="text-ink text-2xl font-bold mt-1">Listado de Alumnos</h1>
         </header>
-
-        {/* Compact Filters */}
-        <div className="w-full bg-white border border-line rounded-lg flex flex-col lg:flex-row items-center p-2 gap-4 shadow-sm mb-8 text-xs font-medium text-ink shrink-0">
-          
-          <div className="flex items-center gap-2 flex-1 w-full lg:border-r border-line lg:pr-4">
-            <Search01Icon size={16} className="text-muted ml-2" />
-            <input 
-              type="text" 
-              placeholder="Buscar por nombre, apellido o DNI..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full bg-transparent outline-none placeholder:text-muted"
-            />
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-4 px-2">
-            <div className="flex items-center gap-2">
-              <span className="text-muted">Grado:</span>
-              <select 
-                value={filterGrado}
-                onChange={(e) => {
-                  setFilterGrado(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-neutral border border-line rounded px-2 py-1 outline-none focus:border-accent cursor-pointer"
-              >
-                <option value="Todos">Todos</option>
-                {uniqueGrados.map(num => (
-                  <option key={num} value={num.toString()}>{num}° Grado</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-muted">Sección:</span>
-              <select 
-                value={filterSeccion}
-                onChange={(e) => {
-                  setFilterSeccion(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-neutral border border-line rounded px-2 py-1 outline-none focus:border-accent cursor-pointer"
-              >
-                <option value="Todas">Todas</option>
-                {uniqueLetras.map(letra => (
-                  <option key={letra} value={letra}>{letra}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+        <div className="bg-white border border-line rounded-xl p-3 flex flex-wrap gap-3 items-center shadow-sm text-xs">
+          <form className="flex gap-2 flex-1 min-w-48" onSubmit={event => {
+            event.preventDefault();
+            setQuery(previous => ({ ...previous, search: searchInput.trim() || undefined, page: 0 }));
+          }}>
+            <label className="flex items-center gap-2 flex-1">
+              <Search01Icon size={16} className="text-muted shrink-0" />
+              <input aria-label="Buscar alumnos" placeholder="Buscar alumnos..." value={searchInput} onChange={e => setSearchInput(e.target.value)} className="w-full outline-none bg-transparent" />
+            </label>
+            <button className="bg-accent text-white px-3 py-2 rounded-lg font-bold">Buscar</button>
+          </form>
+          <label>Nivel
+            <select value={query.level ?? ''} onChange={e => setQuery(previous => ({ ...previous, level: (e.target.value || undefined) as StudentLevel | undefined, page: 0 }))} className="ml-2 bg-neutral border border-line rounded px-2 py-1">
+              <option value="">Todos</option>
+              {Object.entries(studentLevelLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label>Grado
+            <input type="number" min={1} step={1} aria-label="Filtrar por grado" placeholder="Todos" value={query.grade ?? ''} onChange={e => {
+              const grade = e.target.value === '' ? undefined : Number(e.target.value);
+              if (grade === undefined || (Number.isInteger(grade) && grade > 0)) setQuery(previous => ({ ...previous, grade, page: 0 }));
+            }} className="ml-2 w-20 bg-neutral border border-line rounded px-2 py-1" />
+          </label>
+          <label>Estado
+            <select value={query.status ?? ''} onChange={e => setQuery(previous => ({ ...previous, status: (e.target.value || undefined) as StudentStatus | undefined, page: 0 }))} className="ml-2 bg-neutral border border-line rounded px-2 py-1">
+              <option value="">Todos</option>
+              {Object.entries(studentStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
         </div>
-
-        {/* VIEW: ALUMNOS (Global List) */}
-        <div className="flex flex-col flex-1">
-          <div className="flex flex-col flex-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {paginatedStudents.map(student => (
-                <TarjetaEstudiante 
-                  key={student.id}
-                  id={student.id}
-                  nombres={student.nombres}
-                  apellidos={student.apellidos}
-                  dni={student.dni}
-                  telefono={student.telefono}
-                  seccionId={student.seccionId}
-                  gradoNumero={student.gradoNumero}
-                  nivel={student.nivel}
-                  letra={student.letra}
-                  fotoUrl={student.fotoUrl}
-                  estado={student.estado}
-                />
-              ))}
-            </div>
-
-            {filteredStudents.length === 0 ? (
-              <div className="w-full flex-1 flex items-center justify-center text-muted text-sm py-16 bg-white border border-line border-dashed rounded-xl">
-                No se encontraron alumnos con los filtros actuales.
-              </div>
-            ) : (
-              /* Pagination Controls */
-              <div className="mt-auto pt-8 flex items-center justify-between border-t border-line mt-8">
-                <span className="text-xs text-muted font-medium">
-                  Mostrando {paginatedStudents.length} de {filteredStudents.length} alumnos
-                </span>
-                
-                <div className="flex items-center gap-2">
-                  <button 
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    className="p-1.5 rounded bg-white border border-line text-ink hover:bg-neutral disabled:opacity-50 disabled:pointer-events-none transition-colors"
-                  >
-                    <ArrowLeft01Icon size={16} />
-                  </button>
-                  <span className="text-xs font-bold text-ink px-2">
-                    Página {currentPage} de {totalPages}
-                  </span>
-                  <button 
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    className="p-1.5 rounded bg-white border border-line text-ink hover:bg-neutral disabled:opacity-50 disabled:pointer-events-none transition-colors"
-                  >
-                    <ArrowRight02Icon size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
+        {loading && <p role="status" className="text-sm text-muted">Cargando alumnos...</p>}
+        {error && <div role="alert" className="p-4 rounded-xl bg-rose-50 text-rose-700 text-sm">
+          <p>{error}</p>
+          <button onClick={() => setRevision(n => n + 1)} className="mt-2 underline font-bold">Reintentar</button>
+        </div>}
+        {data && data.content.length === 0 && <p className="bg-white border border-line border-dashed p-8 rounded-xl text-sm text-muted">No se encontraron alumnos con los criterios actuales.</p>}
+        {data && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {data.content.map(toAdminStudent).map(student => <TarjetaEstudiante key={student.id} student={student} />)}
+        </div>}
+        {data && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4 text-xs text-muted">
+          <span>{data.totalElements} alumnos • Página {data.totalPages ? data.page + 1 : 0} de {data.totalPages} • Tamaño {data.size}</span>
+          {data.totalPages > 1 && <div className="flex gap-2">
+            <button aria-label="Página anterior" disabled={data.page <= 0} onClick={() => setQuery(previous => ({ ...previous, page: data.page - 1 }))} className="p-2 bg-white border border-line rounded disabled:opacity-40"><ArrowLeft01Icon size={16} /></button>
+            <button aria-label="Página siguiente" disabled={data.page + 1 >= data.totalPages} onClick={() => setQuery(previous => ({ ...previous, page: data.page + 1 }))} className="p-2 bg-white border border-line rounded disabled:opacity-40"><ArrowRight02Icon size={16} /></button>
+          </div>}
+        </div>}
       </div>
     </div>
   );

@@ -1,4 +1,19 @@
-import { Curso } from '@/types/cursos';
+// Modelo histórico aislado; no alimenta el CRUD administrativo real.
+interface Curso {
+  id: string;
+  nombre: string;
+  codigo: string;
+  nivel: 'Primaria' | 'Secundaria';
+  area: string;
+  frecuenciaSemanal: number;
+  horasTotalesSemana: number;
+  cantPracticasCalificadas: number;
+  semanasExamenes: string[];
+  docenteAsignado?: string;
+  syllabusArchivo?: { nombre: string; tamanio: string; fechaSubida: string; tipo: 'pdf' | 'doc' };
+  descripcion?: string;
+  temarioResumen?: string[];
+}
 
 export const MOCK_CURSOS: Curso[] = [
   {

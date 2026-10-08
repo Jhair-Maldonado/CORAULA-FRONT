@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Search01Icon, CheckmarkCircle01Icon } from 'hugeicons-react';
 import { coursesService } from '@/services/admin/coursesService';
 import { teachersService } from '@/services/admin/teachersService';
 import { sectionErrorMessage } from '@/services/admin/sectionErrors';
 import type { SectionLevel } from '@/types/sectionApi';
-import { buttonClass, inputClass, Failure } from './sectionUi';
+import { secondaryButtonClass, inputClass, Failure, SectionLoading, SectionEmpty } from './sectionUi';
 
 type Option = { id: number; name: string; description: string | null };
 type Page = { content: Option[]; page: number; totalPages: number };
@@ -30,26 +31,27 @@ export default function ResourceSelector({ kind, level, busy, selected, onSelect
       .catch(error => { if (current) setResult({ key, error: sectionErrorMessage(error) }); });
     return () => { current = false; };
   }, [kind, level, query, key]);
-  return <fieldset disabled={busy} className="flex flex-col gap-3">
-    <legend className="text-xs font-bold mb-2">Seleccionar {label} activo</legend>
-    <label className="text-xs font-bold" htmlFor="resource-search">Buscar {label}</label>
-    <div className="flex gap-2"><input id="resource-search" className={`${inputClass} min-w-0 flex-1`} value={input} onChange={event => { setInput(event.target.value); onSelect(null); }}
+  return <fieldset disabled={busy} className="flex flex-col gap-3 min-w-0">
+    <legend className="text-xs font-bold mb-3 text-ink">Seleccionar {label} activo</legend>
+    <label className="text-[10px] uppercase tracking-wider text-muted font-bold" htmlFor="resource-search">Buscar {label}</label>
+    <div className="flex flex-wrap sm:flex-nowrap gap-2"><div className="relative flex-1 min-w-0"><Search01Icon size={16} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" /><input id="resource-search" className={`${inputClass} w-full pl-9`} value={input} onChange={event => { setInput(event.target.value); onSelect(null); }}
       onKeyDown={event => {
         if (event.key === 'Enter') { event.preventDefault(); onSelect(null); setQuery({ search: input.trim(), page: 0 }); }
-      }} />
-      <button type="button" className={buttonClass} onClick={() => { onSelect(null); setQuery({ search: input.trim(), page: 0 }); }}>Buscar</button></div>
+      }} /></div>
+      <button type="button" className={secondaryButtonClass} onClick={() => { onSelect(null); setQuery({ search: input.trim(), page: 0 }); }}>Buscar</button></div>
     {kind === 'teacher' && <p className="text-xs text-muted">La especialidad es informativa y no determina la elegibilidad para este curso.</p>}
-    {loading ? <p role="status" className="text-sm">Cargando opciones...</p> : result?.error ? <Failure message={result.error} retry={() => setRevision(n => n + 1)} /> : result?.data && <>
-      {result.data.content.length === 0 ? <p className="text-sm text-muted">No se encontraron opciones activas.</p> : <div className="flex flex-col gap-2">
-        {result.data.content.map(option => <label key={option.id} className="flex items-start gap-2 border border-line rounded-lg p-3 text-sm cursor-pointer">
-          <input type="radio" name="resource" value={option.id} checked={selected === option.id} onChange={() => onSelect(option.id)} />
-          <span><span className="font-bold">{option.name}</span>{option.description && <span className="block text-xs text-muted">{option.description}</span>}</span>
+    {loading ? <SectionLoading>Cargando opciones...</SectionLoading> : result?.error ? <Failure message={result.error} retry={() => setRevision(n => n + 1)} /> : result?.data && <>
+      {result.data.content.length === 0 ? <SectionEmpty title="No se encontraron opciones activas">Ajusta la búsqueda para intentar nuevamente.</SectionEmpty> : <div className="flex flex-col gap-2">
+        {result.data.content.map(option => <label key={option.id} className={`flex items-start gap-3 border rounded-xl p-3 text-xs cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2 ${selected === option.id ? 'bg-accent-soft/40 border-accent shadow-sm' : 'bg-white border-line hover:bg-neutral/50 hover:border-accent/40'}`}>
+          <input type="radio" name="resource" value={option.id} checked={selected === option.id} onChange={() => onSelect(option.id)} className="mt-0.5 shrink-0 accent-accent focus-visible:outline-2 focus-visible:outline-accent" />
+          <span className="min-w-0 flex-1"><span className="font-bold text-ink break-words">{option.name}</span>{option.description && <span className="block text-[11px] text-muted mt-1 break-words">{option.description}</span>}</span>
+          {selected === option.id && <span className="flex items-center gap-1 text-accent text-[10px] font-bold shrink-0"><CheckmarkCircle01Icon size={15} aria-hidden="true" /><span className="sr-only sm:not-sr-only">Seleccionado</span></span>}
         </label>)}
       </div>}
-      {result.data.totalPages > 1 && <div className="flex items-center justify-between gap-2">
-        <button type="button" className={buttonClass} disabled={result.data.page === 0} onClick={() => { onSelect(null); setQuery(previous => ({ ...previous, page: previous.page - 1 })); }}>Anterior</button>
+      {result.data.totalPages > 1 && <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+        <button type="button" className={secondaryButtonClass} disabled={result.data.page === 0} onClick={() => { onSelect(null); setQuery(previous => ({ ...previous, page: previous.page - 1 })); }}>Anterior</button>
         <span className="text-xs">Página {result.data.page + 1} de {result.data.totalPages}</span>
-        <button type="button" className={buttonClass} disabled={result.data.page + 1 >= result.data.totalPages} onClick={() => { onSelect(null); setQuery(previous => ({ ...previous, page: previous.page + 1 })); }}>Siguiente</button>
+        <button type="button" className={secondaryButtonClass} disabled={result.data.page + 1 >= result.data.totalPages} onClick={() => { onSelect(null); setQuery(previous => ({ ...previous, page: previous.page + 1 })); }}>Siguiente</button>
       </div>}
     </>}
   </fieldset>;

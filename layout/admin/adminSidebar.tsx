@@ -57,6 +57,7 @@ const MENU_SECTIONS: MenuSection[] = [
       { name: 'Docentes', path: '/administrador/docentes', icon: TeacherIcon },
       { name: 'Alumnos', path: '/administrador/alumnos', icon: UserGroupIcon },
       { name: 'Cursos', path: '/administrador/cursos', icon: BookOpen01Icon },
+      { name: 'Secciones', path: '/administrador/secciones', icon: GridViewIcon },
       { name: 'Notas', path: '/administrador/notas', icon: Task01Icon },
     ]
   },

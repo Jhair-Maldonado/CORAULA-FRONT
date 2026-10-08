@@ -1,386 +1,160 @@
-'use client';
+﻿'use client';
 
-import React, { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import { 
-  ArrowLeft01Icon, 
-  Add01Icon, 
-  BookOpen01Icon,
-  CheckmarkCircle01Icon,
-  PencilEdit01Icon,
-  Camera01Icon
-} from 'hugeicons-react';
-import { MOCK_DOCENTES } from '@/data/mockDocentes';
-import { Docente } from '@/types';
+import { ArrowLeft01Icon, PencilEdit01Icon, BookOpen01Icon } from 'hugeicons-react';
+import { teachersService, teacherErrorMessage, teacherErrorStatus } from '@/services/admin/teachersService';
+import { toAdminTeacher, toAdminTeacherDetail } from '@/adapters/teacherAdapter';
+import type { AdminTeacherDetail } from '@/types/adminTeacher';
+import TeacherForm from './TeacherForm';
+
+type DetailResult = {
+  revision: number;
+  teacher?: AdminTeacherDetail;
+  error?: string;
+  notFound?: boolean;
+  assignmentsLoading?: boolean;
+  assignmentsError?: string;
+};
+
+function Info({ label, value }: { label: string; value: string | null }) {
+  return <div className="p-3 bg-neutral/40 rounded-xl">
+    <dt className="text-[10px] font-bold text-muted uppercase">{label}</dt>
+    <dd className="text-xs font-bold text-ink mt-1 break-words">{value ?? 'No registrado'}</dd>
+  </div>;
+}
 
 export default function PerfilDelDocente() {
-  const params = useParams();
-  const docenteId = params?.id as string;
+  const { id } = useParams<{ id: string }>();
+  return <TeacherProfile key={id} teacherId={id} />;
+}
 
-  const docenteOriginal = MOCK_DOCENTES.find(d => d.id === docenteId) || MOCK_DOCENTES[0];
+function TeacherProfile({ teacherId }: { teacherId: string }) {
+  const [revision, setRevision] = useState(0);
+  const [result, setResult] = useState<DetailResult | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [notice, setNotice] = useState('');
+  const mutationRef = useRef(false);
+  const loading = result?.revision !== revision;
+  const teacher = loading ? undefined : result?.teacher;
 
-  // Modo edicion global controlado desde el header
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [guardadoExito, setGuardadoExito] = useState<boolean>(false);
+  useEffect(() => {
+    let current = true;
+    teachersService.getById(teacherId)
+      .then(response => { if (current) setResult({ revision, teacher: toAdminTeacherDetail(response) }); })
+      .catch(error => { if (current) setResult({ revision, error: teacherErrorMessage(error), notFound: teacherErrorStatus(error) === 404 }); });
+    return () => { current = false; };
+  }, [teacherId, revision]);
 
-  // Estados editables
-  const [nombres, setNombres] = useState<string>(docenteOriginal.nombres);
-  const [apellidos, setApellidos] = useState<string>(docenteOriginal.apellidos);
-  const [contacto, setContacto] = useState<string>(docenteOriginal.contacto);
-  const [correo, setCorreo] = useState<string>(docenteOriginal.correo);
-  const [dni, setDni] = useState<string>(docenteOriginal.dni);
-  const [usuario, setUsuario] = useState<string>(docenteOriginal.usuario);
-  const [contrasenia, setContrasenia] = useState<string>(docenteOriginal.contrasenia);
-  const [fotoUrl, setFotoUrl] = useState<string | undefined>(docenteOriginal.fotoUrl);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Funciones para detectar si un valor cambió
-  const isChanged = (current: string, original: string) => current !== original;
-
-  // Manejo de cambio de imagen
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setFotoUrl(imageUrl);
+  async function toggleActive() {
+    if (!teacher || mutationRef.current) return;
+    if (teacher.active && !window.confirm('Al desactivar al docente también se desactivarán sus asignaciones activas. ¿Deseas continuar?')) return;
+    mutationRef.current = true;
+    setBusy(true);
+    setActionError('');
+    setNotice('');
+    try {
+      const updated = await teachersService.update(teacher.id, { active: !teacher.active });
+      setResult({
+        revision, teacher: { ...toAdminTeacher(updated), assignments: teacher.assignments }, assignmentsLoading: true,
+      });
+      setNotice(updated.active
+        ? 'Docente reactivado. Las asignaciones anteriores no se reactivan.'
+        : 'Docente desactivado. Sus asignaciones activas también se han desactivado.');
+      try {
+        const detail = await teachersService.getById(teacher.id);
+        setResult({ revision, teacher: toAdminTeacherDetail(detail) });
+      } catch (error) {
+        setResult(previous => previous ? { ...previous, assignmentsLoading: false, assignmentsError: teacherErrorMessage(error) } : previous);
+      }
+    } catch (error) {
+      setActionError(teacherErrorMessage(error));
+    } finally {
+      mutationRef.current = false;
+      setBusy(false);
     }
-  };
-
-  const handleGuardarTodo = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsEditing(false);
-    setGuardadoExito(true);
-    setTimeout(() => setGuardadoExito(false), 3000);
-  };
+  }
 
   return (
-    <div className="w-full h-full p-6 md:p-10 overflow-y-auto bg-canvas font-sans flex flex-col gap-6">
-      
-      {/* NAVEGACIÓN Y ENCABEZADO */}
-      <div className="max-w-7xl mx-auto w-full flex flex-col gap-2">
-        <Link 
-          href="/administrador/docentes" 
-          className="text-muted text-xs font-bold hover:text-accent transition-colors flex items-center gap-1.5 w-fit"
-        >
-          <ArrowLeft01Icon size={14} /> Regresar a lista de docentes
-        </Link>
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-1">
-          <div>
-            <span className="text-accent text-[11px] font-bold tracking-widest uppercase">
-              EQUIPO ACADÉMICO
-            </span>
-            <h1 className="text-ink text-2xl font-bold mt-0.5 tracking-tight">
-              Perfil de docente
-            </h1>
-            <p className="text-muted text-xs font-medium mt-0.5">
-              Consulta su desempeño, asignaciones y disponibilidad semanal.
-            </p>
-          </div>
-
-          {/* BOTÓN EDITAR / GUARDAR EN EL HEADER */}
-          <div className="flex items-center gap-3">
-            {guardadoExito && (
-              <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold animate-fade-in">
-                <CheckmarkCircle01Icon size={16} /> Cambios guardados
+    <div className="w-full h-full p-6 md:p-10 overflow-y-auto bg-canvas font-sans">
+      <div className="max-w-7xl mx-auto flex flex-col gap-6">
+        <Link href="/administrador/docentes" className="text-muted text-xs font-bold hover:text-accent flex items-center gap-2 w-fit"><ArrowLeft01Icon size={14} />Regresar a lista de docentes</Link>
+        {loading && <p role="status" className="bg-white border border-line rounded-xl p-6">Cargando docente...</p>}
+        {!loading && result?.error && <div role="alert" className="bg-white rounded-xl border border-line p-6">
+          <h1 className="text-xl font-bold">{result.notFound ? 'Docente no encontrado' : 'No se pudo cargar el docente'}</h1>
+          <p className="text-sm text-rose-700 mt-2">{result.error}</p>
+          <button onClick={() => setRevision(n => n + 1)} className="mt-4 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold">Reintentar</button>
+        </div>}
+        {teacher && <>
+          <header className="flex flex-wrap items-center justify-between gap-4">
+            <div><span className="text-accent text-[11px] font-bold uppercase">Equipo académico</span><h1 className="text-ink text-2xl font-bold mt-1">Perfil de docente</h1></div>
+            <div className="flex flex-wrap gap-2">
+              <button disabled={busy} onClick={() => { setNotice(''); setActionError(''); setEditing(true); }} className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold disabled:opacity-50"><PencilEdit01Icon size={16} />Editar docente</button>
+              <button disabled={busy} onClick={toggleActive} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold disabled:opacity-50">{busy ? 'Guardando...' : teacher.active ? 'Desactivar docente' : 'Reactivar docente'}</button>
+            </div>
+          </header>
+          {notice && <p role="status" className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm">{notice}</p>}
+          {actionError && <p role="alert" className="p-3 rounded-xl bg-rose-50 text-rose-700 text-sm">{actionError} Puedes volver a intentar la acción.</p>}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <section className="lg:col-span-5 bg-white border border-line rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-5">
+                <span className="w-14 h-14 rounded-full bg-accent-soft text-accent flex items-center justify-center font-bold shrink-0">{teacher.iniciales}</span>
+                <div><h2 className="text-lg font-bold">{teacher.nombreCompleto}</h2><p className="text-xs text-accent font-bold">{teacher.estadoLabel}</p></div>
               </div>
-            )}
-
-            {!isEditing ? (
-              <button 
-                onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent text-white font-bold text-xs hover:bg-accent/90 transition-all shadow-sm"
-              >
-                <PencilEdit01Icon size={16} />
-                <span>Editar Docente</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => setIsEditing(false)}
-                  className="px-4 py-2.5 rounded-xl bg-neutral border border-line text-ink font-bold text-xs hover:bg-neutral/80 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={handleGuardarTodo}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent text-white font-bold text-xs hover:bg-accent/90 transition-colors shadow-sm"
-                >
-                  <CheckmarkCircle01Icon size={16} />
-                  <span>Guardar Cambios</span>
-                </button>
-              </div>
-            )}
+              <dl className="flex flex-col gap-3">
+                <Info label="DNI" value={teacher.dni} />
+                <Info label="Nombres" value={teacher.firstNames} />
+                <Info label="Apellido paterno" value={teacher.paternalLastName} />
+                <Info label="Apellido materno" value={teacher.maternalLastName} />
+                <Info label="Teléfono" value={teacher.phone} />
+                <Info label="Especialidad" value={teacher.specialty} />
+                <Info label="Estado" value={teacher.estadoLabel} />
+              </dl>
+            </section>
+            <section className="lg:col-span-7 bg-white border border-line rounded-2xl p-6 shadow-sm">
+              <h2 className="text-sm font-bold flex items-center gap-2 mb-4"><BookOpen01Icon size={18} className="text-accent" />Asignaciones actuales / históricas</h2>
+              {result?.assignmentsLoading ? <p role="status" className="text-sm text-muted">Actualizando asignaciones...</p> :
+                result?.assignmentsError ? <div role="alert" className="text-sm text-rose-700">
+                  <p>No se pudieron actualizar las asignaciones. {result.assignmentsError}</p>
+                  <button onClick={() => setRevision(n => n + 1)} className="underline font-bold mt-2">Reintentar</button>
+                </div> :
+                  teacher.assignments.length === 0 ? <p className="text-sm text-muted">Sin asignaciones registradas.</p> :
+                    <div className="flex flex-col gap-3">
+                      {teacher.assignments.map(assignment => <article key={assignment.id} className="border border-line bg-neutral/30 rounded-xl p-4">
+                        <h3 className="font-bold text-sm">{assignment.courseCode} • {assignment.courseName}</h3>
+                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-xs">
+                          <div><dt className="text-muted">ID de sección</dt><dd className="font-bold">{assignment.sectionId}</dd></div>
+                          <div><dt className="text-muted">Fecha de asignación</dt><dd><time dateTime={assignment.assignedAt}>{assignment.assignedAt}</time></dd></div>
+                          <div><dt className="text-muted">Estado</dt><dd className="font-bold">{assignment.active ? 'Activa' : 'Inactiva'}</dd></div>
+                        </dl>
+                      </article>)}
+                    </div>}
+            </section>
           </div>
-        </div>
+          {editing && <div className="fixed inset-0 bg-ink/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <div role="dialog" aria-modal="true" aria-labelledby="edit-teacher-title" className="bg-white rounded-2xl border border-line p-6 max-w-xl w-full shadow-xl max-h-[90vh] overflow-y-auto">
+              <h2 id="edit-teacher-title" className="text-base font-bold mb-4">Editar docente</h2>
+              <TeacherForm teacher={teacher} onCancel={() => setEditing(false)} onSave={async payload => {
+                if (mutationRef.current) throw new Error('Operación en curso');
+                mutationRef.current = true;
+                setBusy(true);
+                try {
+                  const updated = await teachersService.update(teacher.id, payload);
+                  setResult(previous => ({
+                    revision, teacher: { ...toAdminTeacher(updated), assignments: teacher.assignments },
+                    assignmentsError: previous?.assignmentsError,
+                  }));
+                  setEditing(false);
+                  setNotice('Cambios guardados por el servidor.');
+                } finally { mutationRef.current = false; setBusy(false); }
+              }} />
+            </div>
+          </div>}
+        </>}
       </div>
-
-      {/* CONTENIDO PRINCIPAL: 2 COLUMNAS */}
-      <form onSubmit={handleGuardarTodo} className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12">
-        
-        {/* COLUMNA IZQUIERDA (7 COLS): PERFIL + ASIGNACIONES */}
-        <div className="lg:col-span-7 flex flex-col gap-6">
-          
-          {/* CARD PERFIL Y KPIS DE ASISTENCIA */}
-          <div className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm flex flex-col md:flex-row gap-5 items-start">
-            
-            {/* Foto Avatar Docente con Upload */}
-            <div className="w-full md:w-44 h-44 rounded-xl bg-neutral/80 overflow-hidden relative shrink-0 border border-line flex items-center justify-center group">
-              {fotoUrl ? (
-                <Image 
-                  src={fotoUrl} 
-                  alt={docenteOriginal.nombreCompleto} 
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-accent-soft text-accent font-bold text-2xl flex items-center justify-center">
-                  {docenteOriginal.iniciales}
-                </div>
-              )}
-
-              {/* Overlay para editar foto */}
-              {isEditing && (
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute inset-0 bg-ink/60 flex flex-col items-center justify-center text-white gap-1 cursor-pointer transition-opacity"
-                >
-                  <Camera01Icon size={24} />
-                  <span className="text-[10px] font-bold">Cambiar Foto</span>
-                </div>
-              )}
-              <input 
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-            </div>
-
-            {/* Datos y KPIs de Asistencia */}
-            <div className="flex-1 flex flex-col gap-4 w-full">
-              
-              {/* Identidad y Cargo */}
-              <div>
-                <h2 className="text-ink font-bold text-lg md:text-xl leading-tight">
-                  {nombres} {apellidos}
-                </h2>
-                <p className="text-accent text-xs font-bold mt-0.5">
-                  Docente de {docenteOriginal.materiaPrincipal} · {docenteOriginal.nivel}
-                </p>
-              </div>
-
-              {/* KPIs de Asistencia (Grid 3 Mini Badges) */}
-              <div className="grid grid-cols-3 gap-2 bg-canvas/60 p-3 rounded-xl border border-line">
-                
-                {/* Asistencias */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-muted uppercase">Asistencias</span>
-                  <span className="text-lg font-bold text-accent">{docenteOriginal.asistenciasPorcentaje}%</span>
-                  <span className="text-[9px] font-semibold text-muted">Periodo actual</span>
-                </div>
-
-                {/* Faltas */}
-                <div className="flex flex-col gap-1 border-l border-line pl-3">
-                  <span className="text-[10px] font-bold text-muted uppercase">Faltas</span>
-                  <span className="text-lg font-bold text-ink">{docenteOriginal.faltasDias} días</span>
-                  <span className="text-[9px] font-semibold text-muted">Periodo actual</span>
-                </div>
-
-                {/* Tardanzas */}
-                <div className="flex flex-col gap-1 border-l border-line pl-3">
-                  <span className="text-[10px] font-bold text-muted uppercase">Tardanzas</span>
-                  <span className="text-lg font-bold text-amber-500">{docenteOriginal.tardanzasRegistros} reg.</span>
-                  <span className="text-[9px] font-semibold text-muted">Periodo actual</span>
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* CARD ASIGNACIÓN DE CURSOS, GRADO Y SECCIÓN */}
-          <div className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm flex flex-col gap-4">
-            
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-ink font-bold text-sm flex items-center gap-2">
-                <BookOpen01Icon size={16} className="text-accent" />
-                Asignación de cursos, grado y sección
-              </h3>
-              {isEditing && (
-                <button 
-                  type="button"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-white text-[11px] font-bold hover:bg-accent/90 transition-colors"
-                >
-                  <Add01Icon size={14} />
-                  <span>Nuevo curso</span>
-                </button>
-              )}
-            </div>
-
-            {/* Lista de asignaciones */}
-            <div className="flex flex-col gap-2">
-              {docenteOriginal.asignaciones.map((asig) => (
-                <div 
-                  key={asig.id} 
-                  className="flex items-center justify-between p-3 rounded-xl bg-neutral/40 border border-line hover:bg-neutral/80 transition-colors"
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <span className="text-ink font-bold text-xs w-36 truncate">{asig.curso}</span>
-                    <span className="text-muted text-xs font-semibold w-28 truncate">{asig.nivelGrado}</span>
-                    <span className="text-muted text-xs font-semibold">{asig.seccion}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* COLUMNA DERECHA (5 COLS): CREDANCIALES Y DATOS PERSONALES */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          
-          <div className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm flex flex-col gap-4">
-            
-            {/* SECCIÓN CREDENCIALES */}
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-ink font-bold text-sm">
-                Credenciales del Sistema
-              </h3>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              
-              {/* Correo */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-muted uppercase">Correo Electrónico:</label>
-                <input 
-                  type="email" 
-                  disabled={!isEditing}
-                  value={correo}
-                  onChange={(e) => setCorreo(e.target.value)}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-semibold outline-none transition-colors ${
-                    isEditing && isChanged(correo, docenteOriginal.correo)
-                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold'
-                      : 'bg-neutral/40 border-line text-ink'
-                  }`}
-                />
-              </div>
-
-              {/* DNI */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-muted uppercase">DNI / Documento:</label>
-                <input 
-                  type="text" 
-                  disabled={!isEditing}
-                  value={dni}
-                  onChange={(e) => setDni(e.target.value)}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-semibold outline-none transition-colors ${
-                    isEditing && isChanged(dni, docenteOriginal.dni)
-                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold'
-                      : 'bg-neutral/40 border-line text-ink'
-                  }`}
-                />
-              </div>
-
-              {/* Usuario */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-muted uppercase">Usuario de Acceso:</label>
-                <input 
-                  type="text" 
-                  disabled={!isEditing}
-                  value={usuario}
-                  onChange={(e) => setUsuario(e.target.value)}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-semibold outline-none transition-colors ${
-                    isEditing && isChanged(usuario, docenteOriginal.usuario)
-                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold'
-                      : 'bg-neutral/40 border-line text-ink'
-                  }`}
-                />
-              </div>
-
-              {/* Contraseña */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-muted uppercase">Contraseña:</label>
-                <input 
-                  type="password" 
-                  disabled={!isEditing}
-                  value={contrasenia}
-                  onChange={(e) => setContrasenia(e.target.value)}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-semibold outline-none transition-colors ${
-                    isEditing && isChanged(contrasenia, docenteOriginal.contrasenia)
-                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold'
-                      : 'bg-neutral/40 border-line text-ink'
-                  }`}
-                />
-              </div>
-            </div>
-
-            {/* SECCIÓN DATOS PERSONALES */}
-            <div className="border-t border-line pt-4 mt-2 flex flex-col gap-3">
-              <h3 className="text-ink font-bold text-sm border-b border-line pb-2">
-                Datos personales
-              </h3>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-muted uppercase">Nombre:</label>
-                <input 
-                  type="text" 
-                  disabled={!isEditing}
-                  value={nombres}
-                  onChange={(e) => setNombres(e.target.value)}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-semibold outline-none transition-colors ${
-                    isEditing && isChanged(nombres, docenteOriginal.nombres)
-                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold'
-                      : 'bg-neutral/40 border-line text-ink'
-                  }`}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-muted uppercase">Apellido:</label>
-                <input 
-                  type="text" 
-                  disabled={!isEditing}
-                  value={apellidos}
-                  onChange={(e) => setApellidos(e.target.value)}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-semibold outline-none transition-colors ${
-                    isEditing && isChanged(apellidos, docenteOriginal.apellidos)
-                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold'
-                      : 'bg-neutral/40 border-line text-ink'
-                  }`}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-muted uppercase">Contacto:</label>
-                <input 
-                  type="text" 
-                  disabled={!isEditing}
-                  value={contacto}
-                  onChange={(e) => setContacto(e.target.value)}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-semibold outline-none transition-colors ${
-                    isEditing && isChanged(contacto, docenteOriginal.contacto)
-                      ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold'
-                      : 'bg-neutral/40 border-line text-ink'
-                  }`}
-                />
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </form>
-
     </div>
   );
 }

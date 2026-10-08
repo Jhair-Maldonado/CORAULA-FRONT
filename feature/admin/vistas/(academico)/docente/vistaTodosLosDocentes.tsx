@@ -1,258 +1,108 @@
-'use client';
+﻿'use client';
 
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { 
-  Search01Icon, 
-  ArrowDown01Icon,
-  Add01Icon,
-  UserIcon,
-  ArrowRight01Icon,
-  ViewIcon,
-  ArrowLeft01Icon
-} from 'hugeicons-react';
-import { MOCK_DOCENTES } from '@/data/mockDocentes';
-import { Docente } from '@/types';
+import { Add01Icon, ViewIcon, ArrowLeft01Icon, ArrowRight01Icon } from 'hugeicons-react';
+import { teachersService, teacherErrorMessage } from '@/services/admin/teachersService';
+import { toAdminTeacher } from '@/adapters/teacherAdapter';
+import type { PagedTeachersResponse, TeacherListParams, TeacherResponse } from '@/types/teacherApi';
+import TeacherForm from './TeacherForm';
+
+type ListResult = { key: string; data?: PagedTeachersResponse; error?: string };
 
 export default function VistaTodosLosDocentes() {
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [nivelFilter, setNivelFilter] = useState<string>('Todos');
-  const [gradoFilter, setGradoFilter] = useState<string>('Todos');
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 10;
+  const [searchInput, setSearchInput] = useState('');
+  const [query, setQuery] = useState<TeacherListParams>({ page: 0, size: 20 });
+  const [revision, setRevision] = useState(0);
+  const [result, setResult] = useState<ListResult | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [created, setCreated] = useState<TeacherResponse | null>(null);
+  const key = JSON.stringify([query, revision]);
+  const loading = result?.key !== key;
+  const data = loading ? undefined : result?.data;
+  const error = loading ? undefined : result?.error;
 
-  const filteredDocentes: Docente[] = MOCK_DOCENTES.filter((doc: Docente) => {
-    const matchesSearch = doc.nombreCompleto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          doc.materiaPrincipal.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          doc.usuario.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          doc.contacto.includes(searchTerm);
-    
-    const matchesNivel = nivelFilter === 'Todos' || doc.nivel === nivelFilter;
-    const matchesGrado = gradoFilter === 'Todos' || doc.gradoFiltro === gradoFilter;
-
-    return matchesSearch && matchesNivel && matchesGrado;
-  });
-
-  // Paginación
-  const totalPages = Math.ceil(filteredDocentes.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedDocentes = filteredDocentes.slice(startIndex, startIndex + itemsPerPage);
+  useEffect(() => {
+    let current = true;
+    teachersService.list(query)
+      .then(data => { if (current) setResult({ key, data }); })
+      .catch(error => { if (current) setResult({ key, error: teacherErrorMessage(error) }); });
+    return () => { current = false; };
+  }, [query, revision, key]);
 
   return (
     <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans flex flex-col gap-5">
-      
-      {/* HEADER & NUEVO DOCENTE ACTION */}
-      <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <header className="max-w-7xl mx-auto w-full flex flex-wrap justify-between items-end gap-4">
         <div>
-          <span className="text-accent text-[10px] font-bold tracking-widest uppercase">
-            EQUIPO ACADÉMICO
-          </span>
-          <h1 className="text-ink text-xl font-bold mt-0.5 tracking-tight">
-            Panel de docentes
-          </h1>
-          <p className="text-muted text-xs font-medium mt-0.5">
-            Gestión de docentes, asistencias, faltas y tardanzas
-          </p>
+          <span className="text-accent text-[10px] font-bold tracking-widest uppercase">EQUIPO ACADÉMICO</span>
+          <h1 className="text-ink text-xl font-bold mt-1">Panel de docentes</h1>
+          <p className="text-muted text-xs mt-1">Gestiona los datos y el estado de los docentes.</p>
         </div>
-
-        <div>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white shadow-sm hover:bg-accent/90 transition-colors text-xs font-bold">
-            <Add01Icon size={16} />
-            <span>Nuevo docente</span>
-          </button>
-        </div>
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold"><Add01Icon size={16} />Nuevo docente</button>
+      </header>
+      {created && <div role="status" className="max-w-7xl mx-auto w-full rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">
+        Docente creado: <Link href={`/administrador/docentes/${created.id}`} className="underline font-bold">{created.fullName}</Link> (Activo).
+      </div>}
+      <div className="max-w-7xl mx-auto w-full bg-white border border-line rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-sm text-xs">
+        <form className="flex gap-2 flex-1 max-w-md" onSubmit={event => {
+          event.preventDefault();
+          setQuery(previous => ({ ...previous, search: searchInput.trim() || undefined, page: 0 }));
+        }}>
+          <input aria-label="Buscar docentes" placeholder="Buscar docentes..." value={searchInput} onChange={e => setSearchInput(e.target.value)} className="w-full px-3 py-2 bg-neutral border border-line rounded-lg outline-none" />
+          <button className="px-3 py-2 bg-accent text-white rounded-lg font-bold">Buscar</button>
+        </form>
+        <label className="font-bold text-muted">Estado
+          <select value={query.active === undefined ? 'all' : String(query.active)} onChange={e => setQuery(previous => ({
+            ...previous, active: e.target.value === 'all' ? undefined : e.target.value === 'true', page: 0,
+          }))} className="ml-2 bg-neutral border border-line rounded-lg px-3 py-2">
+            <option value="all">Todos</option><option value="true">Activos</option><option value="false">Inactivos</option>
+          </select>
+        </label>
       </div>
-
-      {/* FILTROS Y BÚSQUEDA COMPACTA */}
-      <div className="max-w-7xl mx-auto w-full bg-white border border-line rounded-xl p-2.5 flex flex-col md:flex-row items-center justify-between gap-3 shadow-sm">
-        
-        {/* Input de Búsqueda */}
-        <div className="flex items-center gap-2 text-muted w-full md:w-80 px-2">
-          <Search01Icon size={16} />
-          <input 
-            type="text" 
-            placeholder="Buscar por nombre, celular o materia..." 
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full bg-transparent outline-none text-xs text-ink placeholder:text-muted font-medium"
-          />
-        </div>
-
-        {/* Desplegables de Filtro */}
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          {/* Filtro Nivel */}
-          <div className="relative flex-1 md:flex-none">
-            <select 
-              value={nivelFilter}
-              onChange={(e) => {
-                setNivelFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="appearance-none w-full bg-neutral/50 border border-line rounded-lg px-3 py-1.5 pr-7 text-[11px] font-semibold text-muted hover:text-ink cursor-pointer outline-none transition-colors"
-            >
-              <option value="Todos">Nivel · Todos</option>
-              <option value="Primaria">Nivel · Primaria</option>
-              <option value="Secundaria">Nivel · Secundaria</option>
-            </select>
-            <ArrowDown01Icon size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-          </div>
-
-          {/* Filtro Grado */}
-          <div className="relative flex-1 md:flex-none">
-            <select 
-              value={gradoFilter}
-              onChange={(e) => {
-                setGradoFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="appearance-none w-full bg-neutral/50 border border-line rounded-lg px-3 py-1.5 pr-7 text-[11px] font-semibold text-muted hover:text-ink cursor-pointer outline-none transition-colors"
-            >
-              <option value="Todos">Grado · Todos</option>
-              <option value="1ro">Grado · 1ro</option>
-              <option value="3ro">Grado · 3ro</option>
-              <option value="5to">Grado · 5to</option>
-            </select>
-            <ArrowDown01Icon size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-          </div>
-        </div>
-
-      </div>
-
-      {/* TABLA COMPACTA DE DOCENTES */}
-      <div className="max-w-7xl mx-auto w-full bg-white rounded-xl border border-line shadow-sm overflow-hidden">
-        {paginatedDocentes.length > 0 ? (
+      {loading && <p role="status" className="max-w-7xl mx-auto w-full text-sm text-muted">Cargando docentes...</p>}
+      {error && <div role="alert" className="max-w-7xl mx-auto w-full p-4 rounded-xl bg-rose-50 text-rose-700 text-sm">
+        <p>{error}</p><button onClick={() => setRevision(n => n + 1)} className="mt-2 underline font-bold">Reintentar</button>
+      </div>}
+      {data && <div className="max-w-7xl mx-auto w-full bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+        {data.content.length === 0 ? <p className="p-10 text-center text-sm text-muted">No se encontraron docentes con los criterios seleccionados.</p> :
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-neutral/50 border-b border-line text-[10px] font-bold text-muted uppercase tracking-wider">
-                  <th className="py-2.5 px-4">Docente</th>
-                  <th className="py-2.5 px-4">Celular</th>
-                  <th className="py-2.5 px-4">Especialidad / Nivel</th>
-                  <th className="py-2.5 px-4">Días Asistencia</th>
-                  <th className="py-2.5 px-4 text-center">% Asistencia</th>
-                  <th className="py-2.5 px-4 text-center">Faltas</th>
-                  <th className="py-2.5 px-4 text-center">Tardanzas</th>
-                  <th className="py-2.5 px-4 text-center">Acción</th>
-                </tr>
+            <table className="w-full text-left">
+              <thead className="bg-neutral/50 border-b border-line text-[10px] font-bold text-muted uppercase">
+                <tr>{['Docente', 'DNI', 'Teléfono', 'Especialidad', 'Estado', 'Acción'].map(label => <th key={label} scope="col" className="py-3 px-4">{label}</th>)}</tr>
               </thead>
-              <tbody className="divide-y divide-line text-xs font-medium text-ink">
-                {paginatedDocentes.map((docente: Docente) => (
-                  <tr key={docente.id} className="hover:bg-neutral/30 transition-colors">
-                    
-                    {/* DOCENTE INFO */}
-                    <td className="py-2.5 px-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center font-bold text-[10px] shrink-0">
-                          {docente.iniciales}
-                        </div>
-                        <span className="font-bold text-ink text-xs truncate max-w-[160px]">
-                          {docente.nombreCompleto}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* CELULAR */}
-                    <td className="py-2.5 px-4 text-muted text-[11px] font-semibold">
-                      {docente.contacto}
-                    </td>
-
-                    {/* ESPECIALIDAD */}
-                    <td className="py-2.5 px-4">
-                      <span className="font-semibold text-ink text-xs">{docente.materiaPrincipal}</span>
-                      <span className="text-[10px] text-muted ml-1.5">({docente.gradoFiltro} {docente.nivel})</span>
-                    </td>
-
-                    {/* DÍAS ASISTENCIA */}
-                    <td className="py-2.5 px-4">
-                      <span className="bg-success/10 text-success-ink px-2 py-0.5 rounded text-[10px] font-bold inline-block">
-                        {docente.diasTexto}
-                      </span>
-                    </td>
-
-                    {/* % ASISTENCIA */}
-                    <td className="py-2.5 px-4 text-center font-bold text-accent text-xs">
-                      {docente.asistenciasPorcentaje}%
-                    </td>
-
-                    {/* FALTAS (SOLO NÚMERO) */}
-                    <td className="py-2.5 px-4 text-center">
-                      <span className={`inline-block font-bold px-2 py-0.5 rounded text-[11px] ${
-                        docente.faltasDias > 2 
-                          ? 'bg-rose-100 text-rose-700' 
-                          : docente.faltasDias > 0 
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-neutral text-muted'
-                      }`}>
-                        {docente.faltasDias}
-                      </span>
-                    </td>
-
-                    {/* TARDANZAS (SOLO NÚMERO) */}
-                    <td className="py-2.5 px-4 text-center">
-                      <span className={`inline-block font-bold px-2 py-0.5 rounded text-[11px] ${
-                        docente.tardanzasRegistros > 2 
-                          ? 'bg-amber-100 text-amber-800' 
-                          : 'bg-neutral text-muted'
-                      }`}>
-                        {docente.tardanzasRegistros}
-                      </span>
-                    </td>
-
-                    {/* ACCIÓN (SOLO ICONO) */}
-                    <td className="py-2.5 px-4 text-center">
-                      <Link 
-                        href={`/administrador/docentes/${docente.id}`}
-                        title="Ver Perfil"
-                        className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-neutral hover:bg-accent hover:text-white transition-all text-muted"
-                      >
-                        <ViewIcon size={16} />
-                      </Link>
-                    </td>
-
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-line text-xs text-ink">
+                {data.content.map(toAdminTeacher).map(teacher => <tr key={teacher.id} className="hover:bg-neutral/30">
+                  <td className="py-3 px-4"><div className="flex items-center gap-2"><span className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center font-bold shrink-0">{teacher.iniciales}</span><span className="font-bold">{teacher.nombreCompleto}</span></div></td>
+                  <td className="py-3 px-4">{teacher.dni}</td>
+                  <td className="py-3 px-4">{teacher.phone ?? 'No registrado'}</td>
+                  <td className="py-3 px-4">{teacher.specialty ?? 'No registrada'}</td>
+                  <td className="py-3 px-4"><span className={`px-2 py-1 rounded-full font-bold ${teacher.active ? 'bg-emerald-50 text-emerald-700' : 'bg-neutral text-muted'}`}>{teacher.estadoLabel}</span></td>
+                  <td className="py-3 px-4"><Link href={`/administrador/docentes/${teacher.id}`} aria-label={`Ver perfil de ${teacher.nombreCompleto}`} className="inline-flex p-2 rounded-lg bg-neutral hover:bg-accent hover:text-white"><ViewIcon size={16} /></Link></td>
+                </tr>)}
               </tbody>
             </table>
-          </div>
-        ) : (
-          <div className="py-12 flex flex-col items-center justify-center text-muted gap-2">
-            <UserIcon size={28} />
-            <p className="text-xs font-semibold">No se encontraron docentes con los criterios seleccionados.</p>
-          </div>
-        )}
-
-        {/* CONTROLES DE PAGINACIÓN */}
-        {filteredDocentes.length > 0 && (
-          <div className="px-4 py-3 bg-neutral/20 border-t border-line flex items-center justify-between text-xs font-semibold text-muted">
-            <span>
-              Mostrando {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredDocentes.length)} de {filteredDocentes.length} docentes
-            </span>
-            <div className="flex items-center gap-2">
-              <button 
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                className="p-1 rounded bg-white border border-line disabled:opacity-40 hover:bg-neutral transition-colors text-ink"
-              >
-                <ArrowLeft01Icon size={14} />
-              </button>
-              <span className="text-ink font-bold px-2">
-                Página {currentPage} de {totalPages}
-              </span>
-              <button 
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                className="p-1 rounded bg-white border border-line disabled:opacity-40 hover:bg-neutral transition-colors text-ink"
-              >
-                <ArrowRight01Icon size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
+          </div>}
+        <div className="p-4 bg-neutral/20 border-t border-line flex flex-wrap justify-between items-center gap-3 text-xs text-muted">
+          <span>{data.totalElements} docentes • Página {data.totalPages ? data.page + 1 : 0} de {data.totalPages} • Tamaño {data.size}</span>
+          {data.totalPages > 1 && <div className="flex gap-2">
+            <button aria-label="Página anterior" disabled={data.page <= 0} onClick={() => setQuery(previous => ({ ...previous, page: data.page - 1 }))} className="p-2 bg-white border border-line rounded-lg disabled:opacity-40"><ArrowLeft01Icon size={14} /></button>
+            <button aria-label="Página siguiente" disabled={data.page + 1 >= data.totalPages} onClick={() => setQuery(previous => ({ ...previous, page: data.page + 1 }))} className="p-2 bg-white border border-line rounded-lg disabled:opacity-40"><ArrowRight01Icon size={14} /></button>
+          </div>}
+        </div>
+      </div>}
+      {showCreate && <div className="fixed inset-0 bg-ink/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div role="dialog" aria-modal="true" aria-labelledby="create-teacher-title" className="bg-white rounded-2xl border border-line p-6 max-w-xl w-full shadow-xl max-h-[90vh] overflow-y-auto">
+          <h2 id="create-teacher-title" className="text-base font-bold mb-4">Nuevo docente</h2>
+          <TeacherForm onCancel={() => setShowCreate(false)} onSave={async payload => {
+            const teacher = await teachersService.create(payload);
+            setCreated(teacher);
+            setShowCreate(false);
+            setSearchInput('');
+            setQuery({ page: 0, size: 20 });
+            setRevision(n => n + 1);
+          }} />
+        </div>
+      </div>}
     </div>
   );
 }

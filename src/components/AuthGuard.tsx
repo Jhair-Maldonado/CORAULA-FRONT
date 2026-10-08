@@ -44,8 +44,10 @@ export const AuthGuard = ({ children, allowedRoles }: AuthGuardProps) => {
     if (!authContext || authContext.status === 'loading') return;
 
     if (authContext.status === 'unauthenticated' || !authContext.sessionValid || !authContext.isSessionPhysicallyValid()) {
-      if (pathname.startsWith('/administrador') || pathname.startsWith('/docente')) {
+      if (pathname.startsWith('/administrador')) {
         router.replace('/login/security/administrador');
+      } else if (pathname.startsWith('/docente')) {
+        router.replace('/docente/login');
       } else {
         router.replace('/login');
       }
@@ -55,6 +57,20 @@ export const AuthGuard = ({ children, allowedRoles }: AuthGuardProps) => {
     if (authContext.status === 'authenticated') {
       const userRole = authContext.role;
       if (!userRole || !allowedRoles.includes(userRole)) {
+        // Si el usuario intenta entrar al módulo docente pero tiene otro rol, enviarlo al login docente
+        if (pathname.startsWith('/docente')) {
+          router.replace('/docente/login');
+          return;
+        }
+        if (pathname.startsWith('/administrador')) {
+          router.replace('/login/security/administrador');
+          return;
+        }
+        if (pathname.startsWith('/alumno')) {
+          router.replace('/alumno/login');
+          return;
+        }
+
         if (userRole === 'ADMINISTRADOR' || userRole === 'DIRECTIVO') {
           router.replace('/administrador');
         } else if (userRole === 'DOCENTE') {

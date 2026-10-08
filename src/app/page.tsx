@@ -1,5 +1,9 @@
+'use client';
+
 import Link from 'next/link';
-import React from 'react';
+import React, { useContext } from 'react';
+import { AuthContext } from '@/contexts/AuthContext';
+import { LogOut } from 'lucide-react';
 
 const ROLES = [
   {
@@ -23,7 +27,7 @@ const ROLES = [
   {
     id: 'docente',
     name: 'Docente',
-    path: '/docente',
+    path: '/docente/login',
     desc: 'Registro de asistencia, publicaciones, calificaciones y aula virtual.',
     badge: 'Docencia',
     color: 'bg-blue-700 text-white',
@@ -50,9 +54,17 @@ const ROLES = [
 ];
 
 export default function HomePage() {
+  const authContext = useContext(AuthContext);
+  const activeRole = authContext?.role;
+  const isAuthenticated = authContext?.status === 'authenticated' && !!activeRole;
+
+  const handleLogout = () => {
+    authContext?.logout();
+  };
+
   return (
     <div className="min-h-screen bg-canvas flex flex-col justify-between p-6 sm:p-12 font-sans">
-      <header className="max-w-6xl mx-auto w-full flex justify-between items-center pb-8 border-b border-line">
+      <header className="max-w-6xl mx-auto w-full flex justify-between items-center pb-8 border-b border-line gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-white font-bold text-xl shadow-md">
             C
@@ -62,9 +74,26 @@ export default function HomePage() {
             <p className="text-xs font-semibold text-muted tracking-wider uppercase">Plataforma Educativa Integrada</p>
           </div>
         </div>
-        <span className="px-3 py-1 bg-accent-soft text-accent text-xs font-bold rounded-full">
-          Versión 2026
-        </span>
+
+        <div className="flex items-center gap-3">
+          {isAuthenticated && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl text-xs text-amber-900">
+              <span>Sesión activa: <strong className="font-bold">{activeRole}</strong></span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="ml-2 inline-flex items-center gap-1 font-bold text-red-600 hover:text-red-800 transition-colors cursor-pointer"
+                title="Cerrar sesión actual para ingresar con otro rol"
+              >
+                <LogOut size={13} />
+                <span>Salir</span>
+              </button>
+            </div>
+          )}
+          <span className="px-3 py-1 bg-accent-soft text-accent text-xs font-bold rounded-full hidden sm:inline-block">
+            Versión 2026
+          </span>
+        </div>
       </header>
 
       <main className="max-w-6xl mx-auto w-full py-12 flex-1">

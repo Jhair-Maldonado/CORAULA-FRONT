@@ -4,60 +4,33 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GuestGuard } from '@/components/GuestGuard';
 import {
   Mail01Icon,
   LockKeyIcon,
   ViewIcon,
   ViewOffIcon,
   ArrowRight01Icon,
-  SecurityCheckIcon,
   TeacherIcon,
-  SparklesIcon,
 } from 'hugeicons-react';
 import { GraduationCap } from 'lucide-react';
-import { GlobalLoader } from '@/components/GlobalLoader';
 import { authService } from '@/services/authService';
 import { AuthContext } from '@/contexts/AuthContext';
 import { isAxiosError } from 'axios';
-
-// Genera un token JWT compatible con jwtDecode y AuthContext para pruebas/desarrollo
-function generateDocenteDemoToken(email: string): string {
-  const header = typeof window !== 'undefined' ? btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })) : '';
-  const payload = typeof window !== 'undefined' ? btoa(
-    JSON.stringify({
-      sub: email,
-      role: 'DOCENTE',
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 86400 * 7, // 7 días de validez
-    })
-  ) : '';
-  const signature = typeof window !== 'undefined' ? btoa('coraula-docente-valid-signature') : '';
-  return `${header}.${payload}.${signature}`;
-}
 
 export default function LoginDocente() {
   const router = useRouter();
   const authContext = React.useContext(AuthContext);
 
-  const [email, setEmail] = useState('docente.test@coraula.local');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleLoginSuccess = (token: string) => {
-    if (authContext) {
-      authContext.login(token, 'DOCENTE');
-    } else {
-      localStorage.setItem('token', token);
-      localStorage.setItem('role', 'DOCENTE');
-    }
-    router.push('/docente');
-  };
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (cargando) return;
+    if (!authContext) { setErrorMsg('No se pudo inicializar la sesión. Recarga la página.'); return; }
     setCargando(true);
     setErrorMsg(null);
 
@@ -66,7 +39,8 @@ export default function LoginDocente() {
       const response = await authService.login(email, password);
 
       if (response.role === 'DOCENTE') {
-        handleLoginSuccess(response.token);
+        authContext.login(response.token, response.role);
+        router.push('/docente');
         return;
       }
 
@@ -78,15 +52,6 @@ export default function LoginDocente() {
 
       setErrorMsg('Esta cuenta no tiene permisos de docente.');
     } catch (error) {
-      // 2. Si falla en el backend (ej. contraseña hash no coincide en Supabase o cuenta bloqueada)
-      // pero son las credenciales de prueba docente.test@coraula.local, permitimos acceso de desarrollo
-      if (email.trim().toLowerCase() === 'docente.test@coraula.local') {
-        console.warn('Backend rechazó credenciales, usando acceso autorizado de prueba para Docente.');
-        const demoToken = generateDocenteDemoToken(email.trim());
-        handleLoginSuccess(demoToken);
-        return;
-      }
-
       if (isAxiosError(error) && error.response) {
         const status = error.response.status;
         if (status === 400) setErrorMsg('Revisa los datos ingresados.');
@@ -100,17 +65,6 @@ export default function LoginDocente() {
     } finally {
       setCargando(false);
     }
-  };
-
-  // Botón de acceso directo con credenciales de prueba
-  const handleAccesoDirectoDemo = () => {
-    setEmail('docente.test@coraula.local');
-    setPassword('123456');
-    setCargando(true);
-    setTimeout(() => {
-      const demoToken = generateDocenteDemoToken('docente.test@coraula.local');
-      handleLoginSuccess(demoToken);
-    }, 400);
   };
 
   React.useEffect(() => {
@@ -204,7 +158,7 @@ export default function LoginDocente() {
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="docente.test@coraula.local"
+                        placeholder="Correo institucional"
                         className="w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white focus:border-[#BE123C] focus:ring-3 focus:ring-[#BE123C]/10 transition-all placeholder:text-muted/60"
                       />
                     </div>
@@ -237,7 +191,7 @@ export default function LoginDocente() {
                   </div>
 
                   {errorMsg && (
-                    <div className="text-center bg-red-50 text-red-600 text-xs py-2 px-3 rounded-xl border border-red-100 font-medium">
+                    <div role="alert" className="text-center bg-red-50 text-red-600 text-xs py-2 px-3 rounded-xl border border-red-100 font-medium">
                       {errorMsg}
                     </div>
                   )}
@@ -252,36 +206,6 @@ export default function LoginDocente() {
                     <ArrowRight01Icon size={16} />
                   </button>
 
-                  {/* Tarjeta de ayuda con credenciales de prueba */}
-                  <div className="mt-2 pt-3 border-t border-line/60 flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-[11px] text-muted">
-                      <span className="font-semibold text-ink flex items-center gap-1">
-                        <SparklesIcon size={13} className="text-[#BE123C]" />
-                        Credenciales de prueba:
-                      </span>
-                    </div>
-
-                    <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-2.5 text-left text-[11.5px] space-y-1">
-                      <div className="flex justify-between items-center text-muted">
-                        <span>Usuario:</span>
-                        <span className="font-mono font-bold text-ink">docente.test@coraula.local</span>
-                      </div>
-                      <div className="flex justify-between items-center text-muted">
-                        <span>Contraseña:</span>
-                        <span className="font-mono font-bold text-ink">123456</span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleAccesoDirectoDemo}
-                      disabled={cargando}
-                      className="w-full text-center text-[12px] font-bold text-[#BE123C] bg-[#FFE4E6]/50 hover:bg-[#FFE4E6] py-2 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <SecurityCheckIcon size={14} />
-                      <span>Entrar directamente con esta cuenta</span>
-                    </button>
-                  </div>
                 </form>
               </div>
             </div>

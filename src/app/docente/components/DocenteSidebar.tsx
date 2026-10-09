@@ -22,7 +22,7 @@ interface DocenteSidebarProps {
 export const DocenteSidebar: React.FC<DocenteSidebarProps> = ({ onMobileClose }) => {
   const pathname = usePathname();
   const authContext = useContext(AuthContext);
-  const { docenteNombre, materia } = useDocenteSession();
+  const { teacher, docenteNombre, materia } = useDocenteSession();
 
   const handleLogout = () => {
     authContext?.logout();
@@ -113,7 +113,7 @@ export const DocenteSidebar: React.FC<DocenteSidebarProps> = ({ onMobileClose })
       <div className="p-3 border-t border-[#E5E7EB] flex flex-col gap-2 bg-[#FAFAFA]">
         <div className="flex items-center gap-2.5 px-2 py-1.5">
           <div className="w-8 h-8 rounded-full bg-[#FFE4E6] text-[#BE123C] font-bold text-xs flex items-center justify-center shrink-0 border border-[#BE123C]/20">
-            CM
+            {teacher ? `${teacher.firstNames.charAt(0)}${teacher.paternalLastName.charAt(0)}` : ''}
           </div>
           <div className="flex flex-col min-w-0 flex-1">
             <span className="text-[12px] font-semibold text-[#111827] truncate">

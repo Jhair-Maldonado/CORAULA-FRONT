@@ -20,8 +20,8 @@ export const DocenteNavbar: React.FC<DocenteNavbarProps> = ({ onMobileToggle }) 
     }
     if (pathname.startsWith('/docente/cursos/')) {
       return {
-        title: cursoActivo ? `${cursoActivo.nombre} - ${cursoActivo.grado}` : 'Detalle del Curso',
-        subtitle: 'Materiales, clases y avance curricular'
+        title: cursoActivo?.id === pathname.split('/')[3] ? `${cursoActivo.nombre} - ${cursoActivo.grado}` : 'Detalle del Curso',
+        subtitle: 'Información académica y estudiantes'
       };
     }
     if (pathname.startsWith('/docente/asistencia')) {

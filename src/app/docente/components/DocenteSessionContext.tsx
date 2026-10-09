@@ -3,7 +3,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { CursoDocente } from '@/types/docentes';
-import { getCursosDocente } from '@/lib/api';
+import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
+import type { TeacherCourseSummaryResponse } from '@/types/teacherCoursesApi';
 import { isAxiosError } from 'axios';
 import { teacherProfileService } from '@/services/teacher/teacherProfileService';
 import type { TeacherMeResponse } from '@/types/teacherProfileApi';
@@ -15,9 +16,10 @@ interface DocenteSessionContextType {
   refreshTeacher: () => void;
   docenteNombre: string;
   materia: string;
-  cursos: CursoDocente[];
-  cursoActivo: CursoDocente | null;
-  setCursoActivo: (curso: CursoDocente | null) => void;
+  cursos: TeacherCourseSummaryResponse[];
+  coursesError: string | null;
+  cursoActivo: Pick<CursoDocente, 'id' | 'nombre' | 'grado'> | null;
+  setCursoActivo: (curso: Pick<CursoDocente, 'id' | 'nombre' | 'grado'> | null) => void;
   isLoading: boolean;
   refreshCursos: () => Promise<void>;
 }
@@ -65,28 +67,32 @@ export const DocenteSessionProvider = ({ children }: { children: ReactNode }) =>
     });
     return () => { current = false; };
   }, [teacherRevision]);
-  const [cursos, setCursos] = useState<CursoDocente[]>([]);
-  const [cursoActivo, setCursoActivo] = useState<CursoDocente | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchCursos = async () => {
-    try {
-      setIsLoading(true);
-      const data = await getCursosDocente();
-      setCursos(data);
-      if (data.length > 0 && !cursoActivo) {
-        setCursoActivo(data[0]);
-      }
-    } catch (err) {
-      console.error('Error al cargar cursos del docente:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [courseRevision, setCourseRevision] = useState(0);
+  const [courseResult, setCourseResult] = useState<{ revision: number; data?: TeacherCourseSummaryResponse[]; error?: string } | null>(null);
+  const [cursoActivo, setCursoActivo] = useState<Pick<CursoDocente, 'id' | 'nombre' | 'grado'> | null>(null);
+  const coursesReady = Boolean(teacher);
+  const isLoading = !coursesReady || courseResult?.revision !== courseRevision;
+  const cursos = isLoading ? [] : courseResult?.data ?? [];
+  const coursesError = isLoading ? null : courseResult?.error ?? null;
+  const pendingCourses = useRef<Promise<TeacherCourseSummaryResponse[]> | null>(null);
+  const refreshCursos = useCallback(async () => {
+    setCourseRevision(n => n + 1);
+  }, []);
 
   useEffect(() => {
-    fetchCursos();
-  }, []);
+    if (!coursesReady) return;
+    let current = true;
+    const request = pendingCourses.current ?? teacherCoursesService.getCourses();
+    pendingCourses.current = request;
+    request.then(data => {
+      if (current) setCourseResult({ revision: courseRevision, data });
+    }).catch(error => {
+      if (current) setCourseResult({ revision: courseRevision, error: teacherCoursesErrorMessage(error) });
+    }).finally(() => {
+      if (pendingCourses.current === request) pendingCourses.current = null;
+    });
+    return () => { current = false; };
+  }, [coursesReady, courseRevision]);
 
   return (
     <DocenteSessionContext.Provider
@@ -98,10 +104,11 @@ export const DocenteSessionProvider = ({ children }: { children: ReactNode }) =>
         docenteNombre,
         materia,
         cursos,
+        coursesError,
         cursoActivo,
         setCursoActivo,
         isLoading,
-        refreshCursos: fetchCursos
+        refreshCursos
       }}
     >
       {teacherLoading ? <div role="status" className="p-6 text-sm text-muted">Cargando identidad docente...</div>

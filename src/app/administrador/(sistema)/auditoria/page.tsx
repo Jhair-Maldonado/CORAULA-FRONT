@@ -1,3 +1,5 @@
+import VistaAuditoria from '../../../../../feature/admin/vistas/(sistema)/auditoria/vistaAuditoria';
+
 export default function AuditoriaPage() {
-  return <div>Auditoria Page</div>;
+  return <VistaAuditoria />;
 }

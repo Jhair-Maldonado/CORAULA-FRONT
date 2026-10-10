@@ -8,6 +8,7 @@ import { coursesService, courseErrorMessage, courseErrorStatus } from '@/service
 import { toCurso, toUpdateCourse } from '@/adapters/courseAdapter';
 import type { Curso } from '@/types/cursos';
 import CourseForm from './courseForm';
+import CourseCriteria from './courseCriteria';
 
 type DetailState = { key: string; course?: Curso; error?: string; notFound?: boolean };
 
@@ -69,6 +70,7 @@ export default function DetalleDelCurso() {
           <h3 className="text-[10px] uppercase tracking-wider text-muted font-bold mb-2">Descripción</h3><p className="text-xs text-muted leading-relaxed whitespace-pre-wrap break-words">{course.descripcion || 'Sin descripción.'}</p>
         </div>
         {actionError?.id === id && <p role="alert" className="p-4 rounded-xl bg-rose-50 text-rose-700 text-sm">{actionError.message} Puedes volver a intentar la acción.</p>}
+        <CourseCriteria key={id} courseId={id} />
         <div className="flex flex-wrap gap-3">
           <button disabled={busy} onClick={() => { setActionError(null); setEditingId(id); }} className="min-h-10 px-4 py-2 bg-accent text-white rounded-xl shadow-sm text-xs font-bold disabled:opacity-50 hover:bg-accent/90 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent flex items-center gap-1.5"><PencilEdit01Icon size={16} aria-hidden="true" />Editar curso</button>
           <button disabled={busy} onClick={toggleActive} className="min-h-10 px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-accent">{busy ? 'Guardando...' : course.active ? 'Desactivar curso' : 'Reactivar curso'}</button>

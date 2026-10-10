@@ -1,8 +1,8 @@
 import type { Bimester } from '../types/evaluationApi';
-import type { ProvisionalCriterionGradesSheetResponse, ProvisionalCriterionGradeResponse } from '../types/teacherGradesApi';
+import type { CriterionGradesSheetResponse, CriterionGradeResponse } from '../types/teacherGradesApi';
 
-// Boundary validation for the pending proposal. No default response is synthesized.
-function invalid(): never { throw new Error('La respuesta no coincide con el contrato N2 provisional. Confirma los DTO con backend.'); }
+// Boundary validation for the documented backend DTOs. No default response is synthesized.
+function invalid(): never { throw new Error('La respuesta no coincide con el contrato N2 documentado.'); }
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return invalid();
   return value as Record<string, unknown>;
@@ -21,27 +21,29 @@ function grade(value: unknown): number | null {
 function array(value: unknown): unknown[] { if (!Array.isArray(value)) return invalid(); return value; }
 function unique(ids: number[]) { if (new Set(ids).size !== ids.length) invalid(); }
 
-export function parseProvisionalBimester(value: unknown): Bimester {
+export function parseBimesterResponse(value: unknown): Bimester {
   const b = object(value);
   if (!['PLANIFICADO', 'ABIERTO', 'EN_REVISION', 'CERRADO'].includes(String(b.status))) return invalid();
   return { id: id(b.id), academicPeriodId: id(b.academicPeriodId), number: id(b.number), name: text(b.name), startDate: text(b.startDate), endDate: text(b.endDate), status: b.status as Bimester['status'] };
 }
 
-export function parseProvisionalBimesters(value: unknown): Bimester[] {
-  const bimesters = array(value).map(parseProvisionalBimester);
+export function parseBimestersResponse(value: unknown): Bimester[] {
+  const bimesters = array(value).map(parseBimesterResponse);
   unique(bimesters.map(b => b.id));
   return bimesters;
 }
 
-export function parseProvisionalSheet(value: unknown, expected: { sectionCourseId: number; courseId: number; bimesterId: number; academicPeriodId: number }): ProvisionalCriterionGradesSheetResponse {
+export function parseCriterionGradesSheetResponse(value: unknown, expected: { sectionCourseId: number; courseId: number; bimesterId: number; academicPeriodId: number }): CriterionGradesSheetResponse {
   const s = object(value);
-  const bimester = parseProvisionalBimester(s.bimester);
+  const bimester = parseBimesterResponse(s.bimester);
   const courseId = id(s.courseId), sectionCourseId = id(s.sectionCourseId), academicPeriodId = id(s.academicPeriodId);
   if (courseId !== expected.courseId || sectionCourseId !== expected.sectionCourseId || academicPeriodId !== expected.academicPeriodId || bimester.id !== expected.bimesterId || bimester.academicPeriodId !== academicPeriodId) return invalid();
-  const criteria: ProvisionalCriterionGradesSheetResponse['criteria'] = array(s.criteria).map(value => {
+  const criteria: CriterionGradesSheetResponse['criteria'] = array(s.criteria).map(value => {
     const c = object(value);
-    if ((c.type !== 'MANUAL' && c.type !== 'PARTICIPACION_ACADEMICA') || typeof c.active !== 'boolean') return invalid();
-    return { id: id(c.id), name: text(c.name), order: id(c.order), type: c.type, active: c.active };
+    if ((c.type !== 'MANUAL' && c.type !== 'PARTICIPACION_ACADEMICA') || typeof c.active !== 'boolean' || (c.description !== null && typeof c.description !== 'string')) return invalid();
+    const criterion: CriterionGradesSheetResponse['criteria'][number] = { id: id(c.id), courseId: id(c.courseId), academicPeriodId: id(c.academicPeriodId), name: text(c.name), description: c.description, order: id(c.order), type: c.type as CriterionGradesSheetResponse['criteria'][number]['type'], active: c.active };
+    if (criterion.courseId !== courseId || criterion.academicPeriodId !== academicPeriodId) return invalid();
+    return criterion;
   });
   unique(criteria.map(c => c.id));
   if (criteria.filter(c => c.active && c.type === 'PARTICIPACION_ACADEMICA').length > 1) return invalid();
@@ -63,7 +65,7 @@ export function parseProvisionalSheet(value: unknown, expected: { sectionCourseI
   return { courseId, sectionCourseId, academicPeriodId, bimester, criteria, students };
 }
 
-export function parseProvisionalRegisteredGrade(value: unknown): ProvisionalCriterionGradeResponse {
+export function parseCriterionGradeResponse(value: unknown): CriterionGradeResponse {
   const c = object(value);
   const result = grade(c.grade);
   if (result === null) return invalid();

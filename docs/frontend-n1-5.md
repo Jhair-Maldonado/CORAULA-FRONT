@@ -1,5 +1,7 @@
 # Frontend paralelo a N1.5
 
+Este informe conserva el estado histórico del PR #21. La apertura administrativa ya está habilitada por N1.5-F; su contrato, pruebas y limitaciones actuales se documentan en [frontend-bimester-opening-n1-5.md](frontend-bimester-opening-n1-5.md). Las referencias a apertura deshabilitada más abajo pertenecen a la fase original.
+
 ## Validación final para pull request hacia dev
 
 La implementación existente se conservó. La rama de trabajo es `feat/frontend-evaluation-n1-n1-5`; la base remota `origin/dev` se comprobó tras `git fetch origin` y continúa en `5c9f4b31552686ea58eb4f0cfabc24edccfc5ee6`.

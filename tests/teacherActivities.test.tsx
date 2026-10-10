@@ -4,10 +4,10 @@ import React from 'react';
 import { act, create, type ReactTestRenderer, type ReactTestInstance } from 'react-test-renderer';
 import { AxiosError, type AxiosResponse } from 'axios';
 import ActividadesDocente from '../feature/docente/vistas/cursos/ActividadesDocente';
-import { teacherActivitiesService, activityTitleError, teacherActivitiesErrorMessage } from '../src/services/teacher/teacherActivitiesService';
+import { teacherActivitiesService, activityTitleError, activityChanges, teacherActivitiesErrorMessage } from '../src/services/teacher/teacherActivitiesService';
 import { teacherGradesService } from '../src/services/teacher/teacherGradesService';
 import httpClient from '../src/services/httpClient';
-import type { AcademicActivity, CreateAcademicActivityRequest } from '../src/types/teacherActivitiesApi';
+import type { AcademicActivity, CreateAcademicActivityRequest, UpdateAcademicActivityRequest } from '../src/types/teacherActivitiesApi';
 import type { Bimester } from '../src/types/evaluationApi';
 
 // Fixtures and Axios adapters are confined to tests; no database or real writes.
@@ -216,4 +216,104 @@ test('optional description and unchecked PA are submitted explicitly; bimester a
     assert.deepEqual(payload, { title: 'Tarea', description: 'Instrucciones', type: 'TAREA', cuentaParaPa: false });
   }, async () => { if (++bimesters === 1) throw httpError(403); return [bimester()]; });
   await view({}, async h => { await h.course(0); assert.equal(h.renderer.root.findAllByType('form').length, 0); assert.match(text(h.renderer.root), /curso asignado válido/); });
+});
+
+test('PATCH sends only changed fields, description null and boolean false/true; rejects invalid or empty DTO', async () => {
+  const original = httpClient.defaults.adapter;
+  const calls: { url?: string; method?: string; data: unknown }[] = [];
+  let data: unknown = activity(), status = 200;
+  httpClient.defaults.adapter = async config => { calls.push({ url: config.url, method: config.method, data: config.data }); return { config, status, data, statusText: 'OK', headers: {} }; };
+  try {
+    for (const changes of [{ title: 'Revisada' }, { description: null }, { type: 'EXAMEN' }, { cuentaParaPa: false }, { cuentaParaPa: true }] satisfies UpdateAcademicActivityRequest[]) {
+      data = activity(1, { ...changes, updatedAt: '2026-10-10T16:00:00Z' });
+      await teacherActivitiesService.updateActivity(context, 1, changes);
+      assert.deepEqual(calls.at(-1), { url: '/v1/teacher/courses/10/bimesters/1/activities/1', method: 'patch', data: JSON.stringify(changes) });
+    }
+    const count = calls.length;
+    for (const bad of [{}, { title: '' }, { title: 'x'.repeat(256) }, { title: null }, { type: 'OTRO' }, { type: null }, { cuentaParaPa: null }, { cuentaParaPa: 'true' }, { description: 4 }, { teacherId: 2 }]) await assert.rejects(teacherActivitiesService.updateActivity(context, 1, bad as UpdateAcademicActivityRequest));
+    assert.equal(calls.length, count);
+    for (const bad of [activity(2), activity(1, { sectionCourseId: 11 }), activity(1, { bimesterId: 2 }), {}, activity(1, { title: 'Incorrecta' })]) { data = bad; await assert.rejects(teacherActivitiesService.updateActivity(context, 1, { title: 'Revisada' })); }
+    status = 201; data = activity(); await assert.rejects(teacherActivitiesService.updateActivity(context, 1, { cuentaParaPa: true }));
+  } finally { httpClient.defaults.adapter = original; }
+  assert.deepEqual(activityChanges(activity(), request), {});
+  assert.deepEqual(activityChanges(activity(1, { description: 'Texto' }), { ...request, description: null }), { description: null });
+});
+
+const editSubmit = (renderer: ReactTestRenderer) => renderer.root.findByProps({ 'aria-label': 'Editar actividad académica' }).props.onSubmit({ preventDefault() {} });
+
+test('editing loads authoritative detail, validates title, skips no-op and cancels without PATCH', async () => {
+  let patches = 0;
+  await view({ getActivities: async () => [activity(1, { title: 'OLD LIST' })], getActivity: async () => activity(1, { title: 'SERVER DETAIL' }), updateActivity: async () => { patches++; return activity(); } }, async h => {
+    await h.select('1'); await h.click('Editar #1');
+    assert.equal(h.renderer.root.findByProps({ 'aria-label': 'Título editado' }).props.value, 'SERVER DETAIL');
+    assert.equal(h.button('Guardar cambios')?.props.disabled, true);
+    await act(async () => { editSubmit(h.renderer); }); assert.equal(patches, 0);
+    for (const title of ['', ' ', 'x'.repeat(256)]) { await h.change('Título editado', title); await act(async () => { editSubmit(h.renderer); }); }
+    assert.equal(patches, 0);
+    await h.change('Título editado', 'Válido'); const submit = h.renderer.root.findByProps({ 'aria-label': 'Editar actividad académica' }).props.onSubmit;
+    await h.click('Cancelar edición'); await act(async () => { submit({ preventDefault() {} }); }); assert.equal(patches, 0);
+  });
+});
+
+test('partial edit clears description, changes type/PA, locks double submit and confirms both GETs', async () => {
+  const original = activity(1, { description: 'Texto' });
+  const updated = activity(1, { description: null, type: 'PROYECTO', cuentaParaPa: false, updatedAt: '2026-10-10T16:00:00Z' });
+  const pending = deferred<AcademicActivity>(); let patches = 0, details = 0, lists = 0;
+  await view({ getActivities: async () => ++lists === 1 ? [original] : [updated], getActivity: async () => ++details === 1 ? original : updated, updateActivity: async (c, id, changes) => { patches++; assert.deepEqual(c, context); assert.equal(id, 1); assert.deepEqual(changes, { description: null, type: 'PROYECTO', cuentaParaPa: false }); return pending.promise; } }, async h => {
+    await h.select('1'); await h.click('Editar #1'); await h.change('Descripción editada', ''); await h.change('Tipo editado', 'PROYECTO');
+    await act(async () => { h.renderer.root.findByProps({ 'aria-label': 'Cuenta para PA editada' }).props.onChange({ target: { checked: false } }); });
+    const submit = h.renderer.root.findByProps({ 'aria-label': 'Editar actividad académica' }).props.onSubmit;
+    await act(async () => { submit({ preventDefault() {} }); submit({ preventDefault() {} }); }); assert.equal(patches, 1);
+    assert.equal(h.renderer.root.findByProps({ 'aria-label': 'Bimestre de actividades' }).props.disabled, true);
+    assert.doesNotMatch(text(h.renderer.root), /Edición confirmada/);
+    await act(async () => { pending.resolve(updated); }); assert.equal(details, 2); assert.equal(lists, 2); assert.match(text(h.renderer.root), /Edición confirmada/);
+  });
+});
+
+test('PATCH 400/401/403/404/409 and ambiguous network errors refresh both reads without retry or success', async () => {
+  for (const status of [400, 401, 403, 404, 409, undefined]) {
+    let patches = 0, details = 0, lists = 0;
+    await view({ getActivities: async () => { lists++; return [activity()]; }, getActivity: async () => { details++; return activity(); }, updateActivity: async () => { patches++; throw httpError(status); } }, async h => {
+      await h.select('1'); await h.click('Editar #1'); await h.change('Título editado', 'Revisada'); await act(async () => { editSubmit(h.renderer); });
+      assert.equal(patches, 1); assert.equal(details, 2); assert.equal(lists, 2);
+      assert.equal(h.renderer.root.findAllByProps({ 'aria-label': 'Editar actividad académica' }).length, 0);
+      assert.ok(text(h.renderer.root).includes(teacherActivitiesErrorMessage(httpError(status)))); assert.doesNotMatch(text(h.renderer.root), /Edición confirmada/);
+    });
+  }
+});
+
+test('incorrect or failed verification cannot confirm an accepted PATCH and requires manual refresh', async () => {
+  for (const mode of ['detail-mismatch', 'list-mismatch', 'detail-fail', 'list-fail']) {
+    let details = 0, lists = 0;
+    const updated = activity(1, { title: 'Revisada' });
+    await view({ getActivities: async () => { lists++; if (lists === 2 && mode === 'list-fail') throw httpError(); return lists === 1 || mode === 'list-mismatch' ? [activity()] : [updated]; }, getActivity: async () => { details++; if (details === 2 && mode === 'detail-fail') throw httpError(); return details === 1 || mode === 'detail-mismatch' ? activity() : updated; }, updateActivity: async () => updated }, async h => {
+      await h.select('1'); await h.click('Editar #1'); await h.change('Título editado', 'Revisada'); await act(async () => { editSubmit(h.renderer); });
+      assert.doesNotMatch(text(h.renderer.root), /Edición confirmada/); assert.equal(h.button('Editar #1')?.props.disabled, true); assert.equal(details, 2); assert.equal(lists, 2);
+      await h.click('Actualizar actividades'); assert.equal(h.button('Editar #1')?.props.disabled, false);
+    });
+  }
+});
+
+test('editing is independent of bimester status and ignores late PATCH after context change', async () => {
+  for (const status of ['PLANIFICADO', 'ABIERTO', 'EN_REVISION', 'CERRADO'] as const) await view({ getActivities: async () => [activity()] }, async h => { await h.select('1'); await h.click('Editar #1'); assert.ok(h.button('Guardar cambios')); }, async () => [{ ...bimester(), status }]);
+  const pending = deferred<AcademicActivity>(); let patches = 0;
+  await view({ getActivities: async c => [activity(1, { ...c, title: c.sectionCourseId === 10 ? request.title : 'NEW CONTEXT' })], updateActivity: async () => { patches++; return pending.promise; } }, async h => {
+    await h.select('1'); await h.click('Editar #1'); await h.change('Título editado', 'Revisada'); await act(async () => { editSubmit(h.renderer); });
+    await h.course(11); await h.select('1'); await act(async () => { pending.resolve(activity(1, { title: 'Revisada' })); });
+    assert.equal(patches, 1); assert.match(text(h.renderer.root), /NEW CONTEXT/); assert.doesNotMatch(text(h.renderer.root), /Edición confirmada/);
+  });
+});
+
+test('bimester change invalidates captured edit submit before render, and late edit load is discarded', async () => {
+  let patches = 0;
+  await view({ getActivities: async c => [activity(1, c)], updateActivity: async () => { patches++; return activity(); } }, async h => {
+    await h.select('1'); await h.click('Editar #1'); await h.change('Título editado', 'Revisada');
+    const submit = h.renderer.root.findByProps({ 'aria-label': 'Editar actividad académica' }).props.onSubmit;
+    await act(async () => { h.renderer.root.findByProps({ 'aria-label': 'Bimestre de actividades' }).props.onChange({ target: { value: '2' } }); submit({ preventDefault() {} }); }); assert.equal(patches, 0);
+  });
+  const pending = deferred<AcademicActivity>();
+  await view({ getActivities: async c => [activity(1, c)], getActivity: async () => pending.promise }, async h => {
+    await h.select('1'); await h.click('Editar #1'); await h.select('2');
+    await act(async () => { pending.resolve(activity()); }); assert.equal(h.renderer.root.findAllByProps({ 'aria-label': 'Editar actividad académica' }).length, 0);
+  });
 });

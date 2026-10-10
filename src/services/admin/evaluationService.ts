@@ -1,5 +1,6 @@
 import httpClient from '@/services/httpClient';
 import { isAxiosError } from 'axios';
+import { parseBimesterResponse, parseBimestersResponse } from '@/lib/manualGradesContract';
 import type { Bimester, BimesterInput, EvaluationConfiguration, EvaluationCriterion, CreateEvaluationCriterionInput, UpdateEvaluationCriterionInput } from '@/types/evaluationApi';
 const base = '/v1/management';
 export const evaluationService = {
@@ -7,7 +8,17 @@ export const evaluationService = {
     return (await httpClient.get<EvaluationConfiguration>(`${base}/courses/${encodeURIComponent(courseId)}/evaluation-criteria`, { params: { academicPeriodId } })).data;
   },
   async getBimesters(periodId: number): Promise<Bimester[]> {
-    return (await httpClient.get<Bimester[]>(`${base}/academic-periods/${periodId}/bimesters`)).data;
+    const rows = parseBimestersResponse((await httpClient.get<unknown>(`${base}/academic-periods/${periodId}/bimesters`)).data);
+    if (rows.some(b => b.academicPeriodId !== periodId)) throw new Error('La lista no corresponde al periodo solicitado.');
+    return rows;
+  },
+  async openBimester(id: number): Promise<Bimester> {
+    if (!Number.isSafeInteger(id) || id <= 0) throw new Error('El ID del bimestre debe ser un entero positivo.');
+    const response = await httpClient.post<unknown>(`${base}/bimesters/${id}/open`);
+    if (response.status !== 200) throw new Error('La respuesta de apertura no pudo confirmarse.');
+    const bimester = parseBimesterResponse(response.data);
+    if (bimester.id !== id || bimester.status !== 'ABIERTO') throw new Error('La respuesta de apertura no corresponde al bimestre solicitado.');
+    return bimester;
   },
   async getCriterion(criterionId: number): Promise<EvaluationCriterion> {
     return (await httpClient.get<EvaluationCriterion>(`${base}/evaluation-criteria/${criterionId}`)).data;
@@ -25,6 +36,18 @@ export const evaluationService = {
     return (await httpClient.patch<Bimester>(`${base}/bimesters/${id}`, input)).data;
   },
 };
+
+export function bimesterOpeningErrorMessage(error: unknown): string {
+  if (!isAxiosError(error)) return 'La apertura no pudo confirmarse. Actualiza la lista antes de volver a intentar.';
+  switch (error.response?.status) {
+    case 400: return 'El identificador del bimestre no es válido. Actualiza la lista.';
+    case 401: return 'Tu sesión ha expirado. Vuelve a iniciar sesión.';
+    case 403: return 'No tienes autorización para abrir bimestres.';
+    case 404: return 'El bimestre o periodo ya no está disponible.';
+    case 409: return 'No se puede abrir: el estado del bimestre o su periodo pudo haber cambiado. Se consultará nuevamente la lista.';
+    default: return 'La operación no está confirmada. Consulta el estado antes de intentar otra apertura.';
+  }
+}
 
 export function evaluationErrorMessage(error: unknown): string {
   if (!isAxiosError(error)) return 'No se pudo completar la solicitud. Intenta nuevamente.';

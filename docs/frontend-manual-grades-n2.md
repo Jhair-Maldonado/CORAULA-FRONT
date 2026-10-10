@@ -1,43 +1,23 @@
-# Planilla docente N2: integración provisional
+# Sincronización del consumidor docente N2
 
-La rama prepara la planilla existente sin cambiar la gestión administrativa. El documento local del backend `docs/manual-grades-n2-design.md` declara expresamente una propuesta sin endpoints ni DTO N2 implementados. No se encontraron contratos definitivos verificables. Este trabajo debe revisarse como DRAFT.
+El consumidor se cotejó contra el contrato definitivo `CORAULA-BACKE/coraula-backend/docs/manual-grades-n2.md` y los records Java de `TeacherManualGradesController`, `BimesterResponse`, `CriterionGradesSheetResponse`, `CriterionGradeResponse`, `CreateManualCriterionGradeRequest` y `EvaluationCriterionResponse`.
 
-## Contratos pendientes de verificación
+## Coincidencias aplicadas
 
-El servicio docente utiliza exclusivamente estas rutas, relativas a la base Axios `/api`:
+- GET de bimestres autorizados devuelve `BimesterResponse[]` con id, periodo, número, nombre, fechas y estado.
+- GET de planilla devuelve curso, sección-curso, periodo, bimestre, criterios, matrículas y celdas manuales. La lista `grades` por alumno se conserva como lista de celdas `{criterionId, gradeId, grade, registeredAt, updatedAt}`; `grade` y timestamps pendientes pueden ser null.
+- Los criterios usan los campos reales `id`, `courseId`, `academicPeriodId`, `name`, `description`, `order`, `type`, `active`. El parser valida la pertenencia de curso y periodo.
+- POST responde HTTP 201 con `{id, enrollmentId, sectionCourseId, bimesterId, criterionId, grade, registeredByTeacherId, registeredAt, updatedAt}`. El cuerpo emite solo `{enrollmentId, criterionId, grade}`; no se agrega identidad ni contexto y el parser valida la respuesta contra la petición.
+- Los tipos y parsers dejaron de identificarse como provisionales. La ruta Axios `/api` más `/v1/teacher/...` coincide con `@RequestMapping` del controlador.
 
-- GET `/v1/teacher/courses/{sectionCourseId}/bimesters`
-- GET `/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/criterion-grades`
-- POST en la misma ruta de calificaciones, con `{ enrollmentId, criterionId, grade }` por celda.
+## Reglas preservadas
 
-Los DTO están identificados como provisionales en `teacherGradesApi.ts`. Las lecturas validan estructura, identificadores, tipos y contexto antes de presentar resultados. No sustituyen errores por datos académicos simulados. `MANUAL_GRADES_CONTRACT_VERIFIED = false` bloquea el guardado tanto en la interfaz como en el servicio antes de cualquier POST. Confirmar DTO y despliegue backend es requisito previo a cambiar esa protección.
+PA sigue readonly y sin cálculo; la planilla no recibe celdas PA manuales. Los criterios MANUAL son dinámicos, incluyendo criterios inactivos con notas previas solo para lectura. `null` representa pendiente y cero sigue siendo una nota persistida. Se mantienen las validaciones de 0–20, máximo dos decimales, solo primeras notas y bimestre ABIERTO.
 
-## Comportamiento preparado
+`MANUAL_GRADES_CONTRACT_VERIFIED` permanece `false`: el servicio rechaza POST antes de HTTP. La coincidencia con código y documentación no prueba conexión, configuración de sesión, permisos ni comportamiento E2E. No se escribieron notas en Supabase.
 
-La selección usa bimestres docentes autorizados y la planilla obtiene matrículas y notas de la respuesta del backend. Las solicitudes de lectura se cancelan al cambiar de contexto; las claves de selección impiden mostrar respuestas anteriores. Los criterios MANUAL activos son dinámicos. Los criterios inactivos con notas existentes conservan sus columnas de consulta.
+## Diferencias y pendientes
 
-Solo una primera nota MANUAL en un bimestre ABIERTO podrá ingresarse: rango 0–20 y hasta dos decimales. Cero persistido es una nota existente y queda readonly. Las notas ausentes permanecen vacías. PA aparece una sola vez y readonly; la propuesta no incluye su resultado, por lo que se muestra Pendiente sin calcularlo.
+El contrato definitivo sí está implementado en los DTO/controlador Java revisados, a diferencia del estado registrado en el PR frontend anterior. La integración de transporte debe validarse con backend N2 en entorno aislado y un usuario docente autorizado antes de habilitar POST. La documentación backend informa que PostgreSQL aislado aún no se validó; las pruebas H2 no prueban locks ni concurrencia en PostgreSQL. Tampoco se ejecutó validación visual automatizada.
 
-El flujo de escritura preparado utiliza registros individuales, bloqueo de doble envío y recarga real de la planilla incluso si un registro falla. No promete atomicidad del conjunto ni reintenta escrituras automáticamente. Una recarga fallida mantiene bloqueado el siguiente envío hasta recuperar la planilla. Los errores 403 y 409 se presentan explícitamente. Exportación y apertura administrativa siguen deshabilitadas.
-
-## Verificación y limitaciones
-
-Ejecutar `npm.cmd run lint`, `npm.cmd run build` y `node --experimental-strip-types --test tests/evaluationPreparation.test.mjs tests/manualGrades.test.mjs`.
-
-Las pruebas usan fixtures y transportes inyectados exclusivamente en tests: criterios dinámicos, PA null/cero, bimestres PLANIFICADO/ABIERTO, rango y decimales, primeras notas, registros satisfactorios, duplicidad, 403/409, registro parcial, recarga fallida, contexto incompatible y respuestas vacías o inválidas. No escriben notas en Supabase ni presentan fixtures en la aplicación.
-
-No se dispone de navegador automatizado ni Playwright/Puppeteer instalado. Validación visual, interacción del hook bajo cambios rápidos de contexto y E2E con backend N2 quedan pendientes. La compilación y las pruebas unitarias no sustituyen esas verificaciones.
-
-## Archivos del módulo
-
-- `feature/docente/vistas/notas/vistaNotasDocente.tsx`
-- `src/hooks/useTeacherGrades.ts`
-- `src/lib/manualGrades.ts`
-- `src/lib/manualGradesContract.ts`
-- `src/services/teacher/teacherGradesService.ts`
-- `src/types/evaluationApi.ts`
-- `src/types/teacherGradesApi.ts`
-- `tests/manualGrades.test.mjs`
-- `docs/frontend-manual-grades-n2.md`
-
-Antes de habilitar operaciones reales: aprobar y verificar los DTO definitivos, confirmar matrículas activas y permisos en backend, realizar E2E en un entorno aislado y validar concurrencia/conflictos. Las correcciones administrativas y el historial quedan fuera de la pantalla docente.
+Las pruebas frontend usan DTO fixtures e inyección de transporte solo en test; cubren nulidad y cero, estados, criterios dinámicos, conflictos y recarga, sin tocar servicios externos.

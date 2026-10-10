@@ -1,5 +1,5 @@
 import type { Bimester, EvaluationCriterion, EvaluationStudentRow, TeacherEvaluationData } from '../types/evaluationApi';
-import type { CreateManualCriterionGradeRequest, ProvisionalCriterionGradesSheetResponse } from '../types/teacherGradesApi';
+import type { CreateManualCriterionGradeRequest, CriterionGradesSheetResponse } from '../types/teacherGradesApi';
 
 export function gradeInputError(value: string): string | null {
   if (!value.trim()) return 'Ingresa una nota.';
@@ -18,8 +18,8 @@ export function manualSheetColumns(evaluation?: TeacherEvaluationData): Evaluati
     .sort((a, b) => a.order - b.order || a.id - b.id) ?? [];
 }
 
-export function adaptProvisionalSheet(sheet: ProvisionalCriterionGradesSheetResponse): TeacherEvaluationData {
-  const criteria = sheet.criteria.map(c => ({ ...c, courseId: sheet.courseId, academicPeriodId: sheet.academicPeriodId, description: null }));
+export function adaptCriterionGradesSheet(sheet: CriterionGradesSheetResponse): TeacherEvaluationData {
+  const criteria = sheet.criteria;
   return {
     sectionCourseId: sheet.sectionCourseId, bimesterId: sheet.bimester.id,
     configuration: {
@@ -31,7 +31,7 @@ export function adaptProvisionalSheet(sheet: ProvisionalCriterionGradesSheetResp
       enrollmentId: s.enrollmentId, studentId: s.studentId, fullName: s.fullName,
       grades: Object.fromEntries(s.grades.map(c => [c.criterionId, c.grade])),
       gradeIds: Object.fromEntries(s.grades.map(c => [c.criterionId, c.gradeId])),
-      // This proposal contains only MANUAL cells. N2 does not deliver a PA result.
+      // The backend response contains MANUAL cells only; it does not deliver a PA result.
       pa: null,
     })),
   };

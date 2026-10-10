@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Bimester, TeacherEvaluationData } from '@/types/evaluationApi';
 import { MANUAL_GRADES_CONTRACT_VERIFIED } from '@/types/teacherGradesApi';
 import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
-import { adaptProvisionalSheet, prepareFirstGrades, registerFirstGrades } from '@/lib/manualGrades';
+import { adaptCriterionGradesSheet, prepareFirstGrades, registerFirstGrades } from '@/lib/manualGrades';
 
 type Result<T> = { key: string; data?: T; error?: string };
 
@@ -54,7 +54,7 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
     const abort = new AbortController();
     teacherGradesService.getSheet({ sectionCourseId, courseId, bimesterId: selectedId, academicPeriodId: periodId }, abort.signal)
       .then(sheet => {
-        if (!abort.signal.aborted) { setSheetResult({ key: sheetKey, data: { evaluation: adaptProvisionalSheet(sheet), bimester: sheet.bimester } }); setRefreshRequired(false); }
+        if (!abort.signal.aborted) { setSheetResult({ key: sheetKey, data: { evaluation: adaptCriterionGradesSheet(sheet), bimester: sheet.bimester } }); setRefreshRequired(false); }
       })
       .catch(error => { if (!abort.signal.aborted) setSheetResult({ key: sheetKey, error: teacherGradesErrorMessage(error) }); });
     return () => abort.abort();
@@ -90,7 +90,7 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
         return teacherGradesService.registerGrade(sectionCourseId, current.bimester.id, command);
       }, async () => {
         const sheet = await teacherGradesService.getSheet({ sectionCourseId, courseId, bimesterId: current.bimester.id, academicPeriodId: current.bimester.academicPeriodId });
-        if (stillCurrent()) { setSheetResult({ key: sheetKey, data: { evaluation: adaptProvisionalSheet(sheet), bimester: sheet.bimester } }); setDrafts({}); setRefreshRequired(false); }
+        if (stillCurrent()) { setSheetResult({ key: sheetKey, data: { evaluation: adaptCriterionGradesSheet(sheet), bimester: sheet.bimester } }); setDrafts({}); setRefreshRequired(false); }
       });
       if (stillCurrent()) setSaveMessage(`Se registraron ${count} notas y se volvió a consultar la planilla.`);
     } catch (error) {

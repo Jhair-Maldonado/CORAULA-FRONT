@@ -1,10 +1,10 @@
-import type { Bimester, EvaluationCriterion } from './evaluationApi';
+import type { Bimester } from './evaluationApi';
 
-// PROVISIONAL: docs/manual-grades-n2-design.md is a proposal, not approved DTOs.
-// Verify these exact shapes with backend before enabling any real write.
+// Shapes match the backend response records in docs/manual-grades-n2.md.
+// Static agreement does not establish a working runtime/E2E integration.
 export const MANUAL_GRADES_CONTRACT_VERIFIED: boolean = false;
 
-export interface ProvisionalGradeCell {
+export interface CriterionGradeCell {
   criterionId: number;
   gradeId: number | null;
   grade: number | null;
@@ -12,17 +12,26 @@ export interface ProvisionalGradeCell {
   updatedAt: string | null;
 }
 
-export interface ProvisionalCriterionGradesSheetResponse {
+export interface CriterionGradesSheetResponse {
   courseId: number;
   sectionCourseId: number;
   academicPeriodId: number;
   bimester: Bimester;
-  criteria: Pick<EvaluationCriterion, 'id' | 'name' | 'order' | 'type' | 'active'>[];
+  criteria: {
+    id: number;
+    courseId: number;
+    academicPeriodId: number;
+    name: string;
+    description: string | null;
+    order: number;
+    type: 'MANUAL' | 'PARTICIPACION_ACADEMICA';
+    active: boolean;
+  }[];
   students: {
     enrollmentId: number;
     studentId: number;
     fullName: string;
-    grades: ProvisionalGradeCell[];
+    grades: CriterionGradeCell[];
   }[];
 }
 
@@ -32,7 +41,7 @@ export interface CreateManualCriterionGradeRequest {
   grade: number;
 }
 
-export interface ProvisionalCriterionGradeResponse extends CreateManualCriterionGradeRequest {
+export interface CriterionGradeResponse extends CreateManualCriterionGradeRequest {
   id: number;
   sectionCourseId: number;
   bimesterId: number;

@@ -21,7 +21,10 @@ jobs:
         cache: 'npm'
 
     - name: Instalar dependencias
-      run: npm install
+      run: npm ci
+
+    - name: Ejecutar pruebas frontend
+      run: npm test
 
     - name: Ejecutar revisión de código (Linter)
       run: npm run lint

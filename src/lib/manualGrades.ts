@@ -70,7 +70,7 @@ export async function registerFirstGrades(commands: CreateManualCriterionGradeRe
   try { await reload(); }
   catch (error) {
     if (failure) throw failure;
-    throw new Error(`Se registraron ${count} notas, pero no se pudo recargar la planilla. Consulta nuevamente antes de enviar otras notas.`, { cause: error });
+    throw new Error(`El servidor aceptó ${count} registros, pero no se pudo recargar o confirmar la planilla. Consulta nuevamente antes de enviar otras notas.`, { cause: error });
   }
   if (failure) throw failure;
   return count;

@@ -1,23 +1,48 @@
-# Sincronización del consumidor docente N2
+# N2: registro inicial MANUAL del docente
 
-El consumidor se cotejó contra el contrato definitivo `CORAULA-BACKE/coraula-backend/docs/manual-grades-n2.md` y los records Java de `TeacherManualGradesController`, `BimesterResponse`, `CriterionGradesSheetResponse`, `CriterionGradeResponse`, `CreateManualCriterionGradeRequest` y `EvaluationCriterionResponse`.
+## Evidencia de habilitación
 
-## Coincidencias aplicadas
+`MANUAL_GRADES_CONTRACT_VERIFIED = true` habilita servicio y Guardar en `feat/n2-manual-grades-ui-integration`, creada desde dev `ad0637d6c69f9c181206e5966178293d62ec91b0` con árbol limpio.
 
-- GET de bimestres autorizados devuelve `BimesterResponse[]` con id, periodo, número, nombre, fechas y estado.
-- GET de planilla devuelve curso, sección-curso, periodo, bimestre, criterios, matrículas y celdas manuales. La lista `grades` por alumno se conserva como lista de celdas `{criterionId, gradeId, grade, registeredAt, updatedAt}`; `grade` y timestamps pendientes pueden ser null.
-- Los criterios usan los campos reales `id`, `courseId`, `academicPeriodId`, `name`, `description`, `order`, `type`, `active`. El parser valida la pertenencia de curso y periodo.
-- POST responde HTTP 201 con `{id, enrollmentId, sectionCourseId, bimesterId, criterionId, grade, registeredByTeacherId, registeredAt, updatedAt}`. El cuerpo emite solo `{enrollmentId, criterionId, grade}`; no se agrega identidad ni contexto y el parser valida la respuesta contra la petición.
-- Los tipos y parsers dejaron de identificarse como provisionales. La ruta Axios `/api` más `/v1/teacher/...` coincide con `@RequestMapping` del controlador.
+Se comprobaron logs del [PR backend #25](https://github.com/Jhair-Maldonado/CORAULA-BACKEND/pull/25), HEAD `f44a096a42bf233776943d31386f98c758c22429`. GitHub confirma que ya fue fusionado; la descripción conserva observaciones de una revisión anterior. Evidencia final:
 
-## Reglas preservadas
+- [PostgreSQL y consumidor HTTP](https://github.com/Jhair-Maldonado/CORAULA-BACKEND/actions/runs/38080220970/job/114295415778): SUCCESS, 47 pruebas, cero fallos/errores/omisiones; Flyway hasta V12. Consumidor frontend probado: `ad0637d6c69f9c181206e5966178293d62ec91b0`, con flag habilitado temporalmente en ese checkout aislado.
+- GET bimestres 200, GET planilla 200, POST inicial 201, duplicado 409, POST cero 201, GET confirmación 200, matrícula cruzada 409 y PA 409. El runner imprime `POST HTTP verificados: 201,409,201,409,409` y CI comprueba su ejecución sin omisiones.
+- [CI general backend](https://github.com/Jhair-Maldonado/CORAULA-BACKEND/actions/runs/38080220957/job/114295415596): BUILD SUCCESS, 1285 pruebas, cero fallos/errores y una omisión del runner fuera del entorno frontend aislado. Esa omisión no sustituye el job PostgreSQL obligatorio anterior.
 
-PA sigue readonly y sin cálculo; la planilla no recibe celdas PA manuales. Los criterios MANUAL son dinámicos, incluyendo criterios inactivos con notas previas solo para lectura. `null` representa pendiente y cero sigue siendo una nota persistida. Se mantienen las validaciones de 0–20, máximo dos decimales, solo primeras notas y bimestre ABIERTO.
+La evidencia corresponde al consumidor HTTP y PostgreSQL aislado; no prueba login ni interacción de UI. Esta tarea no modifica backend, no repite su suite y no escribe datos en Supabase.
 
-`MANUAL_GRADES_CONTRACT_VERIFIED` permanece `false`: el servicio rechaza POST antes de HTTP. La coincidencia con código y documentación no prueba conexión, configuración de sesión, permisos ni comportamiento E2E. No se escribieron notas en Supabase.
+## Contrato y comportamiento
 
-## Diferencias y pendientes
+Se preservan las rutas GET/POST docentes existentes, base Axios `/api` y prefijo `/v1/teacher/courses/{sectionCourseId}/bimesters`. POST emite solo `{ enrollmentId, criterionId, grade }`. Curso-sección viene de asignaciones reales; bimestres, matrículas y notas se consultan al backend. No se calculan PA, promedios ni resultados finales.
 
-El contrato definitivo sí está implementado en los DTO/controlador Java revisados, a diferencia del estado registrado en el PR frontend anterior. La integración de transporte debe validarse con backend N2 en entorno aislado y un usuario docente autorizado antes de habilitar POST. La documentación backend informa que PostgreSQL aislado aún no se validó; las pruebas H2 no prueban locks ni concurrencia en PostgreSQL. Tampoco se ejecutó validación visual automatizada.
+Solo primeras notas MANUAL activas en ABIERTO: 0–20 inclusive, máximo dos decimales, sin redondeo. Las notas persistidas son readonly; cero es una nota y null es pendiente. PA aparece una sola vez y readonly/Pendiente porque N2 no entrega su resultado. Criterios inactivos con notas previas siguen visibles solo para lectura.
 
-Las pruebas frontend usan DTO fixtures e inyección de transporte solo en test; cubren nulidad y cero, estados, criterios dinámicos, conflictos y recarga, sin tocar servicios externos.
+Inputs conservan estilos/etiquetas y teclado decimal. Se conserva el texto inválido para mostrar errores: `type=number` podía convertirlo silenciosamente en vacío. Guardar queda deshabilitado sin borradores válidos, ante errores y durante envío/recarga.
+
+POST secuenciales individuales: una celda fallida detiene las siguientes; no hay reversión de éxito parcial ni reintento automático. Después del intento se consulta la planilla. El éxito exige que las notas aceptadas aparezcan con gradeId y valor coincidente en la consulta; si falla recarga/confirmación, se bloquea el siguiente envío hasta recuperar el estado.
+
+401 conserva el interceptor global `auth:unauthorized`; 403 no revela detalles internos, 400 muestra validación y 409 explica conflicto y consulta el estado. Una ref síncrona impide doble envío. La generación de contexto invalida callbacks anteriores incluso antes del siguiente render; AbortController y montaje por curso descartan respuestas tardías. Desmontar durante POST detiene registros restantes y evita mensajes en el contexto nuevo.
+
+El backend genera una celda por criterio MANUAL mostrado, incluyendo pendientes null. El parser exige esa lista completa, sin duplicados ni celdas PA; valida timestamps coherentes con ausencia/persistencia. Una respuesta incompleta no produce entradas pendientes ficticias.
+
+## Verificación frontend
+
+- `npm ci`: PASS con lockfile final; dependencias de pruebas fijadas. Reporta 13 vulnerabilidades, el mismo conteo anterior a agregarlas; actualización global fuera de alcance.
+- `npm test`: **25/25 PASS**, cero fallos/omisiones: 17 pruebas de evaluación actualizadas y 8 pruebas del hook/servicio.
+- `npm run lint`: PASS, cero errores y 17 advertencias preexistentes en otros módulos.
+- `npm run build`: PASS, TypeScript y generación de páginas.
+- `git diff --check`: PASS.
+- CI frontend instala con `npm ci` y ejecuta `npm test` antes de lint/build.
+
+Tests cubren límites/decimales, cero/null, estados, MANUAL/PA/inactivo, DTO POST del servicio real con adapter de prueba, recarga, 400/401/403/409, éxito parcial, doble clic, selección antes del render, cambio de curso durante GET/POST y ausencia de confirmación. Un montaje nuevo verifica cero readonly obtenido de un transporte simulado: no es evidencia de persistencia en una base real. Fixtures y mocks se limitan a tests. react-test-renderer emite un aviso de deprecación; solo se usa como arnés del hook, sin dependencia de producción.
+
+## Pendientes y decisión
+
+Navegador E2E: **NOT_RUN**. Sin navegador automatizado ni backend/fixtures PostgreSQL aislados con login disponibles para el recorrido completo en esta sesión. Validar login → curso → bimestre → nota → guardar → recargar página, responsive y estados visuales. PR **DRAFT**, sin afirmar preparación para producción.
+
+No se encontraron consumidores administrativos N2 de PATCH `/management/criterion-grades/{id}` o GET `/history`. Correcciones e historial quedan para otro PR. Exportación y apertura administrativa continúan deshabilitadas.
+
+Coordinación pendiente: el workflow backend #25 espera reemplazar literalmente un flag `false` por `true` al consultar frontend dev. Tras fusionar este PR, deberá aceptar el flag ya habilitado o eliminar ese reemplazo; de otro modo fallará antes del runner. Ese workflow pertenece al backend y no se modifica aquí.
+
+Decisión del alcance docente: **READY_FOR_REVIEW**. Aceptación final pendiente de navegador E2E y coordinación del workflow backend antes de llevar el flag a dev. Los POST son individuales; al desmontar tras una aceptación se debe consultar el estado antes de volver a registrar.

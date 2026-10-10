@@ -56,9 +56,14 @@ export function parseCriterionGradesSheetResponse(value: unknown, expected: { se
       const gradeId = cell.gradeId === null ? null : id(cell.gradeId);
       const cellGrade = grade(cell.grade);
       if ((gradeId === null) !== (cellGrade === null)) return invalid();
-      return { criterionId, gradeId, grade: cellGrade, registeredAt: nullableText(cell.registeredAt), updatedAt: nullableText(cell.updatedAt) };
+      const registeredAt = nullableText(cell.registeredAt), updatedAt = nullableText(cell.updatedAt);
+      if (gradeId !== null ? registeredAt === null : registeredAt !== null || updatedAt !== null) return invalid();
+      return { criterionId, gradeId, grade: cellGrade, registeredAt, updatedAt };
     });
     unique(grades.map(c => c.criterionId));
+    // The backend emits one cell per displayed MANUAL criterion, including nulls.
+    // Missing cells must not become editable "pending" grades in the UI.
+    if (grades.length !== criteria.filter(c => c.type === 'MANUAL').length) return invalid();
     return { enrollmentId: id(student.enrollmentId), studentId: id(student.studentId), fullName: text(student.fullName), grades };
   });
   unique(students.map(s => s.enrollmentId));

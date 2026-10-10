@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Bimester, TeacherEvaluationData } from '@/types/evaluationApi';
 import { MANUAL_GRADES_CONTRACT_VERIFIED } from '@/types/teacherGradesApi';
+import type { CreateManualCriterionGradeRequest } from '@/types/teacherGradesApi';
 import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
 import { adaptCriterionGradesSheet, prepareFirstGrades, registerFirstGrades } from '@/lib/manualGrades';
 
@@ -21,6 +22,7 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [refreshRequired, setRefreshRequired] = useState(false);
+  const [contextVersion, setContextVersion] = useState(0);
   const mutation = useRef(false);
   const mounted = useRef(true);
   const selectionGeneration = useRef(0);
@@ -63,11 +65,12 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
   function selectBimester(id: string) {
     if (mutation.current) return;
     selectionGeneration.current++;
+    setContextVersion(selectionGeneration.current);
     setSelectedBimesterId(id); setSheetRevision(n => n + 1);
     setDrafts({}); setSaveMessage(null); setSaveError(null); setRefreshRequired(false);
   }
 
-  function refreshSheet() { if (!mutation.current) { setSaveMessage(null); setDrafts({}); setSheetRevision(n => n + 1); } }
+  function refreshSheet() { if (!mutation.current) { selectionGeneration.current++; setContextVersion(selectionGeneration.current); setSaveMessage(null); setDrafts({}); setSheetRevision(n => n + 1); } }
   function changeDraft(enrollmentId: number, criterionId: number, value: string) {
     if (mutation.current || refreshRequired) return;
     setDrafts(prev => ({ ...prev, [`${enrollmentId}:${criterionId}`]: value }));
@@ -75,7 +78,7 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
   }
 
   async function save() {
-    if (mutation.current || !MANUAL_GRADES_CONTRACT_VERIFIED || !current || !sectionCourseId || !courseId || refreshRequired) return;
+    if (!mounted.current || contextVersion !== selectionGeneration.current || mutation.current || !MANUAL_GRADES_CONTRACT_VERIFIED || !current || !sectionCourseId || !courseId || refreshRequired) return;
     let commands;
     try { commands = prepareFirstGrades(current.evaluation, current.bimester, drafts); }
     catch (error) { setSaveError(teacherGradesErrorMessage(error)); return; }
@@ -84,13 +87,22 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
     const generation = selectionGeneration.current;
     setSaving(true); setSaveError(null); setSaveMessage(null); setRefreshRequired(true);
     const stillCurrent = () => mounted.current && generation === selectionGeneration.current;
+    const accepted: CreateManualCriterionGradeRequest[] = [];
     try {
-      const count = await registerFirstGrades(commands, command => {
+      const count = await registerFirstGrades(commands, async command => {
         if (!stillCurrent()) throw new Error('El contexto cambió; no se enviarán más notas.');
-        return teacherGradesService.registerGrade(sectionCourseId, current.bimester.id, command);
+        const response = await teacherGradesService.registerGrade(sectionCourseId, current.bimester.id, command);
+        accepted.push(command);
+        return response;
       }, async () => {
         const sheet = await teacherGradesService.getSheet({ sectionCourseId, courseId, bimesterId: current.bimester.id, academicPeriodId: current.bimester.academicPeriodId });
-        if (stillCurrent()) { setSheetResult({ key: sheetKey, data: { evaluation: adaptCriterionGradesSheet(sheet), bimester: sheet.bimester } }); setDrafts({}); setRefreshRequired(false); }
+        const evaluation = adaptCriterionGradesSheet(sheet);
+        const confirmed = accepted.every(c => {
+          const row = evaluation.records.find(r => r.enrollmentId === c.enrollmentId);
+          return row?.gradeIds?.[c.criterionId] != null && row.grades[c.criterionId] === c.grade;
+        });
+        if (stillCurrent()) { setSheetResult({ key: sheetKey, data: { evaluation, bimester: sheet.bimester } }); setDrafts({}); setRefreshRequired(!confirmed); }
+        if (!confirmed) throw new Error('La planilla consultada no confirmó todas las notas aceptadas.');
       });
       if (stillCurrent()) setSaveMessage(`Se registraron ${count} notas y se volvió a consultar la planilla.`);
     } catch (error) {
@@ -102,7 +114,7 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
     bimesters, bimestersLoading, bimestersError, selectedBimesterId, selectBimester,
     evaluation: current?.evaluation, bimester: current?.bimester ?? selected,
     evaluationLoading, evaluationError, refreshSheet,
-    refreshBimesters: () => { if (!mutation.current) { selectionGeneration.current++; setDrafts({}); setSelectedBimesterId(''); setBimesterRevision(n => n + 1); setSheetRevision(n => n + 1); } },
+    refreshBimesters: () => { if (!mutation.current) { selectionGeneration.current++; setContextVersion(selectionGeneration.current); setDrafts({}); setSelectedBimesterId(''); setBimesterRevision(n => n + 1); setSheetRevision(n => n + 1); } },
     drafts, changeDraft, saving, save, saveError, saveMessage, refreshRequired,
   };
 }

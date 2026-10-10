@@ -11,12 +11,12 @@ const makeSheet = () => ({
   courseId: 20, sectionCourseId: 10, academicPeriodId: 30,
   bimester: { id: 40, academicPeriodId: 30, number: 1, name: 'Bimestre de prueba', startDate: '2026-01-01', endDate: '2026-03-01', status: 'ABIERTO' },
   criteria: [...Array.from({ length: 8 }, (_, i) => ({ id: i + 1, courseId: 20, academicPeriodId: 30, name: `Manual ${i + 1}`, description: null, order: i + 1, type: 'MANUAL', active: true })), { id: 9, courseId: 20, academicPeriodId: 30, name: 'PA', description: null, order: 9, type: 'PARTICIPACION_ACADEMICA', active: true }],
-  students: [{ enrollmentId: 100, studentId: 200, fullName: 'Estudiante de prueba', grades: [{ criterionId: 1, gradeId: 500, grade: 0, registeredAt: '2026-10-10T12:00:00Z', updatedAt: null }] }],
+  students: [{ enrollmentId: 100, studentId: 200, fullName: 'Estudiante de prueba', grades: Array.from({ length: 8 }, (_, i) => ({ criterionId: i + 1, gradeId: i === 0 ? 500 : null, grade: i === 0 ? 0 : null, registeredAt: i === 0 ? '2026-10-10T12:00:00Z' : null, updatedAt: null })) }],
 });
 const evaluation = () => adaptCriterionGradesSheet(parseCriterionGradesSheetResponse(makeSheet(), expected));
 
-test('real writes remain blocked while proposal is unverified', () => {
-  assert.equal(MANUAL_GRADES_CONTRACT_VERIFIED, false);
+test('manual-grade HTTP contract is enabled after isolated backend CI verification', () => {
+  assert.equal(MANUAL_GRADES_CONTRACT_VERIFIED, true);
 });
 
 test('grade validation accepts boundaries and two decimals without rounding or treating blank as zero', () => {
@@ -61,7 +61,7 @@ test('a successful individual registration reloads persisted notes from the tran
   const count = await registerFirstGrades(commands, async command => { order.push(['POST', command]); }, async () => {
     order.push(['GET']);
     const sheet = makeSheet();
-    sheet.students[0].grades.push({ criterionId: 2, gradeId: 501, grade: 15, registeredAt: '2026-10-10T13:00:00Z', updatedAt: null });
+    sheet.students[0].grades[1] = { criterionId: 2, gradeId: 501, grade: 15, registeredAt: '2026-10-10T13:00:00Z', updatedAt: null };
     registeredSheet = adaptCriterionGradesSheet(parseCriterionGradesSheetResponse(sheet, expected));
   });
   assert.equal(count, 1);
@@ -76,13 +76,13 @@ test('duplicate cells are rejected before sending any POST', async () => {
   assert.equal(calls, 0);
 });
 
-test('403 and 409 stop the batch, reload and preserve the original error without automatic retries', async () => {
-  for (const status of [403, 409]) {
+test('401, 403 and 409 stop the batch, reload and preserve the original error without automatic retries', async () => {
+  for (const status of [401, 403, 409]) {
     const error = { status };
     let posts = 0, reads = 0;
     await assert.rejects(registerFirstGrades([{ enrollmentId: 100, criterionId: 2, grade: 15 }, { enrollmentId: 100, criterionId: 3, grade: 16 }], async () => { posts++; throw error; }, async () => { reads++; }), e => e === error);
     assert.equal(posts, 1); assert.equal(reads, 1);
-    assert.match(manualGradesErrorMessage(status), status === 403 ? /permiso/ : /Conflicto/);
+    assert.match(manualGradesErrorMessage(status), status === 401 ? /sesión/ : status === 403 ? /permiso/ : /Conflicto/);
   }
 });
 
@@ -110,4 +110,8 @@ test('empty data stays empty; incomplete DTOs and duplicate/PA cells are rejecte
   assert.throws(() => parseCriterionGradesSheetResponse(bad, expected));
   const duplicate = makeSheet(); duplicate.students.push(duplicate.students[0]);
   assert.throws(() => parseCriterionGradesSheetResponse(duplicate, expected));
+  const incomplete = makeSheet(); incomplete.students[0].grades.pop();
+  assert.throws(() => parseCriterionGradesSheetResponse(incomplete, expected));
+  const missingTimestamp = makeSheet(); missingTimestamp.students[0].grades[0].registeredAt = null;
+  assert.throws(() => parseCriterionGradesSheetResponse(missingTimestamp, expected));
 });

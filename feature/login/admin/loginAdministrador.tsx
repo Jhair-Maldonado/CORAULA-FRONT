@@ -31,16 +31,55 @@ export default function LoginAdministrador() {
   const [showPassword, setShowPassword] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // Estado para el modal de recuperación de contraseña
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryEmailError, setRecoveryEmailError] = useState<string | null>(null);
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loadingRecovery, setLoadingRecovery] = useState(false);
 
+  const validateEmailFormat = (val: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\s/g, '');
+    setEmail(val);
+    if (emailError) setEmailError(null);
+    if (errorMsg) setErrorMsg(null);
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\s/g, '');
+    setPassword(val);
+    if (passwordError) setPasswordError(null);
+    if (errorMsg) setErrorMsg(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (cargando) return;
+    let isValid = true;
+    
+    if (!email) {
+      setEmailError('El correo es obligatorio.');
+      isValid = false;
+    } else if (!validateEmailFormat(email)) {
+      setEmailError('El formato de correo no es válido.');
+      isValid = false;
+    }
+    
+    if (!password) {
+      setPasswordError('La contraseña es obligatoria.');
+      isValid = false;
+    }
+    
+    if (!isValid) return;
+
     setCargando(true);
     setErrorMsg(null);
     
@@ -84,7 +123,7 @@ export default function LoginAdministrador() {
       if (isAxiosError(error) && error.response) {
         const status = error.response.status;
         if (status === 400) setErrorMsg('Revisa los datos ingresados.');
-        else if (status === 401) setErrorMsg('Credenciales inválidas.');
+        else if (status === 401) setErrorMsg('Usuario o contraseña incorrectos.');
         else if (status === 403) setErrorMsg('Tu cuenta se encuentra deshabilitada.');
         else if (status === 423) setErrorMsg('Cuenta temporalmente bloqueada. Inténtalo más tarde.');
         else setErrorMsg('Error al intentar iniciar sesión. Inténtalo más tarde.');
@@ -96,9 +135,23 @@ export default function LoginAdministrador() {
     }
   };
 
+  const handleRecoveryEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\s/g, '');
+    setRecoveryEmail(val);
+    if (recoveryEmailError) setRecoveryEmailError(null);
+  };
+
   const handleSendCode = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recoveryEmail) return;
+    if (loadingRecovery) return;
+    if (!recoveryEmail) {
+      setRecoveryEmailError('El correo es obligatorio.');
+      return;
+    }
+    if (!validateEmailFormat(recoveryEmail)) {
+      setRecoveryEmailError('El formato de correo no es válido.');
+      return;
+    }
     setLoadingRecovery(true);
     setTimeout(() => {
       setLoadingRecovery(false);
@@ -120,7 +173,10 @@ export default function LoginAdministrador() {
     setStep(1);
     setRecoveryEmail('');
     setCode(['', '', '', '', '', '']);
+    setRecoveryEmailError(null);
+    setStep(1);
   };
+
 
   return (
     <GuestGuard>
@@ -196,7 +252,7 @@ export default function LoginAdministrador() {
               </div>
 
               {/* Formulario */}
-              <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+              <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5">
 
                 {/* Email */}
                 <div className="relative">
@@ -207,11 +263,14 @@ export default function LoginAdministrador() {
                     type="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={handleEmailChange}
+                    aria-invalid={!!emailError}
+                    aria-describedby="email-error"
                     placeholder="Correo de gestión / docente"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white focus:border-accent focus:ring-3 focus:ring-accent/10 transition-all placeholder:text-muted/60 placeholder:font-normal"
+                    className={`w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border ${emailError ? 'border-red-500 bg-red-50/50 focus:border-red-500 focus:ring-red-500/10' : 'border-line/80 focus:bg-white'} rounded-xl text-[13px] font-medium text-ink outline-none transition-all placeholder:text-muted/60`}
                   />
                 </div>
+                {emailError && <span id="email-error" className="text-red-500 text-[11px] mt-1 font-medium">{emailError}</span>}
 
                 {/* Password */}
                 <div className="relative">
@@ -222,9 +281,11 @@ export default function LoginAdministrador() {
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={handlePasswordChange}
+                    aria-invalid={!!passwordError}
+                    aria-describedby="password-error"
                     placeholder="Contraseña de seguridad"
-                    className="w-full pl-10 pr-10 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white focus:border-accent focus:ring-3 focus:ring-accent/10 transition-all placeholder:text-muted/60 placeholder:font-normal"
+                    className={`w-full pl-10 pr-10 py-2.5 bg-neutral/30 border ${passwordError ? 'border-red-500 bg-red-50/50 focus:border-red-500 focus:ring-red-500/10' : 'border-line/80 focus:bg-white'} rounded-xl text-[13px] font-medium text-ink outline-none transition-all placeholder:text-muted/60`}
                   />
                   <button
                     type="button"
@@ -235,6 +296,7 @@ export default function LoginAdministrador() {
                     {showPassword ? <ViewOffIcon size={16} /> : <ViewIcon size={16} />}
                   </button>
                 </div>
+                  {passwordError && <span id="password-error" className="text-red-500 text-[11px] mt-1 font-medium">{passwordError}</span>}
 
                 {/* Olvidaste */}
                 <div className="flex justify-end -mt-1">
@@ -334,7 +396,7 @@ export default function LoginAdministrador() {
             </button>
 
             {step === 1 && (
-              <form onSubmit={handleSendCode} className="flex flex-col gap-4">
+              <form onSubmit={handleSendCode} noValidate className="flex flex-col gap-4">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2.5 rounded-xl bg-accent/10 text-accent">
                     <SecurityCheckIcon size={20} />
@@ -346,7 +408,7 @@ export default function LoginAdministrador() {
                 </div>
 
                 <p className="text-[12.5px] text-muted leading-relaxed">
-                  Te enviaremos un código de seguridad de 6 dígitos a tu casilla registrada.
+                  Te enviaremos instrucciones a tu casilla registrada.
                 </p>
 
                 <div className="relative">
@@ -357,11 +419,14 @@ export default function LoginAdministrador() {
                     type="email"
                     required
                     value={recoveryEmail}
-                    onChange={(e) => setRecoveryEmail(e.target.value)}
+                    onChange={handleRecoveryEmailChange}
+                    aria-invalid={!!recoveryEmailError}
+                    aria-describedby="recovery-email-error"
                     placeholder="Correo de gestión / docente"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:border-accent"
+                    className={`w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border ${recoveryEmailError ? 'border-red-500 bg-red-50/50 focus:border-red-500 focus:ring-red-500/10' : 'border-line/80'} rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white`}
                   />
                 </div>
+                  {recoveryEmailError && <span id="recovery-email-error" className="text-red-500 text-[11px] mt-1 font-medium">{recoveryEmailError}</span>}
 
                 <button
                   type="submit"
@@ -371,81 +436,31 @@ export default function LoginAdministrador() {
                   {loadingRecovery ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <span>Enviar código de seguridad</span>
+                    <span>Enviar instrucciones</span>
                   )}
                 </button>
               </form>
             )}
 
             {step === 2 && (
-              <form onSubmit={handleVerifyCode} className="flex flex-col gap-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 rounded-xl bg-accent/10 text-accent">
-                    <SecurityCheckIcon size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-ink">Código enviado</h3>
-                    <p className="text-[12px] text-muted font-medium">Paso 2 de 2: Verifica el código</p>
-                  </div>
-                </div>
-
-                <p className="text-[12.5px] text-muted leading-relaxed">
-                  Ingresa el código enviado a <strong className="text-ink">{recoveryEmail}</strong>.
-                </p>
-
-                {/* Slots de código de verificación */}
-                <div className="flex justify-between gap-1.5 my-1">
-                  {code.map((digit, idx) => (
-                    <input
-                      key={idx}
-                      type="text"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const newCode = [...code];
-                        newCode[idx] = val;
-                        setCode(newCode);
-                        if (val && e.target.nextElementSibling) {
-                          (e.target.nextElementSibling as HTMLInputElement).focus();
-                        }
-                      }}
-                      className="w-10 h-11 text-center bg-neutral/30 border border-line rounded-xl text-base font-bold text-ink outline-none focus:border-accent focus:bg-white"
-                    />
-                  ))}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loadingRecovery}
-                  className="w-full py-2.5 bg-ink text-white font-bold text-[13px] rounded-xl shadow-md hover:bg-ink/90 flex justify-center items-center gap-2 cursor-pointer"
-                >
-                  {loadingRecovery ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <span>Verificar código</span>
-                  )}
-                </button>
-              </form>
-            )}
-
-            {step === 3 && (
               <div className="flex flex-col items-center text-center gap-3 py-2">
                 <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
                   <CheckmarkCircle02Icon size={28} />
                 </div>
-                <h3 className="text-base font-bold text-ink">¡Autenticación Exitosa!</h3>
+                <h3 className="text-base font-bold text-ink">¡Solicitud Exitosa!</h3>
                 <p className="text-[12.5px] text-muted leading-relaxed">
-                  Se ha enviado un enlace de restablecimiento seguro a tu dirección corporativa.
+                  Instrucciones enviadas a tu correo: <strong className="text-ink">{recoveryEmail}</strong>
                 </p>
                 <button
                   onClick={closeResetModal}
                   className="w-full py-2.5 mt-2 bg-ink text-white font-bold text-[13px] rounded-xl cursor-pointer"
                 >
-                  Volver al inicio
+                  Volver
                 </button>
               </div>
             )}
+
+            
           </div>
         </div>
       )}

@@ -26,9 +26,47 @@ export default function LoginDocente() {
   const [showPassword, setShowPassword] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  const validateEmailFormat = (val: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\s/g, '');
+    setEmail(val);
+    if (emailError) setEmailError(null);
+    if (errorMsg) setErrorMsg(null);
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\s/g, '');
+    setPassword(val);
+    if (passwordError) setPasswordError(null);
+    if (errorMsg) setErrorMsg(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (cargando) return;
+    let isValid = true;
+    
+    if (!email) {
+      setEmailError('El correo es obligatorio.');
+      isValid = false;
+    } else if (!validateEmailFormat(email)) {
+      setEmailError('El formato de correo no es válido.');
+      isValid = false;
+    }
+    
+    if (!password) {
+      setPasswordError('La contraseña es obligatoria.');
+      isValid = false;
+    }
+    
+    if (!isValid) return;
+
     if (cargando) return;
     if (!authContext) { setErrorMsg('No se pudo inicializar la sesión. Recarga la página.'); return; }
     setCargando(true);
@@ -55,7 +93,7 @@ export default function LoginDocente() {
       if (isAxiosError(error) && error.response) {
         const status = error.response.status;
         if (status === 400) setErrorMsg('Revisa los datos ingresados.');
-        else if (status === 401) setErrorMsg('Credenciales inválidas en el servidor.');
+        else if (status === 401) setErrorMsg('Usuario o contraseña incorrectos.');
         else if (status === 403) setErrorMsg('Tu cuenta docente se encuentra deshabilitada.');
         else if (status === 423) setErrorMsg('Cuenta bloqueada por intentos fallidos.');
         else setErrorMsg('Error de autenticación. Inténtalo más tarde.');
@@ -157,9 +195,11 @@ export default function LoginDocente() {
                         type="email"
                         required
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={handleEmailChange}
+                    aria-invalid={!!emailError}
+                    aria-describedby="email-error"
                         placeholder="Correo institucional"
-                        className="w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white focus:border-[#BE123C] focus:ring-3 focus:ring-[#BE123C]/10 transition-all placeholder:text-muted/60"
+                        className={`w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border ${emailError ? 'border-red-500 bg-red-50/50 focus:border-red-500 focus:ring-red-500/10' : 'border-line/80 focus:bg-white'} rounded-xl text-[13px] font-medium text-ink outline-none transition-all placeholder:text-muted/60`}
                       />
                     </div>
                   </div>
@@ -175,9 +215,11 @@ export default function LoginDocente() {
                         type={showPassword ? 'text' : 'password'}
                         required
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={handlePasswordChange}
+                    aria-invalid={!!passwordError}
+                    aria-describedby="password-error"
                         placeholder="••••••••"
-                        className="w-full pl-10 pr-10 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white focus:border-[#BE123C] focus:ring-3 focus:ring-[#BE123C]/10 transition-all placeholder:text-muted/60"
+                        className={`w-full pl-10 pr-10 py-2.5 bg-neutral/30 border ${passwordError ? 'border-red-500 bg-red-50/50 focus:border-red-500 focus:ring-red-500/10' : 'border-line/80 focus:bg-white'} rounded-xl text-[13px] font-medium text-ink outline-none transition-all placeholder:text-muted/60`}
                       />
                       <button
                         type="button"
@@ -188,6 +230,7 @@ export default function LoginDocente() {
                         {showPassword ? <ViewOffIcon size={16} /> : <ViewIcon size={16} />}
                       </button>
                     </div>
+                  {passwordError && <span id="password-error" className="text-red-500 text-[11px] mt-1 font-medium">{passwordError}</span>}
                   </div>
 
                   {errorMsg && (

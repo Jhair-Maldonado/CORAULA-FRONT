@@ -33,6 +33,7 @@ export interface EvaluationStudentRow {
   studentId: number;
   fullName: string;
   grades: Record<number, number | null>;
+  gradeIds?: Record<number, number | null>;
   pa: number | null;
 }
 

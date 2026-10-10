@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
-import { activityTitleError, isAmbiguousActivityCreation, teacherActivitiesErrorMessage, teacherActivitiesService } from '@/services/teacher/teacherActivitiesService';
+import { activityTitleError, activityChanges, activityMatchesChanges, isAmbiguousActivityCreation, teacherActivitiesErrorMessage, teacherActivitiesService } from '@/services/teacher/teacherActivitiesService';
 import { ACADEMIC_ACTIVITY_TYPES } from '@/types/teacherActivitiesApi';
 import type { AcademicActivity, ActivityContext, CreateAcademicActivityRequest } from '@/types/teacherActivitiesApi';
 import type { Bimester } from '@/types/evaluationApi';
@@ -58,6 +58,8 @@ function ActivitySheet({ context, parentBusy, lockRef, generationRef, epoch, set
   const [notice, setNotice] = useState<string | null>(null);
   const [ambiguous, setAmbiguous] = useState(false);
   const [refreshRequired, setRefreshRequired] = useState(false);
+  const [editing, setEditing] = useState<{ original: AcademicActivity; values: CreateAcademicActivityRequest } | null>(null);
+  const editRef = useRef<AcademicActivity | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
   const [detail, setDetail] = useState<Result<AcademicActivity> | null>(null);
@@ -87,7 +89,7 @@ function ActivitySheet({ context, parentBusy, lockRef, generationRef, epoch, set
   }, [sectionCourseId, bimesterId, selectedId, detailKey]);
 
   async function createActivity() {
-    if (!mounted.current || generationRef.current !== epoch || lockRef.current || disabled || titleError) return;
+    if (!mounted.current || generationRef.current !== epoch || lockRef.current || disabled || editing || titleError) return;
     lockRef.current = true; setBusy(true); setParentBusy(true); setError(null); setNotice(null); setRefreshRequired(true);
     let saved: AcademicActivity | null = null, failure: string | null = null;
     try {
@@ -111,23 +113,77 @@ function ActivitySheet({ context, parentBusy, lockRef, generationRef, epoch, set
       }
     } finally { lockRef.current = false; setParentBusy(false); if (mounted.current) setBusy(false); }
   }
-  function refresh() { if (!lockRef.current) { setSelectedId(null); setNotice(null); setRevision(n => n + 1); } }
+  function cancelEdit() { if (!lockRef.current) { editRef.current = null; setEditing(null); } }
+  async function startEdit(activityId: number) {
+    if (!mounted.current || generationRef.current !== epoch || lockRef.current || disabled || editing) return;
+    lockRef.current = true; setBusy(true); setParentBusy(true); setNotice(null); setError(null); setSelectedId(null);
+    try {
+      const original = await teacherActivitiesService.getActivity(context, activityId);
+      if (!mounted.current || generationRef.current !== epoch) return;
+      if (original.status !== 'PLANIFICADA') throw new Error('Estado no editable.');
+      editRef.current = original;
+      setEditing({ original, values: { title: original.title, description: original.description, type: original.type, cuentaParaPa: original.cuentaParaPa } });
+    } catch (error) { if (mounted.current && generationRef.current === epoch) setError(teacherActivitiesErrorMessage(error)); }
+    finally { lockRef.current = false; setParentBusy(false); if (mounted.current) setBusy(false); }
+  }
+  let editError: string | null = null;
+  let changed = false;
+  if (editing) {
+    try { changed = Object.keys(activityChanges(editing.original, editing.values)).length > 0; }
+    catch { editError = 'Revisa el título (obligatorio, hasta 255 caracteres), tipo y configuración.'; }
+  }
+  async function saveEdit() {
+    if (!mounted.current || generationRef.current !== epoch || lockRef.current || disabled || !editing || editRef.current !== editing.original || editError || !changed) return;
+    const original = editing.original, changes = activityChanges(original, editing.values);
+    lockRef.current = true; setBusy(true); setParentBusy(true); editRef.current = null; setEditing(null); setNotice(null); setError(null); setSelectedId(null); setRefreshRequired(true);
+    let accepted = false, failure: string | null = null;
+    try {
+      try {
+        const saved = await teacherActivitiesService.updateActivity(context, original.id, changes);
+        if (saved.createdAt !== original.createdAt || saved.createdByTeacherId !== original.createdByTeacherId) throw new Error('Datos inmutables inconsistentes.');
+        accepted = true;
+      } catch (error) { failure = teacherActivitiesErrorMessage(error); }
+      // Both reads run even after an ambiguous PATCH; never retry the mutation.
+      const [fresh, collection] = await Promise.allSettled([teacherActivitiesService.getActivity(context, original.id), teacherActivitiesService.getActivities(context)]);
+      if (!mounted.current || generationRef.current !== epoch) return;
+      if (collection.status === 'fulfilled') setList({ key, data: collection.value });
+      if (fresh.status === 'fulfilled') setDetail({ key: JSON.stringify([original.id, detailRevision]), data: fresh.value });
+      const row = collection.status === 'fulfilled' ? collection.value.find(a => a.id === original.id) : undefined;
+      const verified = fresh.status === 'fulfilled' && row && activityMatchesChanges(fresh.value, changes) && activityMatchesChanges(row, changes);
+      setRefreshRequired(fresh.status !== 'fulfilled' || collection.status !== 'fulfilled' || (accepted && !verified));
+      if (accepted && verified) setNotice('Edición confirmada mediante detalle y listado recargados.');
+      else setError(`${failure ?? 'La edición no se corroboró en el servidor.'} ${fresh.status !== 'fulfilled' || collection.status !== 'fulfilled' ? 'Falló la recarga; actualiza antes de continuar.' : 'Revisa los valores actuales antes de otra edición.'}`);
+    } finally { lockRef.current = false; setParentBusy(false); if (mounted.current) setBusy(false); }
+  }
+  function refresh() { if (!lockRef.current) { cancelEdit(); setSelectedId(null); setNotice(null); setRevision(n => n + 1); } }
   return <div className="flex flex-col gap-5 mt-5">
     <div className="flex flex-wrap justify-between items-center gap-3"><h3 className="text-sm font-bold text-ink">Actividades del bimestre</h3><button type="button" disabled={busy || loading} className={`${button} bg-white hover:bg-neutral`} onClick={refresh}>Actualizar actividades</button></div>
     {loading ? <p role="status" className="text-sm text-muted">Cargando actividades...</p> : list?.error ? <div role="alert" className="text-sm text-rose-700"><p>{list.error}</p><button type="button" disabled={busy} className={`${button} bg-white mt-3`} onClick={refresh}>Reintentar actividades</button></div>
       : list?.data?.length === 0 ? <p className="p-5 text-sm text-muted border border-dashed border-line rounded-xl">No hay actividades registradas en este bimestre.</p>
-      : <ul className="flex flex-col gap-3">{list?.data?.map(a => <li key={a.id} className="p-4 bg-neutral/30 border border-line rounded-lg flex flex-wrap justify-between items-start gap-3"><div className="min-w-0"><p className="font-bold text-sm text-ink break-words">{a.title}</p><p className="text-xs text-muted mt-1">{a.type} · {a.status} · Cuenta para PA: {a.cuentaParaPa ? 'Sí' : 'No'}</p><time className="text-xs text-muted" dateTime={a.createdAt}>{a.createdAt}</time></div><button type="button" disabled={busy} className={`${button} bg-white`} onClick={() => setSelectedId(a.id)}>Ver detalle #{a.id}</button></li>)}</ul>}
+      : <ul className="flex flex-col gap-3">{list?.data?.map(a => <li key={a.id} className="p-4 bg-neutral/30 border border-line rounded-lg flex flex-wrap justify-between items-start gap-3"><div className="min-w-0"><p className="font-bold text-sm text-ink break-words">{a.title}</p><p className="text-xs text-muted mt-1">{a.type} · {a.status} · Cuenta para PA: {a.cuentaParaPa ? 'Sí' : 'No'}</p><time className="text-xs text-muted" dateTime={a.createdAt}>{a.createdAt}</time></div><div className="flex flex-wrap gap-2"><button type="button" disabled={busy || !!editing} className={`${button} bg-white`} onClick={() => setSelectedId(a.id)}>Ver detalle #{a.id}</button>{a.status === 'PLANIFICADA' && <button type="button" disabled={disabled || !!editing} className={`${button} bg-white`} onClick={() => { void startEdit(a.id); }}>Editar #{a.id}</button>}</div></li>)}</ul>}
     {selectedId !== null && <section className="p-4 border border-line rounded-xl" aria-label="Detalle de actividad"><div className="flex flex-wrap justify-between gap-3"><h3 className="font-bold text-sm text-ink">Detalle de actividad</h3><button type="button" className={`${button} bg-white`} onClick={() => setSelectedId(null)}>Cerrar detalle</button></div>
       {detail?.key !== detailKey ? <p role="status">Cargando detalle...</p> : detail.error ? <div role="alert" className="text-sm text-rose-700"><p>{detail.error}</p><button type="button" className={`${button} bg-white mt-3`} onClick={() => setDetailRevision(n => n + 1)}>Reintentar detalle</button></div> : detail.data && <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs break-words">{Object.entries({ Actividad: `#${detail.data.id} · ${detail.data.title}`, Descripción: detail.data.description ?? 'Sin descripción', Tipo: detail.data.type, Estado: detail.data.status, 'Cuenta para PA': detail.data.cuentaParaPa ? 'Sí' : 'No', 'Curso-sección': detail.data.sectionCourseId, Bimestre: detail.data.bimesterId, 'ID docente creador': detail.data.createdByTeacherId, Creación: detail.data.createdAt, Actualización: detail.data.updatedAt ?? 'Sin actualización' }).map(([label, value]) => <div key={label}><dt className="font-bold text-muted">{label}</dt><dd className="text-ink whitespace-pre-wrap mt-1">{value}</dd></div>)}</dl>}
     </section>}
     {notice && <p role="status" className="text-sm text-emerald-700">{notice}</p>}
     {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
-    {busy && <p role="status" className="text-sm text-muted">Creando actividad y consultando el listado...</p>}
-    {refreshRequired && !busy && <p role="alert" className="text-sm text-rose-700">Actualiza el listado antes de otra creación.</p>}
+    {busy && <p role="status" className="text-sm text-muted">Procesando actividad y consultando el servidor...</p>}
+    {refreshRequired && !busy && <p role="alert" className="text-sm text-rose-700">Actualiza el listado antes de otra operación.</p>}
+    {editing && <form aria-label="Editar actividad académica" className="p-4 sm:p-5 rounded-xl border border-line border-t-4 border-t-accent flex flex-col gap-4" onSubmit={e => { e.preventDefault(); void saveEdit(); }}>
+      <h3 className="font-bold text-sm text-ink">Editar actividad #{editing.original.id}</h3>
+      <fieldset disabled={disabled} className="flex flex-col gap-4 text-xs font-bold text-muted">
+        <label>Título<input aria-label="Título editado" autoFocus required maxLength={255} className={input} value={editing.values.title} onChange={e => setEditing({ ...editing, values: { ...editing.values, title: e.target.value } })} /></label>
+        <label>Descripción (opcional)<textarea aria-label="Descripción editada" rows={3} className={input} value={editing.values.description ?? ''} onChange={e => setEditing({ ...editing, values: { ...editing.values, description: e.target.value || null } })} /></label>
+        <label>Tipo<select aria-label="Tipo editado" className={input} value={editing.values.type} onChange={e => setEditing({ ...editing, values: { ...editing.values, type: e.target.value as CreateAcademicActivityRequest['type'] } })}>{ACADEMIC_ACTIVITY_TYPES.map(type => <option key={type} value={type}>{type}</option>)}</select></label>
+        <label className="flex items-center gap-2 min-h-10"><input aria-label="Cuenta para PA editada" type="checkbox" checked={editing.values.cuentaParaPa} onChange={e => setEditing({ ...editing, values: { ...editing.values, cuentaParaPa: e.target.checked } })} />Cuenta para PA</label>
+      </fieldset>
+      {editError && <p role="alert" className="text-xs text-rose-700">{editError}</p>}
+      {!editError && !changed && <p className="text-xs text-muted">No hay cambios efectivos.</p>}
+      <div className="flex flex-wrap gap-3"><button type="submit" disabled={disabled || !!editError || !changed} className={`${button} bg-accent text-white`}>Guardar cambios</button><button type="button" disabled={busy} className={`${button} bg-white`} onClick={cancelEdit}>Cancelar edición</button></div>
+    </form>}
     {ambiguous && <div role="alert" className="p-4 bg-neutral/40 border border-line rounded-xl text-sm text-ink"><p>La creación no está confirmada. Revisa las actividades antes de enviar otra solicitud; repetirla podría crear un duplicado.</p><button type="button" disabled={busy || loading || !!list?.error || refreshRequired} className={`${button} bg-white mt-3`} onClick={() => { if (!lockRef.current) { setAmbiguous(false); setForm(emptyForm); setError(null); } }}>Revisé el listado; permitir una nueva actividad</button></div>}
     <form onSubmit={e => { e.preventDefault(); void createActivity(); }} className="p-4 sm:p-5 border border-line rounded-xl flex flex-col gap-4" aria-label="Crear actividad académica">
       <h3 className="font-bold text-sm text-ink">Crear actividad</h3>
-      <fieldset disabled={disabled} className="flex flex-col gap-4 text-xs font-bold text-muted">
+      <fieldset disabled={disabled || !!editing} className="flex flex-col gap-4 text-xs font-bold text-muted">
         <label>Título<input aria-label="Título de actividad" required maxLength={255} className={input} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} aria-invalid={!!form.title && !!titleError} /></label>
         {form.title && titleError && <p role="alert" className="text-rose-700">{titleError}</p>}
         <label>Descripción (opcional)<textarea aria-label="Descripción de actividad" rows={3} className={input} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
@@ -135,7 +191,7 @@ function ActivitySheet({ context, parentBusy, lockRef, generationRef, epoch, set
         <label className="flex items-center gap-2 min-h-10"><input type="checkbox" checked={form.cuentaParaPa} onChange={e => setForm({ ...form, cuentaParaPa: e.target.checked })} />Cuenta para PA</label>
         <p className="font-normal">La actividad se crea PLANIFICADA. Esta pantalla no publica ni recibe entregas.</p>
       </fieldset>
-      <button type="submit" disabled={disabled || !!titleError} className={`${button} bg-accent text-white w-fit`}>Crear actividad</button>
+      <button type="submit" disabled={disabled || !!editing || !!titleError} className={`${button} bg-accent text-white w-fit`}>Crear actividad</button>
     </form>
   </div>;
 }

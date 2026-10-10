@@ -1,4 +1,4 @@
-# N3-F1: actividades académicas del docente
+# N3-F1 / N3-F2: actividades académicas del docente
 
 ## Integración
 
@@ -13,7 +13,7 @@ Base HTTP: `/api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/act
 - POST: exige 201 y DTO completo del contexto. Envía exclusivamente `{title, description, type, cuentaParaPa}`; título trim obligatorio ≤255, descripción opcional/null, tipos TAREA/PRACTICA/EXAMEN/PROYECTO, boolean explícito. No envía identidad, estado ni calificaciones. Location se comprueba cuando es observable; CORS puede ocultar ese encabezado al navegador. La confirmación no depende de él: requiere DTO válido y recarga de la colección.
 - Response: id, sectionCourseId, bimesterId, createdByTeacherId, title, description, type, cuentaParaPa, status, createdAt, updatedAt. Solo PLANIFICADA, timestamps UTC y updatedAt null admitido. No se sintetizan campos ausentes ni se aceptan filas ajenas al contexto.
 
-Crear PLANIFICADA no está restringido a bimestre ABIERTO según N3-A: preparar no publica ni habilita notas. Cuenta para PA es únicamente configuración futura. No hay notas, cálculos, materiales, entregas, PATCH, DELETE ni transiciones.
+Crear o editar PLANIFICADA no está restringido a bimestre ABIERTO: preparar no publica ni habilita notas. Cuenta para PA es únicamente configuración futura. No hay notas, cálculos, materiales, entregas, DELETE ni transiciones.
 
 ## Interfaz y consistencia
 
@@ -35,4 +35,16 @@ Pruebas de servicio/componentes usan adapters Axios y react-test-renderer. Cubre
 
 `BROWSER_E2E: NOT_RUN`: no hay infraestructura disponible de navegador con backend y PostgreSQL aislados para el recorrido. Pendiente login docente → curso → bimestre → crear → consultar detalle → recargar página, revisión visual/responsive y exposición CORS de Location. No se efectuaron escrituras en Supabase compartido, cambios backend, migraciones ni modificaciones de otros módulos académicos.
 
-Decisión: READY_FOR_REVIEW técnica; pruebas de integración/browser pendientes explícitas. La idempotencia backend y las operaciones N3-B requieren contratos futuros y quedan fuera de esta entrega.
+Decisión N3-F1: READY_FOR_REVIEW técnica; pruebas de integración/browser pendientes explícitas. La idempotencia backend y las transiciones requieren contratos futuros.
+
+## N3-F2: edición parcial PLANIFICADA
+
+Contrato N3-B1 revisado en backend develop, documento `docs/academic-activities-n3.md`, blob `50263dd2eaef0fcd67894853bc81d54a00d5d3b6`. PATCH al mismo prefijo `/{activityId}`, HTTP 200 con AcademicActivity. Solo title/description/type/cuentaParaPa; se omiten campos sin diferencias efectivas tras normalizar. Description null limpia; no se envían IDs, creador, estado, timestamps ni versión. Servicio rechaza body vacío, campos desconocidos y valores inválidos, y comprueba contexto/ID/estado y valores solicitados en la respuesta.
+
+Editar obtiene primero el detalle actual del servidor; rellena los cuatro campos y ofrece Guardar/Cancelar. No hay PATCH sin cambios. Solo PLANIFICADA muestra Editar, independientemente del estado del bimestre. El lock existente bloquea doble envío, creación incompatible y selector durante carga/guardado; cancelar invalida callbacks capturados. Se conserva el diseño y los mensajes accesibles.
+
+Tras cada intento de PATCH (también 400/401/403/404/409 o pérdida de conexión) se consultan detalle y colección. Éxito requiere PATCH coherente y que ambas lecturas reflejen los campos enviados. Si alguna lectura falla o contradice un PATCH aceptado, se exige actualizar antes de otra mutación. Ante resultado ambiguo no se atribuye éxito aunque el listado coincida; no hay reintento automático. Otra edición vuelve a cargar detalle del servidor. Cambios de contexto descartan respuestas tardías y bloquean callbacks obsoletos. Los campos omitidos pueden contener cambios concurrentes legítimos; sobre un mismo campo gana el último escritor. No existe control optimista por versión ni garantía contra sobrescrituras concurrentes.
+
+Pruebas focalizadas N3: 20/20 PASS, incluyendo las 13 regresiones N3-A y 7 nuevas de PATCH/formulario. Cubren edición parcial, descripción null, tipo, booleanos, validación/no-op/cancelación, respuesta inconsistente, errores, GET de confirmación, doble envío y contexto. Validación final ejecutada una sola vez: npm test 70/70 PASS (0 fail/skip), lint PASS (0 errores, 17 advertencias preexistentes), build PASS y git diff --check PASS. Los resultados 50/50 arriba corresponden al cierre histórico N3-F1.
+
+`BROWSER_E2E: NOT_RUN` también para edición: pendiente probar el recorrido visual y persistencia real en entorno aislado. No hubo acceso a Supabase compartido, cambios backend ni tareas Git administrativas; archivos se entregan sin commit. No se inicia publicación, entregas, calificaciones ni cálculo PA.

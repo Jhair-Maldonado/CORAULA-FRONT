@@ -7,6 +7,7 @@ export type CreateAcademicActivityRequest = {
   type: AcademicActivityType;
   cuentaParaPa: boolean;
 };
+export type UpdateAcademicActivityRequest = Partial<CreateAcademicActivityRequest>;
 export type AcademicActivity = CreateAcademicActivityRequest & ActivityContext & {
   id: number;
   createdByTeacherId: number;

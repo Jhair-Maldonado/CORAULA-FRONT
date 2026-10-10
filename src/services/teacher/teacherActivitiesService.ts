@@ -1,7 +1,7 @@
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { ACADEMIC_ACTIVITY_TYPES } from '@/types/teacherActivitiesApi';
-import type { AcademicActivity, ActivityContext, CreateAcademicActivityRequest } from '@/types/teacherActivitiesApi';
+import type { AcademicActivity, ActivityContext, CreateAcademicActivityRequest, UpdateAcademicActivityRequest } from '@/types/teacherActivitiesApi';
 
 function positiveId(value: number) {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error('Identificador inválido.');
@@ -20,6 +20,20 @@ function requestDto(request: CreateAcademicActivityRequest): CreateAcademicActiv
   if (typeof request.title !== 'string' || activityTitleError(request.title) || !ACADEMIC_ACTIVITY_TYPES.includes(request.type) || typeof request.cuentaParaPa !== 'boolean' || (request.description !== null && typeof request.description !== 'string')) throw new Error('Revisa los campos de la actividad.');
   return { title: request.title.trim(), description: request.description?.trim() || null, type: request.type, cuentaParaPa: request.cuentaParaPa };
 }
+export function activityChanges(original: AcademicActivity, values: CreateAcademicActivityRequest): UpdateAcademicActivityRequest {
+  const normalized = requestDto(values);
+  const previous = requestDto(original);
+  return Object.fromEntries(Object.entries(normalized).filter(([key, value]) => previous[key as keyof CreateAcademicActivityRequest] !== value));
+}
+export function activityMatchesChanges(activity: AcademicActivity, changes: UpdateAcademicActivityRequest): boolean {
+  return Object.entries(changes).every(([key, value]) => activity[key as keyof CreateAcademicActivityRequest] === value);
+}
+function patchDto(input: UpdateAcademicActivityRequest): UpdateAcademicActivityRequest {
+  const keys = Object.keys(input);
+  if (!keys.length || keys.some(k => !['title', 'description', 'type', 'cuentaParaPa'].includes(k))) throw new Error('La edición requiere campos modificados válidos.');
+  if (('title' in input && (typeof input.title !== 'string' || activityTitleError(input.title))) || ('description' in input && input.description !== null && typeof input.description !== 'string') || ('type' in input && !ACADEMIC_ACTIVITY_TYPES.includes(input.type!)) || ('cuentaParaPa' in input && typeof input.cuentaParaPa !== 'boolean')) throw new Error('Revisa los campos de la actividad.');
+  return { ...input, ...('title' in input ? { title: input.title!.trim() } : {}), ...('description' in input ? { description: input.description?.trim() || null } : {}) };
+}
 export function parseAcademicActivity(value: unknown, context: ActivityContext, expectedId?: number): AcademicActivity {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return invalid();
   const a = value as Record<string, unknown>;
@@ -29,6 +43,14 @@ export function parseAcademicActivity(value: unknown, context: ActivityContext, 
   return { id: a.id as number, sectionCourseId: context.sectionCourseId, bimesterId: context.bimesterId, createdByTeacherId: a.createdByTeacherId as number, title: a.title, description: a.description as string | null, type: a.type as CreateAcademicActivityRequest['type'], cuentaParaPa: a.cuentaParaPa, status: 'PLANIFICADA', createdAt, updatedAt };
 }
 export const teacherActivitiesService = {
+  async updateActivity(context: ActivityContext, activityId: number, input: UpdateAcademicActivityRequest): Promise<AcademicActivity> {
+    const dto = patchDto(input);
+    const response = await httpClient.patch<unknown>(`${path(context)}/${positiveId(activityId)}`, dto);
+    if (response.status !== 200) return invalid();
+    const saved = parseAcademicActivity(response.data, context, activityId);
+    if (!activityMatchesChanges(saved, dto)) return invalid();
+    return saved;
+  },
   async getActivities(context: ActivityContext, signal?: AbortSignal): Promise<AcademicActivity[]> {
     const response = await httpClient.get<unknown>(path(context), { signal });
     if (response.status !== 200 || !Array.isArray(response.data)) return invalid();

@@ -7,6 +7,7 @@ import { ArrowLeft, BookOpen, Users } from 'lucide-react';
 import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
 import type { TeacherCourseDetailResponse, TeacherCourseStudentResponse } from '@/types/teacherCoursesApi';
 import { useDocenteSession } from '@/app/docente/components/DocenteSessionContext';
+import ActividadesDocente from './ActividadesDocente';
 
 type LoadResult<T> = { key: string; data?: T; error?: string };
 
@@ -87,6 +88,7 @@ function CourseDetail({ routeId }: { routeId: string }) {
               <span className="text-xs sm:text-sm font-bold text-ink break-words flex items-start gap-2"><Users size={16} aria-hidden="true" className="text-accent shrink-0 mt-0.5" />{student.fullName}</span><span className="text-[11px] font-medium text-muted px-2 py-1 bg-white border border-line rounded-md break-words">{student.studentCode ?? 'Sin código registrado'}</span>
             </li>)}</ul>}
         </section></div>
+        <ActividadesDocente sectionCourseId={course.sectionCourseId} />
       </>}
   </div>;
 }

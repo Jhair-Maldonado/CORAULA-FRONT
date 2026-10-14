@@ -11,10 +11,12 @@ const button = 'min-h-10 px-4 py-2 rounded-xl text-xs font-bold focus-visible:ou
 const input = 'w-full mt-2 p-3 rounded-xl border border-line bg-neutral/40 text-ink focus-visible:outline-accent';
 const statuses = { PLANIFICADO: 'Planificado', ABIERTO: 'Abierto', EN_REVISION: 'En revisión', CERRADO: 'Cerrado' };
 type OpeningConfirmation = { bimester: Bimester; periodId: number; generation: number };
+type QueryContext = { periodId: number; generation: number };
 
 export default function VistaBimestres() {
   const [period, setPeriod] = useState('');
-  const [revision, setRevision] = useState(0);
+  const [query, setQuery] = useState<QueryContext | null>(null);
+  const [periodError, setPeriodError] = useState<string | null>(null);
   const [result, setResult] = useState<{ key: string; data?: Bimester[]; error?: string } | null>(null);
   const [form, setForm] = useState<{ periodId: number; original?: Bimester; values: BimesterInput } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -26,31 +28,49 @@ export default function VistaBimestres() {
   const contextGeneration = useRef(0);
   const mounted = useRef(true);
   const lock = useRef(false);
-  const periodId = Number(period);
-  const valid = Number.isSafeInteger(periodId) && periodId > 0;
-  const key = JSON.stringify([period, periodId, revision]);
+  const activeQuery = useRef<QueryContext | null>(null);
+  const read = useRef<{ key: string; promise: Promise<Bimester[]> } | null>(null);
+  const periodId = query?.periodId ?? 0;
+  const valid = query !== null;
+  const key = JSON.stringify(query);
   const loading = valid && result?.key !== key;
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
   }, []);
   useEffect(() => {
-    if (!valid) return;
+    if (!query) return;
     let current = true;
-    const generation = contextGeneration.current;
-    evaluationService.getBimesters(periodId).then(data => { if (current && generation === contextGeneration.current) { setResult({ key, data }); setRefreshRequired(false); } })
-      .catch(error => { if (current && generation === contextGeneration.current) setResult({ key, error: evaluationErrorMessage(error) }); });
+    // Reuse this confirmation's request if React replays the effect.
+    if (read.current?.key !== key) read.current = { key, promise: evaluationService.getBimesters(query.periodId) };
+    read.current.promise.then(data => { if (current && activeQuery.current === query) { setResult({ key, data }); setRefreshRequired(false); } })
+      .catch(error => { if (current && activeQuery.current === query) setResult({ key, error: evaluationErrorMessage(error) }); });
     return () => { current = false; };
-  }, [periodId, valid, key]);
+  }, [query, key]);
+
+  function startQuery(id: number) {
+    const next = { periodId: id, generation: ++contextGeneration.current };
+    activeQuery.current = next; setQuery(next);
+    confirmation.current = null; setOpening(null); setForm(null);
+    setResult(null); setNotice(null); setActionError(null);
+  }
+  function confirmPeriod() {
+    if (lock.current || activeQuery.current !== query || (query && loading)) return;
+    const id = Number(period);
+    if (!/^\d+$/.test(period) || !Number.isSafeInteger(id) || id <= 0) {
+      setPeriodError('Ingresa un ID de periodo que sea un entero positivo seguro.'); return;
+    }
+    setPeriodError(null); startQuery(id);
+  }
+  function currentContext() { return query !== null && activeQuery.current === query; }
 
   function refreshList() {
-    if (lock.current) return;
-    contextGeneration.current++; confirmation.current = null; setOpening(null);
-    setNotice(null); setRevision(n => n + 1);
+    if (lock.current || !currentContext() || loading) return;
+    startQuery(periodId);
   }
   function cancelOpening() { if (!lock.current) { confirmation.current = null; setOpening(null); } }
   function requestOpening(bimester: Bimester) {
-    if (lock.current || loading || form || refreshRequired || result?.key !== key || result.error || bimester.academicPeriodId !== periodId || result.data?.find(b => b.id === bimester.id)?.status !== 'PLANIFICADO') return;
+    if (lock.current || !currentContext() || loading || form || refreshRequired || result?.key !== key || result.error || bimester.academicPeriodId !== periodId || result.data?.find(b => b.id === bimester.id)?.status !== 'PLANIFICADO') return;
     const pending = { bimester, periodId, generation: contextGeneration.current };
     confirmation.current = pending; setOpening(pending); setActionError(null); setNotice(null);
   }
@@ -86,17 +106,21 @@ export default function VistaBimestres() {
     <header className="bg-white rounded-2xl border border-line p-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
       <div><h1 className="text-xl md:text-2xl font-bold text-ink flex items-center gap-3"><Calendar01Icon className="text-accent" aria-hidden="true" />Bimestres</h1><p className="text-xs text-muted mt-2">Configuración del calendario de evaluación.</p></div>
       <div className="flex flex-wrap gap-2"><button type="button" disabled={!valid || busy || loading} onClick={refreshList} className={`${button} bg-white border border-line hover:bg-neutral`}>Actualizar</button>
-      <button disabled={!valid || busy || loading || !!result?.error || !!form || !!opening || refreshRequired} onClick={() => { if (lock.current) return; setActionError(null); setNotice(null); setForm({ periodId, values: { number: (result?.data?.reduce((max, b) => Math.max(max, b.number), 0) ?? 0) + 1, name: '', startDate: '', endDate: '' } }); }} className={`${button} bg-accent text-white flex items-center gap-2 hover:bg-accent/90`}><PlusSignIcon size={16} aria-hidden="true" />Crear bimestre</button></div>
+      <button disabled={!valid || busy || loading || !!result?.error || !!form || !!opening || refreshRequired} onClick={() => { if (lock.current || !currentContext() || loading || result?.key !== key || result.error || refreshRequired) return; setActionError(null); setNotice(null); setForm({ periodId, values: { number: (result?.data?.reduce((max, b) => Math.max(max, b.number), 0) ?? 0) + 1, name: '', startDate: '', endDate: '' } }); }} className={`${button} bg-accent text-white flex items-center gap-2 hover:bg-accent/90`}><PlusSignIcon size={16} aria-hidden="true" />Crear bimestre</button></div>
     </header>
     <section className="bg-white rounded-2xl border border-line p-6 shadow-sm">
-      <label className="block text-xs font-bold text-muted max-w-xs">ID del periodo académico<input className={input} type="number" min="1" step="1" value={period} disabled={busy} onChange={e => { contextGeneration.current++; confirmation.current = null; setOpening(null); setRefreshRequired(false); setPeriod(e.target.value); setForm(null); setActionError(null); setNotice(null); }} /></label>
+      <form aria-label="Consulta de bimestres" noValidate onSubmit={e => { e.preventDefault(); confirmPeriod(); }} className="flex flex-wrap items-end gap-3">
+        <label className="block text-xs font-bold text-muted max-w-xs">ID del periodo académico<input className={input} type="number" min="1" step="1" value={period} disabled={busy} aria-invalid={!!periodError} aria-describedby={periodError ? 'period-error' : undefined} onChange={e => { if (lock.current) return; contextGeneration.current++; activeQuery.current = null; setQuery(null); setResult(null); confirmation.current = null; setOpening(null); setRefreshRequired(false); setPeriod(e.target.value); setPeriodError(null); setForm(null); setActionError(null); setNotice(null); }} /></label>
+        <button type="submit" disabled={busy || loading} className={`${button} bg-accent text-white`}>Consultar bimestres</button>
+      </form>
+      {periodError && <p id="period-error" role="alert" className="mt-3 text-xs text-rose-700">{periodError}</p>}
     </section>
     <section className="bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
       {!valid ? <p className="p-6 text-xs text-muted">Ingresa el ID del periodo académico para consultar sus bimestres.</p>
         : loading ? <p role="status" className="p-6 text-xs text-muted">Cargando bimestres...</p>
         : result?.error ? <div role="alert" className="p-6 text-xs text-rose-700"><p>{result.error}</p><button className={`${button} bg-accent text-white mt-3`} disabled={busy} onClick={refreshList}>Reintentar</button></div>
         : <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-neutral/40 text-muted uppercase text-[10px] tracking-wider"><tr>{['Nombre', 'Fechas', 'Estado', 'Acciones'].map(title => <th scope="col" key={title} className="p-4 border-b border-line">{title}</th>)}</tr></thead><tbody className="divide-y divide-line">
-          {result?.data?.map(b => <tr key={b.id}><th scope="row" className="p-4 font-bold text-ink">{b.name}</th><td className="p-4 whitespace-nowrap"><time dateTime={b.startDate}>{b.startDate.split('-').reverse().join('/')}</time> — <time dateTime={b.endDate}>{b.endDate.split('-').reverse().join('/')}</time></td><td className="p-4"><span className={`px-3 py-1 rounded-full border font-bold ${b.status === 'ABIERTO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-neutral text-muted border-line'}`}>{statuses[b.status]}</span></td><td className="p-4"><div className="flex gap-2 whitespace-nowrap">{b.status === 'PLANIFICADO' && <><button className={`${button} bg-white border border-line hover:bg-neutral`} disabled={busy || !!form || !!opening || refreshRequired} onClick={() => { if (lock.current) return; setActionError(null); setForm({ periodId, original: b, values: { number: b.number, name: b.name, startDate: b.startDate, endDate: b.endDate } }); }}>Editar</button><button type="button" className={`${button} bg-accent text-white`} disabled={busy || loading || !!form || !!opening || refreshRequired} onClick={() => requestOpening(b)}>Abrir bimestre</button></>}</div></td></tr>)}
+          {result?.data?.map(b => <tr key={b.id}><th scope="row" className="p-4 font-bold text-ink">{b.name}</th><td className="p-4 whitespace-nowrap"><time dateTime={b.startDate}>{b.startDate.split('-').reverse().join('/')}</time> — <time dateTime={b.endDate}>{b.endDate.split('-').reverse().join('/')}</time></td><td className="p-4"><span className={`px-3 py-1 rounded-full border font-bold ${b.status === 'ABIERTO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-neutral text-muted border-line'}`}>{statuses[b.status]}</span></td><td className="p-4"><div className="flex gap-2 whitespace-nowrap">{b.status === 'PLANIFICADO' && <><button className={`${button} bg-white border border-line hover:bg-neutral`} disabled={busy || !!form || !!opening || refreshRequired} onClick={() => { if (lock.current || !currentContext() || loading || refreshRequired) return; setActionError(null); setForm({ periodId, original: b, values: { number: b.number, name: b.name, startDate: b.startDate, endDate: b.endDate } }); }}>Editar</button><button type="button" className={`${button} bg-accent text-white`} disabled={busy || loading || !!form || !!opening || refreshRequired} onClick={() => requestOpening(b)}>Abrir bimestre</button></>}</div></td></tr>)}
           {result?.data?.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted">No hay bimestres registrados.</td></tr>}
         </tbody></table></div>}
     </section>
@@ -113,7 +137,7 @@ export default function VistaBimestres() {
       <h2 id="bimester-form-title" className="text-base font-bold pb-3 border-b border-line">{form.original ? 'Editar bimestre' : 'Crear bimestre'}</h2>
       <form className="flex flex-col gap-4 mt-4 text-xs font-bold text-muted" onSubmit={async e => {
         e.preventDefault();
-        if (lock.current || opening || refreshRequired) return;
+        if (lock.current || !currentContext() || form.periodId !== periodId || opening || refreshRequired) return;
         if (loading || result?.key !== key || result.error) return;
         if (form.original && result.data?.find(b => b.id === form.original?.id)?.status !== 'PLANIFICADO') { setActionError('Este bimestre ya no está PLANIFICADO. Cancela la edición y actualiza la lista.'); return; }
         if (!form.values.name.trim()) { setActionError('Ingresa el nombre del bimestre.'); return; }
@@ -126,7 +150,7 @@ export default function VistaBimestres() {
           const { name, startDate, endDate } = form.values;
           if (form.original) await evaluationService.updateBimester(form.original.id, { name: name.trim(), startDate, endDate });
           else await evaluationService.createBimester(form.periodId, { ...form.values, name: name.trim() });
-          setForm(null); setRevision(n => n + 1); setNotice('Configuración del bimestre guardada.');
+          startQuery(form.periodId); setNotice('Configuración del bimestre guardada.');
         } catch (error) { setActionError(evaluationErrorMessage(error)); }
         finally { lock.current = false; setBusy(false); }
       }}>

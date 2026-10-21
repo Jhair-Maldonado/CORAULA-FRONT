@@ -1,78 +1,54 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
-import { Search01Icon, ArrowDown01Icon } from 'hugeicons-react';
-import { Seccion } from '@/types/alumnos';
+import { useEffect, useState } from 'react';
+import { studentsService, studentErrorMessage } from '@/services/admin/studentsService';
+import { toAdminStudent } from '@/adapters/studentAdapter';
+import type { SectionResponse } from '@/types/sectionApi';
+import type { PagedStudentsResponse } from '@/types/studentApi';
+import { Failure, SectionEmpty, SectionLoading, inputClass, primaryButtonClass, secondaryButtonClass, sectionName } from '../../secciones/sectionUi';
+import { TarjetaEstudiante } from './TarjetaEstudiante';
 
-interface StudentsGridProps {
-  seccion: Seccion;
+type ListResult = { key: string; data?: PagedStudentsResponse; error?: string };
+
+export function StudentsGrid({ section }: { section: SectionResponse }) {
+  const [searchInput, setSearchInput] = useState('');
+  const [query, setQuery] = useState({ search: '', page: 0 });
+  const [revision, setRevision] = useState(0);
+  const [result, setResult] = useState<ListResult>();
+  const key = JSON.stringify([section.id, query, revision]);
+  const loading = result?.key !== key;
+  const data = loading ? undefined : result?.data;
+  const error = loading ? undefined : result?.error;
+
+  useEffect(() => {
+    let current = true;
+    studentsService.list({ sectionId: section.id, search: query.search || undefined, page: query.page, size: 20 })
+      .then(data => { if (current) setResult({ key, data }); })
+      .catch(error => { if (current) setResult({ key, error: studentErrorMessage(error) }); });
+    return () => { current = false; };
+  }, [section.id, query, revision, key]);
+
+  return <>
+    <header><h1 className="text-2xl font-bold">Alumnos - {sectionName(section.name)}</h1><p className="text-sm text-muted">{section.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'} · {section.grade}° grado · Matrículas activas</p></header>
+    <form className="flex flex-wrap gap-3" onSubmit={event => {
+      event.preventDefault();
+      setQuery({ search: searchInput.trim(), page: 0 });
+    }}>
+      <input aria-label="Buscar alumnos" placeholder="Buscar por nombre, apellidos, DNI o código" className={inputClass + ' flex-1'} value={searchInput} onChange={event => setSearchInput(event.target.value)} />
+      <button className={primaryButtonClass}>Buscar</button>
+    </form>
+    {loading && <SectionLoading>Cargando alumnos...</SectionLoading>}
+    {error && <Failure message={error} retry={() => setRevision(n => n + 1)} />}
+    {data && <>
+      {data.content.length === 0 ? <SectionEmpty title={query.search ? 'No se encontraron alumnos con esta búsqueda' : 'No hay alumnos registrados en esta sección'}>{query.search ? 'Prueba con otros criterios de búsqueda.' : 'Los alumnos con matrícula activa aparecerán aquí.'}</SectionEmpty> :
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">{data.content.map(toAdminStudent).map(student => <TarjetaEstudiante key={student.id} student={student} />)}</div>}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4 text-xs text-muted">
+        <span>{data.totalElements} alumnos · Página {data.totalPages ? data.page + 1 : 0} de {data.totalPages} · Tamaño {data.size}</span>
+        {data.totalPages > 1 && <div className="flex gap-2">
+          <button aria-label="Página anterior" className={secondaryButtonClass} disabled={data.page <= 0} onClick={() => setQuery(previous => ({ ...previous, page: data.page - 1 }))}>Anterior</button>
+          <button aria-label="Página siguiente" className={secondaryButtonClass} disabled={data.page + 1 >= data.totalPages} onClick={() => setQuery(previous => ({ ...previous, page: data.page + 1 }))}>Siguiente</button>
+        </div>}
+      </div>
+    </>}
+  </>;
 }
-
-export const StudentsGrid = ({ seccion }: StudentsGridProps) => {
-  return (
-    <div className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
-      {/* Header */}
-      <div>
-        <Link 
-          href="/administrador/alumnos"
-          className="text-muted text-[13px] font-medium hover:text-accent transition-colors flex items-center gap-2 mb-2 w-fit"
-        >
-          &larr; Regresar al panel general
-        </Link>
-        <h1 className="text-ink text-xl font-bold font-sans">
-          Alumnos - {seccion.nombre}
-        </h1>
-        <p className="text-muted text-[13px] mt-1">
-          Gestiona la información de todos los alumnos
-        </p>
-      </div>
-
-      <hr className="border-line" />
-
-      {/* Filters / Search */}
-      <div className="w-full max-w-4xl h-[60px] bg-white border border-line rounded-xl flex items-center px-4 justify-between shadow-sm shrink-0">
-        <div className="flex items-center gap-3 text-muted flex-1">
-          <Search01Icon size={18} />
-          <input 
-            type="text" 
-            placeholder="Buscar por nombre de usuario" 
-            className="w-full bg-transparent outline-none text-xs text-ink placeholder:text-muted font-medium"
-          />
-        </div>
-        <button className="text-muted hover:text-ink transition-colors">
-          <ArrowDown01Icon size={18} />
-        </button>
-      </div>
-
-      {/* Grid */}
-      {seccion.estudiantes.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-6xl pb-10">
-          {seccion.estudiantes.map(student => (
-            <Link 
-              key={student.id} 
-              href={`/administrador/alumnos/grado/${seccion.id}/estudiante/${student.id}`}
-              className="bg-white rounded-xl p-4 border border-line shadow-sm hover:shadow-md hover:border-accent/50 transition-all flex items-center gap-4 group cursor-pointer"
-            >
-              <div className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold shrink-0">
-                {student.nombres.charAt(0)}{student.apellidos.charAt(0)}
-              </div>
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <span className="text-ink text-[13px] font-bold truncate group-hover:text-accent transition-colors">
-                  {student.nombres} {student.apellidos}
-                </span>
-                <span className="text-muted text-[11px] font-medium truncate mt-0.5">
-                  Tel: {student.telefono}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center text-muted text-sm pb-20">
-          No hay alumnos registrados en esta sección.
-        </div>
-      )}
-    </div>
-  );
-};

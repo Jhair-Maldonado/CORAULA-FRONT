@@ -122,6 +122,7 @@ function SectionDetail({ sectionId }: { sectionId: string }) {
       </> : section && <header className="p-5 sm:p-6 bg-white rounded-2xl border border-line shadow-sm">
         <div className="border-b border-line pb-4 mb-4"><p className="text-accent text-[11px] font-bold uppercase tracking-widest">Identidad de sección</p><h1 className="text-2xl font-bold tracking-tight mt-0.5 break-words">{sectionName(section.name)} • {section.grade}° grado</h1><p className="text-muted text-xs font-medium mt-1">{section.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'} · {section.grade}° grado</p></div>
         <SectionIdentity section={section} />
+        <Link className={`${secondaryButtonClass} inline-flex mt-4 items-center`} href={`/administrador/alumnos/grado/${sectionId}`}>Ver alumnos</Link>
       </header>}
       {notice && <p role="status" className="p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs leading-relaxed break-words">{notice}</p>}
       <section className="flex flex-col gap-4" aria-labelledby="section-courses-title">

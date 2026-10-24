@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Calendar01Icon, PlusSignIcon } from 'hugeicons-react';
 import { evaluationService, evaluationErrorMessage, bimesterOpeningErrorMessage } from '@/services/admin/evaluationService';
-import { academicPeriodsService, academicPeriodsLoadErrorMessage, formatPeriodDate } from '@/services/admin/academicPeriodsService';
+import { academicPeriodLabel, academicPeriodsService, academicPeriodsLoadErrorMessage } from '@/services/admin/academicPeriodsService';
 import ScheduleDialog from '@/../feature/admin/vistas/(administrativo)/horario/components/ScheduleDialog';
 import type { Bimester, BimesterInput } from '@/types/evaluationApi';
 import type { AcademicPeriod } from '@/types/academicPeriodApi';
@@ -14,7 +14,6 @@ const input = 'w-full mt-2 p-3 rounded-xl border border-line bg-neutral/40 text-
 const statuses = { PLANIFICADO: 'Planificado', ABIERTO: 'Abierto', EN_REVISION: 'En revisión', CERRADO: 'Cerrado' };
 type OpeningConfirmation = { bimester: Bimester; periodId: number; generation: number };
 type QueryContext = { periodId: number; generation: number };
-const periodLabel = (p: AcademicPeriod) => `${p.name} (${formatPeriodDate(p.startDate)} – ${formatPeriodDate(p.endDate)})${p.current ? ' · Vigente' : ''}${p.active ? '' : ' · Inactivo'}`;
 
 export default function VistaBimestres() {
   const [period, setPeriod] = useState('');
@@ -136,7 +135,7 @@ export default function VistaBimestres() {
       <form aria-label="Consulta de bimestres" noValidate onSubmit={e => { e.preventDefault(); confirmPeriod(); }} className="flex flex-wrap items-end gap-3">
         <label className="block text-xs font-bold text-muted w-full max-w-md">Periodo académico<select className={input} value={period} disabled={busy || periodsLoading || !periodOptions.length} aria-invalid={!!periodError} aria-describedby={periodError ? 'period-error' : undefined} onChange={e => { if (lock.current) return; contextGeneration.current++; activeQuery.current = null; setQuery(null); setResult(null); confirmation.current = null; setOpening(null); setRefreshRequired(false); setPeriod(e.target.value); setPeriodError(null); setForm(null); setActionError(null); setNotice(null); }}>
           <option value="">Selecciona un periodo</option>
-          {periodOptions.map(p => <option key={p.id} value={String(p.id)}>{periodLabel(p)}</option>)}
+          {periodOptions.map(p => <option key={p.id} value={String(p.id)}>{academicPeriodLabel(p)}</option>)}
         </select></label>
         <button type="submit" disabled={busy || loading || !periodOptions.length} className={`${button} bg-accent text-white`}>Consultar bimestres</button>
       </form>

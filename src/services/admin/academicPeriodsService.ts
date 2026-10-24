@@ -89,3 +89,7 @@ export function academicPeriodsLoadErrorMessage(error: unknown): string {
 export function formatPeriodDate(value: string): string {
   return value.split('-').reverse().join('/');
 }
+
+export function academicPeriodLabel(period: AcademicPeriod): string {
+  return `${period.name} (${formatPeriodDate(period.startDate)} – ${formatPeriodDate(period.endDate)})${period.current ? ' · Vigente' : ''}${period.active ? '' : ' · Inactivo'}`;
+}

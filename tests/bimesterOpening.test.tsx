@@ -6,10 +6,14 @@ import { AxiosError, type AxiosResponse } from 'axios';
 import VistaBimestres from '../feature/admin/vistas/(academico)/bimestres/vistaBimestres';
 import { evaluationService, bimesterOpeningErrorMessage } from '../src/services/admin/evaluationService';
 import httpClient from '../src/services/httpClient';
+import { academicPeriodsService } from '../src/services/admin/academicPeriodsService';
 import type { Bimester } from '../src/types/evaluationApi';
+import type { AcademicPeriod } from '../src/types/academicPeriodApi';
 
 // Unit/component mocks only: no network, browser server or shared database.
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+const academicPeriod = (id: number, current = false, active = true): AcademicPeriod => ({ id, name: `Periodo ${id}`, startDate: '2026-03-01', endDate: '2026-12-20', active, current });
+const periodIds = [30, 31, 5, 55, 56];
 const bimester = (id = 1, status: Bimester['status'] = 'PLANIFICADO', period = 30): Bimester => ({ id, academicPeriodId: period, number: id, name: `Bimestre ${id}`, startDate: '2026-03-01', endDate: '2026-04-30', status });
 const httpError = (status?: number) => new AxiosError('error', 'ERR_BAD_REQUEST', undefined, undefined, status ? { status, data: { message: 'Información sensible' } } as AxiosResponse : undefined);
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(yes => { resolve = yes; }); return { promise, resolve }; }
@@ -20,9 +24,11 @@ async function view(overrides: Partial<typeof evaluationService>, run: (h: {
   click: (name: string) => Promise<void>;
   period: (value: string) => Promise<void>;
   confirm: () => Promise<void>;
-}) => Promise<void>, initialQuery = true) {
-  const original = { ...evaluationService };
+}) => Promise<void>, initialQuery = true, listPeriods?: typeof academicPeriodsService.list) {
+  const original = { ...evaluationService }, originalList = academicPeriodsService.list;
   Object.assign(evaluationService, { getBimesters: async (period: number) => [bimester(1, 'PLANIFICADO', period)], openBimester: async () => bimester(1, 'ABIERTO') }, overrides);
+  // With initialQuery, period 30 is the current one and is consulted automatically.
+  academicPeriodsService.list = listPeriods ?? (async () => periodIds.map(id => academicPeriod(id, initialQuery && id === 30)));
   const globals = ['window', 'document', 'HTMLElement'].map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const);
   const doc = { activeElement: null as unknown, body: { style: { overflow: '' } } };
   class Element { focus() { doc.activeElement = this; } querySelectorAll() { return []; } }
@@ -33,16 +39,15 @@ async function view(overrides: Partial<typeof evaluationService>, run: (h: {
   try {
     await act(async () => { renderer = create(<React.StrictMode><VistaBimestres /></React.StrictMode>, { createNodeMock: () => new Element() }); });
     const button = (name: string) => renderer.root.findAllByType('button').find(b => text(b) === name);
-    const period = async (value: string) => { await act(async () => { renderer.root.findAllByType('input')[0].props.onChange({ target: { value } }); }); };
+    const period = async (value: string) => { await act(async () => { renderer.root.findAllByType('select')[0].props.onChange({ target: { value } }); }); };
     const confirm = async () => { await act(async () => { renderer.root.findByProps({ 'aria-label': 'Consulta de bimestres' }).props.onSubmit({ preventDefault() {} }); }); };
-    if (initialQuery) { await period('30'); await confirm(); }
     await run({ renderer, button, period, confirm, click: async name => { const node = button(name); assert.ok(node); assert.equal(!!node.props.disabled, false); await act(async () => {
       if (node.props.type === 'submit') renderer.root.findByProps({ 'aria-label': 'Consulta de bimestres' }).props.onSubmit({ preventDefault() {} });
       else node.props.onClick();
     }); } });
   } finally {
     if (renderer) await act(async () => { renderer.unmount(); });
-    Object.assign(evaluationService, original);
+    Object.assign(evaluationService, original); academicPeriodsService.list = originalList;
     for (const [name, descriptor] of globals) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); }
   }
 }
@@ -80,7 +85,7 @@ test('confirmation names the bimester and period; cancelling invalidates even a 
     await h.click('Abrir bimestre');
     const dialog = h.renderer.root.findByProps({ role: 'dialog' });
     assert.equal(String(dialog.props['aria-modal']), 'true'); assert.ok(dialog.props['aria-labelledby']);
-    assert.match(text(dialog), /Bimestre 1/); assert.match(text(dialog), /30/); assert.match(text(dialog), /no permite deshacer/);
+    assert.match(text(dialog), /Bimestre 1/); assert.match(text(dialog), /Periodo 30/); assert.match(text(dialog), /no permite deshacer/);
     const confirm = h.button('Confirmar apertura')!.props.onClick;
     await act(async () => { h.button('Cancelar')!.props.onClick(); confirm(); });
     assert.equal(posts, 0); assert.equal(h.renderer.root.findAllByProps({ role: 'dialog' }).length, 0);
@@ -94,7 +99,7 @@ test('double confirmation issues one POST, awaits GET and renders ABIERTO from t
     await act(async () => { confirm(); confirm(); });
     assert.equal(posts, 1); assert.equal(h.button('Actualizar')?.props.disabled, true); assert.equal(h.button('Crear bimestre')?.props.disabled, true);
     assert.equal(h.button('Abrir bimestre')?.props.disabled, true); assert.equal(h.button('Editar')?.props.disabled, true);
-    assert.equal(h.renderer.root.findAllByType('input')[0].props.disabled, true);
+    assert.equal(h.renderer.root.findAllByType('select')[0].props.disabled, true);
     opened = true;
     await act(async () => { pending.resolve(bimester(1, 'ABIERTO')); await pending.promise; });
     assert.equal(reads, 2); assert.equal(posts, 1); assert.equal(h.button('Abrir bimestre'), undefined);
@@ -163,7 +168,7 @@ test('pending opening prevents context changes even through a captured input han
   await view({ getBimesters: async period => [bimester(period, period === 30 ? 'PLANIFICADO' : 'CERRADO', period)], openBimester: async () => pending.promise }, async h => {
     await h.click('Abrir bimestre'); await h.click('Confirmar apertura');
     await h.period('31');
-    assert.equal(h.renderer.root.findAllByType('input')[0].props.value, '30');
+    assert.equal(h.renderer.root.findAllByType('select')[0].props.value, '30');
     await act(async () => { pending.resolve(bimester(30, 'ABIERTO')); await pending.promise; });
     await h.period('31'); await h.confirm();
     assert.match(text(h.renderer.root), /Bimestre 31/); assert.doesNotMatch(text(h.renderer.root), /Bimestre 30|Estado confirmado mediante recarga/);
@@ -175,7 +180,7 @@ test('context stays locked through the mandatory reload after opening', async ()
   await view({ getBimesters: async period => period === 30 && ++reads === 2 ? oldReload.promise : [bimester(period, 'PLANIFICADO', period)], openBimester: async () => bimester(30, 'ABIERTO') }, async h => {
     await h.click('Abrir bimestre'); await h.click('Confirmar apertura');
     await h.period('31');
-    assert.equal(h.renderer.root.findAllByType('input')[0].props.value, '30');
+    assert.equal(h.renderer.root.findAllByType('select')[0].props.value, '30');
     assert.equal(h.button('Consultar bimestres')?.props.disabled, true);
     await act(async () => { oldReload.resolve([bimester(30, 'ABIERTO')]); await oldReload.promise; });
     await h.period('31'); await h.confirm();
@@ -183,15 +188,15 @@ test('context stays locked through the mandatory reload after opening', async ()
   });
 });
 
-test('changing the period input format still invalidates an outstanding read', async () => {
+test('clearing the period selection still invalidates an outstanding read', async () => {
   const oldRead = deferred<Bimester[]>(); let reads = 0;
   await view({ getBimesters: async () => ++reads === 1 ? oldRead.promise : [bimester()] }, async h => {
-    await h.period('30.0');
+    await h.period('');
     await act(async () => { oldRead.resolve([bimester(2)]); await oldRead.promise; });
     assert.equal(reads, 1);
     assert.equal(h.button('Actualizar')?.props.disabled, true);
     await h.confirm();
-    assert.equal(reads, 1); assert.match(text(h.renderer.root), /entero positivo seguro/);
+    assert.equal(reads, 1); assert.match(text(h.renderer.root), /Selecciona un periodo académico de la lista/);
     assert.doesNotMatch(text(h.renderer.root), /Cargando bimestres|Bimestre 2/);
   });
 });
@@ -208,13 +213,13 @@ test('typing 5 then 55 sends no GET; button and Enter each confirm exactly one q
   }, false);
 });
 
-test('empty, decimal, negative, unsafe and malformed period IDs never send requests', async () => {
+test('empty or forged period values outside the loaded list never send requests', async () => {
   let reads = 0;
   await view({ getBimesters: async () => { reads++; return []; } }, async h => {
-    for (const id of ['', ' ', '0', '-1', '1.5', '30.0', 'NaN', 'Infinity', 'abc', '1e2', '9007199254740992']) {
+    for (const id of ['', ' ', '0', '-1', '1.5', '30.0', 'NaN', 'Infinity', 'abc', '1e2', '9007199254740992', '99']) {
       await h.period(id); await h.confirm();
-      assert.match(text(h.renderer.root), /entero positivo seguro/);
-      assert.equal(h.renderer.root.findAllByType('input')[0].props['aria-invalid'], true);
+      assert.match(text(h.renderer.root), /Selecciona un periodo académico de la lista/);
+      assert.equal(h.renderer.root.findAllByType('select')[0].props['aria-invalid'], true);
     }
     assert.equal(reads, 0);
   }, false);
@@ -294,11 +299,55 @@ test('creation and editing keep the confirmed context locked until the write res
       assert.equal(h.button('Consultar bimestres')?.props.disabled, true);
       assert.equal(h.button('Actualizar')?.props.disabled, true);
       await h.period('55'); await h.confirm();
-      assert.equal(h.renderer.root.findAllByType('input')[0].props.value, '30');
+      assert.equal(h.renderer.root.findAllByType('select')[0].props.value, '30');
       assert.deepEqual(reads, [30]);
       await act(async () => { pending.resolve(bimester()); });
       assert.deepEqual(reads, [30, 30]); assert.equal(writes.length, 1);
       assert.equal(h.renderer.root.findAllByType('form').length, 1);
     });
   }
+});
+
+test('selector loads real periods once, preselects the current one and consults it automatically', async () => {
+  const reads: number[] = []; let lists = 0;
+  await view({ getBimesters: async id => { reads.push(id); return [bimester(1, 'PLANIFICADO', id)]; } }, async h => {
+    assert.equal(lists, 1); assert.deepEqual(reads, [31]);
+    const select = h.renderer.root.findAllByType('select')[0];
+    assert.equal(select.props.value, '31');
+    const labels = h.renderer.root.findAllByType('option').map(text);
+    assert.deepEqual(labels, ['Selecciona un periodo', 'Periodo 30 (01/03/2026 – 20/12/2026) · Inactivo', 'Periodo 31 (01/03/2026 – 20/12/2026) · Vigente']);
+    assert.match(text(h.renderer.root), /Bimestre 1/);
+    await h.period('30'); await h.confirm(); assert.deepEqual(reads, [31, 30]);
+  }, false, async () => { lists++; return [academicPeriod(30, false, false), academicPeriod(31, true)]; });
+});
+
+test('without a current period nothing is consulted until the user selects one', async () => {
+  const reads: number[] = [];
+  await view({ getBimesters: async id => { reads.push(id); return []; } }, async h => {
+    assert.equal(h.renderer.root.findAllByType('select')[0].props.value, '');
+    assert.match(text(h.renderer.root), /Selecciona un periodo académico para consultar sus bimestres/);
+    assert.deepEqual(reads, []);
+    await h.period('55'); await h.click('Consultar bimestres'); assert.deepEqual(reads, [55]);
+  }, false);
+});
+
+test('a 403 loading periods shows a Spanish message, blocks consulting and retries on demand', async () => {
+  let lists = 0, reads = 0;
+  await view({ getBimesters: async () => { reads++; return []; } }, async h => {
+    assert.match(text(h.renderer.root), /No tienes autorización para consultar periodos académicos/);
+    assert.doesNotMatch(text(h.renderer.root), /Información sensible/);
+    assert.equal(h.renderer.root.findAllByType('select')[0].props.disabled, true);
+    assert.equal(h.button('Consultar bimestres')?.props.disabled, true);
+    assert.equal(reads, 0);
+    await h.click('Reintentar');
+    assert.equal(lists, 2); assert.equal(reads, 1);
+    assert.equal(h.renderer.root.findAllByType('select')[0].props.value, '30');
+  }, false, async () => { if (++lists === 1) throw httpError(403); return [academicPeriod(30, true)]; });
+});
+
+test('an empty period catalog explains where to create periods', async () => {
+  await view({}, async h => {
+    assert.match(text(h.renderer.root), /No hay periodos académicos registrados/);
+    assert.equal(h.button('Consultar bimestres')?.props.disabled, true);
+  }, false, async () => []);
 });

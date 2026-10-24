@@ -29,3 +29,12 @@ export interface StudentEditValues {
   phone: string;
   reason: string;
 }
+
+export interface StudentCreateValues {
+  dni: string;
+  firstNames: string;
+  paternalLastName: string;
+  maternalLastName: string;
+  birthDate: string;
+  phone: string;
+}

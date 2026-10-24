@@ -9,10 +9,11 @@ import { guardianRelationshipLabels, studentFullName, toAdminStudentDetail } fro
 import type { AdminStudentDetail } from '@/types/adminStudent';
 import StudentEditForm from './components/StudentEditForm';
 import WithdrawEnrollmentDialog from './components/WithdrawEnrollmentDialog';
+import EnrollStudentForm from './components/EnrollStudentForm';
 import { AuthContext } from '@/contexts/AuthContext';
 import { enrollmentsService, enrollmentErrorMessage, enrollmentErrorStatus } from '@/services/admin/enrollmentsService';
 import type { WithdrawEnrollmentRequest } from '@/types/enrollmentApi';
-import { Failure, destructiveButtonClass, secondaryButtonClass } from '../secciones/sectionUi';
+import { Failure, SectionDialog, destructiveButtonClass, primaryButtonClass, secondaryButtonClass } from '../secciones/sectionUi';
 
 type DetailResult = { revision: number; student?: AdminStudentDetail; error?: string; notFound?: boolean };
 
@@ -41,6 +42,9 @@ function StudentProfile({ studentId }: { studentId: string }) {
   const [withdrawError, setWithdrawError] = useState('');
   const [withdrawNotice, setWithdrawNotice] = useState('');
   const [refreshRequired, setRefreshRequired] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollBusy, setEnrollBusy] = useState(false);
+  const [enrollNotice, setEnrollNotice] = useState('');
   const mutation = useRef(false);
   const target = useRef<number | null>(null);
   const verification = useRef<{ enrollmentId: number; accepted: boolean; message: string } | null>(null);
@@ -48,6 +52,8 @@ function StudentProfile({ studentId }: { studentId: string }) {
   const canWithdraw = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
   const loading = result?.revision !== revision;
   const student = loading ? undefined : result?.student;
+  // Same ADMINISTRADOR gate as withdrawal; a previously withdrawn enrollment does not block a new one.
+  const canEnroll = canWithdraw && student?.studentStatus === 'ACTIVE' && !student.tieneMatriculaActiva;
 
   useEffect(() => {
     const current = { active: true };
@@ -136,6 +142,7 @@ function StudentProfile({ studentId }: { studentId: string }) {
         {!withdrawing && withdrawBusy && <p role="status" className="bg-white rounded-xl p-4">Verificando el estado de la matrícula...</p>}
         {!withdrawing && withdrawError && <Failure message={withdrawError} />}
         {withdrawNotice && <p role="status" className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">{withdrawNotice}</p>}
+        {enrollNotice && <p role="status" className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">{enrollNotice}</p>}
         {refreshRequired && !withdrawBusy && canWithdraw && <button className={secondaryButtonClass} onClick={() => void refreshWithdrawal()}>Actualizar matrícula</button>}
         {loading && <div role="status" className="bg-white rounded-2xl border border-line p-6 shadow-sm text-sm text-muted flex items-center gap-2"><Clock01Icon size={18} aria-hidden="true" className="text-accent" />Cargando alumno...</div>}
         {!loading && result?.error && <div role="alert" className="bg-rose-50 rounded-2xl border border-rose-200 p-6 shadow-sm">
@@ -182,6 +189,10 @@ function StudentProfile({ studentId }: { studentId: string }) {
                   target.current = student.enrollmentId;
                   setWithdrawError(''); setWithdrawNotice(''); setWithdrawing(true);
                 }}>Retirar matrícula</button>}
+                {canEnroll && <button className={`${primaryButtonClass} mt-4`} disabled={withdrawBusy || withdrawing || refreshRequired || editing} onClick={() => {
+                  if (mutation.current || verification.current) return;
+                  setEnrollNotice(''); setWithdrawNotice(''); setEnrolling(true);
+                }}>Matricular en sección</button>}
               </section>
               <section className="bg-white rounded-2xl border border-line p-6 shadow-sm">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2 mb-4 pb-3 border-b border-line"><HeartAddIcon size={18} aria-hidden="true" className="text-accent shrink-0" />Apoderados</h2>
@@ -204,6 +215,15 @@ function StudentProfile({ studentId }: { studentId: string }) {
           </div>
           {withdrawing && canWithdraw && student.enrollmentId !== null && <WithdrawEnrollmentDialog name={student.nombreCompleto} enrollmentId={student.enrollmentId} enrollmentDate={student.enrollmentDate} busy={withdrawBusy} error={withdrawError}
             onCancel={() => { if (!mutation.current) { target.current = null; setWithdrawing(false); } }} onConfirm={request => void withdraw(request)} />}
+          {enrolling && canEnroll && <SectionDialog title="Matricular en sección" busy={enrollBusy} onClose={() => { setEnrolling(false); setRevision(n => n + 1); }}>
+            <EnrollStudentForm studentId={Number(student.id)} studentStatus={student.studentStatus} hasActiveEnrollment={student.tieneMatriculaActiva}
+              cancelLabel="Cancelar" onBusyChange={setEnrollBusy} onCancel={() => { setEnrolling(false); setRevision(n => n + 1); }}
+              onEnrolled={enrollment => {
+                setEnrolling(false);
+                setEnrollNotice(`Matrícula registrada en ${enrollment.academicPeriodName} · ${enrollment.grade}° ${enrollment.sectionName}.`);
+                setRevision(n => n + 1);
+              }} />
+          </SectionDialog>}
           {editing && <div className="fixed inset-0 bg-ink/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
             <div role="dialog" aria-modal="true" aria-labelledby="edit-student-title" className="bg-white rounded-2xl border border-line border-t-4 border-t-accent p-5 sm:p-6 max-w-xl w-full shadow-xl max-h-[90vh] overflow-y-auto">
               <h2 id="edit-student-title" className="text-base font-bold tracking-tight mb-5 pb-3 border-b border-line flex items-center gap-2"><UserCircleIcon size={18} aria-hidden="true" className="text-accent" />Editar alumno</h2>

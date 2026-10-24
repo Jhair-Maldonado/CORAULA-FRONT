@@ -19,3 +19,10 @@ export interface EnrollmentDetailResponse {
   withdrawalDate: string | null;
   withdrawalReason: string | null;
 }
+
+export interface CreateEnrollmentRequest {
+  academicPeriodId: number;
+  sectionId: number;
+  enrollmentDate: string;
+  reason: string;
+}

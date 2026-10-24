@@ -72,9 +72,10 @@ import {
   MOCK_CHAT_CONTACTOS_DOCENTE,
   MOCK_DOCENTE_DASHBOARD
 } from './mocks/mockDocente';
+import { isMockDataEnabled } from './mockMode';
 
 // Determina si se usan mocks o backend real según variable de entorno
-const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS !== 'false';
+const USE_MOCKS = isMockDataEnabled();
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 // Retardo simulado para validar estados de carga (Loading skeleton / spinners)

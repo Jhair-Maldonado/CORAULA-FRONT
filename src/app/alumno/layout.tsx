@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { AlumnoSidebar } from '../../../layout/alumno/alumnoSidebar'; 
 import { AlumnoNavbar } from '../../../layout/alumno/alumnoNavbar'; 
 import { AlumnoSessionProvider } from '@/components/alumno/AlumnoSessionContext';
+import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
 import { Menu } from 'lucide-react';
 
 function AlumnoLayoutContent({ children }: { children: React.ReactNode }) {
@@ -60,6 +61,7 @@ function AlumnoLayoutContent({ children }: { children: React.ReactNode }) {
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 w-full mx-auto pb-16 max-w-[1200px] flex flex-col">
+          <AvisoModuloSimulado />
           {children}
         </main>
       </div>

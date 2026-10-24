@@ -15,6 +15,7 @@ import {
   FilterIcon
 } from 'hugeicons-react';
 import { CardGradoHuella } from '../../../component/cardGradoHuella'; 
+import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
 
 // --- MOCK DATA ---
 type Movimiento = { fecha: string; tipo: 'Ingreso' | 'Salida'; dispositivo: string };
@@ -187,6 +188,7 @@ export default function HuellaPorGrado() {
 
   return (
     <div className="w-full h-full p-6 bg-canvas font-sans flex flex-col gap-5 overflow-hidden">
+      <AvisoModuloSimulado activo={true} className="shrink-0 max-w-7xl mx-auto w-full" detalle="el registro de huellas no está conectado a lectores reales; los datos son de demostración." />
       
       {/* HEADER COMPACTO */}
       <div className="shrink-0 max-w-7xl mx-auto w-full flex justify-between items-end">

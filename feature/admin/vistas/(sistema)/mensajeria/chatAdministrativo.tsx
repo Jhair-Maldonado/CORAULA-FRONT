@@ -16,6 +16,7 @@ import {
 } from 'hugeicons-react';
 import { MOCK_CONTACTOS_CHAT } from '@/data/mockChat';
 import { ContactoChat, MensajeChat } from '@/types/chat';
+import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
 
 export default function ChatAdministrativo() {
   const [contactos, setContactos] = useState<ContactoChat[]>(MOCK_CONTACTOS_CHAT);
@@ -102,6 +103,7 @@ export default function ChatAdministrativo() {
 
   return (
     <div className="w-full h-full p-4 md:p-6 bg-canvas flex flex-col font-sans overflow-hidden">
+      <AvisoModuloSimulado activo={true} className="shrink-0 max-w-7xl mx-auto w-full" detalle="la mensajería no está conectada; los contactos y mensajes son de demostración." />
       
       {/* CONTENEDOR ESTILO WHATSAPP WEB */}
       <div className="max-w-7xl mx-auto w-full flex-1 bg-white rounded-2xl border border-line shadow-sm overflow-hidden flex flex-col md:flex-row">

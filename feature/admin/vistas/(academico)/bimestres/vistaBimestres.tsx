@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Calendar01Icon, PlusSignIcon } from 'hugeicons-react';
 import { evaluationService, evaluationErrorMessage, bimesterOpeningErrorMessage } from '@/services/admin/evaluationService';
+import { academicPeriodsService, academicPeriodsLoadErrorMessage, formatPeriodDate } from '@/services/admin/academicPeriodsService';
 import ScheduleDialog from '@/../feature/admin/vistas/(administrativo)/horario/components/ScheduleDialog';
 import type { Bimester, BimesterInput } from '@/types/evaluationApi';
+import type { AcademicPeriod } from '@/types/academicPeriodApi';
 import { isPositiveInteger } from '@/lib/evaluationPreparation';
 
 const button = 'min-h-10 px-4 py-2 rounded-xl text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50';
@@ -12,6 +14,7 @@ const input = 'w-full mt-2 p-3 rounded-xl border border-line bg-neutral/40 text-
 const statuses = { PLANIFICADO: 'Planificado', ABIERTO: 'Abierto', EN_REVISION: 'En revisión', CERRADO: 'Cerrado' };
 type OpeningConfirmation = { bimester: Bimester; periodId: number; generation: number };
 type QueryContext = { periodId: number; generation: number };
+const periodLabel = (p: AcademicPeriod) => `${p.name} (${formatPeriodDate(p.startDate)} – ${formatPeriodDate(p.endDate)})${p.current ? ' · Vigente' : ''}${p.active ? '' : ' · Inactivo'}`;
 
 export default function VistaBimestres() {
   const [period, setPeriod] = useState('');
@@ -30,6 +33,12 @@ export default function VistaBimestres() {
   const lock = useRef(false);
   const activeQuery = useRef<QueryContext | null>(null);
   const read = useRef<{ key: string; promise: Promise<Bimester[]> } | null>(null);
+  const [periodsRevision, setPeriodsRevision] = useState(0);
+  const [periods, setPeriods] = useState<{ revision: number; data?: AcademicPeriod[]; error?: string } | null>(null);
+  const periodsRead = useRef<{ revision: number; promise: Promise<AcademicPeriod[]> } | null>(null);
+  const autoSelected = useRef(false);
+  const periodsLoading = periods?.revision !== periodsRevision;
+  const periodOptions = periodsLoading ? [] : periods?.data ?? [];
   const periodId = query?.periodId ?? 0;
   const valid = query !== null;
   const key = JSON.stringify(query);
@@ -38,6 +47,21 @@ export default function VistaBimestres() {
     mounted.current = true;
     return () => { mounted.current = false; };
   }, []);
+  useEffect(() => {
+    let current = true;
+    // Reuse the request if React replays the effect.
+    if (periodsRead.current?.revision !== periodsRevision) periodsRead.current = { revision: periodsRevision, promise: academicPeriodsService.list() };
+    periodsRead.current.promise.then(data => {
+      if (!current) return;
+      setPeriods({ revision: periodsRevision, data });
+      // Preselect the current period once, unless the user already chose a context.
+      const vigente = data.find(p => p.current);
+      if (autoSelected.current || !vigente || lock.current || activeQuery.current) return;
+      autoSelected.current = true;
+      setPeriod(String(vigente.id)); setPeriodError(null); startQuery(vigente.id);
+    }).catch(error => { if (current) setPeriods({ revision: periodsRevision, error: academicPeriodsLoadErrorMessage(error) }); });
+    return () => { current = false; };
+  }, [periodsRevision]);
   useEffect(() => {
     if (!query) return;
     let current = true;
@@ -57,8 +81,8 @@ export default function VistaBimestres() {
   function confirmPeriod() {
     if (lock.current || activeQuery.current !== query || (query && loading)) return;
     const id = Number(period);
-    if (!/^\d+$/.test(period) || !Number.isSafeInteger(id) || id <= 0) {
-      setPeriodError('Ingresa un ID de periodo que sea un entero positivo seguro.'); return;
+    if (!/^\d+$/.test(period) || !periodOptions.some(p => p.id === id)) {
+      setPeriodError('Selecciona un periodo académico de la lista.'); return;
     }
     setPeriodError(null); startQuery(id);
   }
@@ -110,13 +134,19 @@ export default function VistaBimestres() {
     </header>
     <section className="bg-white rounded-2xl border border-line p-6 shadow-sm">
       <form aria-label="Consulta de bimestres" noValidate onSubmit={e => { e.preventDefault(); confirmPeriod(); }} className="flex flex-wrap items-end gap-3">
-        <label className="block text-xs font-bold text-muted max-w-xs">ID del periodo académico<input className={input} type="number" min="1" step="1" value={period} disabled={busy} aria-invalid={!!periodError} aria-describedby={periodError ? 'period-error' : undefined} onChange={e => { if (lock.current) return; contextGeneration.current++; activeQuery.current = null; setQuery(null); setResult(null); confirmation.current = null; setOpening(null); setRefreshRequired(false); setPeriod(e.target.value); setPeriodError(null); setForm(null); setActionError(null); setNotice(null); }} /></label>
-        <button type="submit" disabled={busy || loading} className={`${button} bg-accent text-white`}>Consultar bimestres</button>
+        <label className="block text-xs font-bold text-muted w-full max-w-md">Periodo académico<select className={input} value={period} disabled={busy || periodsLoading || !periodOptions.length} aria-invalid={!!periodError} aria-describedby={periodError ? 'period-error' : undefined} onChange={e => { if (lock.current) return; contextGeneration.current++; activeQuery.current = null; setQuery(null); setResult(null); confirmation.current = null; setOpening(null); setRefreshRequired(false); setPeriod(e.target.value); setPeriodError(null); setForm(null); setActionError(null); setNotice(null); }}>
+          <option value="">Selecciona un periodo</option>
+          {periodOptions.map(p => <option key={p.id} value={String(p.id)}>{periodLabel(p)}</option>)}
+        </select></label>
+        <button type="submit" disabled={busy || loading || !periodOptions.length} className={`${button} bg-accent text-white`}>Consultar bimestres</button>
       </form>
+      {periodsLoading && <p role="status" className="mt-3 text-xs text-muted">Cargando periodos académicos...</p>}
+      {!periodsLoading && periods?.error && <div role="alert" className="mt-3 text-xs text-rose-700"><p>{periods.error}</p><button type="button" className={`${button} bg-white border border-line mt-2`} disabled={busy} onClick={() => setPeriodsRevision(n => n + 1)}>Reintentar</button></div>}
+      {!periodsLoading && periods?.data?.length === 0 && <p className="mt-3 text-xs text-muted">No hay periodos académicos registrados. Créalos en Periodos.</p>}
       {periodError && <p id="period-error" role="alert" className="mt-3 text-xs text-rose-700">{periodError}</p>}
     </section>
     <section className="bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
-      {!valid ? <p className="p-6 text-xs text-muted">Ingresa el ID del periodo académico para consultar sus bimestres.</p>
+      {!valid ? <p className="p-6 text-xs text-muted">Selecciona un periodo académico para consultar sus bimestres.</p>
         : loading ? <p role="status" className="p-6 text-xs text-muted">Cargando bimestres...</p>
         : result?.error ? <div role="alert" className="p-6 text-xs text-rose-700"><p>{result.error}</p><button className={`${button} bg-accent text-white mt-3`} disabled={busy} onClick={refreshList}>Reintentar</button></div>
         : <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-neutral/40 text-muted uppercase text-[10px] tracking-wider"><tr>{['Nombre', 'Fechas', 'Estado', 'Acciones'].map(title => <th scope="col" key={title} className="p-4 border-b border-line">{title}</th>)}</tr></thead><tbody className="divide-y divide-line">
@@ -129,7 +159,7 @@ export default function VistaBimestres() {
     {!form && actionError && <p role="alert" className="text-xs text-rose-700">{actionError}</p>}
     {notice && <p role="status" className="text-xs text-emerald-700">{notice}</p>}
     {opening && <ScheduleDialog title="Confirmar apertura del bimestre" onClose={cancelOpening}>
-      <p className="text-sm text-ink">Abrir <strong>{opening.bimester.name}</strong> del periodo académico <strong>{opening.periodId}</strong>.</p>
+      <p className="text-sm text-ink">Abrir <strong>{opening.bimester.name}</strong> del periodo académico <strong>{periods?.data?.find(p => p.id === opening.periodId)?.name ?? opening.periodId}</strong>.</p>
       <p className="text-xs text-muted mt-3">La apertura habilita el registro de notas. Esta funcionalidad no permite deshacer la apertura, cerrar ni reabrir bimestres.</p>
       <div className="flex flex-wrap gap-3 mt-5"><button type="button" className={`${button} bg-white border border-line`} onClick={cancelOpening}>Cancelar</button><button type="button" className={`${button} bg-accent text-white`} disabled={busy || loading || refreshRequired} onClick={() => { void confirmOpening(); }}>Confirmar apertura</button></div>
     </ScheduleDialog>}

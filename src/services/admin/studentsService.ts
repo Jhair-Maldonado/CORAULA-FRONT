@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
-import type { PagedStudentsResponse, StudentDetailResponse, StudentListParams, UpdateStudentRequest } from '@/types/studentApi';
+import type { CreateStudentRequest, PagedStudentsResponse, StudentDetailResponse, StudentListParams, UpdateStudentRequest } from '@/types/studentApi';
 
 const endpoint = '/v1/management/students';
 export const studentsService = {
@@ -13,7 +13,37 @@ export const studentsService = {
   async update(studentId: string, payload: UpdateStudentRequest): Promise<StudentDetailResponse> {
     return (await httpClient.patch<StudentDetailResponse>(`${endpoint}/${encodeURIComponent(studentId)}`, payload)).data;
   },
+  async create(request: CreateStudentRequest): Promise<StudentDetailResponse> {
+    // Whitelist the wire fields; studentCode and UI-only fields never travel.
+    const response = await httpClient.post<StudentDetailResponse>(endpoint, {
+      dni: request.dni, firstNames: request.firstNames, paternalLastName: request.paternalLastName,
+      maternalLastName: request.maternalLastName, birthDate: request.birthDate, phone: request.phone, reason: request.reason,
+    });
+    const data = response.data;
+    if (response.status !== 201 || !data || !Number.isSafeInteger(data.studentId) || data.studentId <= 0 || data.dni !== request.dni) {
+      throw new Error('La respuesta del registro no coincide con la solicitud.');
+    }
+    return data;
+  },
 };
+
+// Without a response, a 5xx or an unexpected body, the student may or may not exist: never retry automatically.
+export function isUncertainStudentCreate(error: unknown): boolean {
+  if (!isAxiosError(error)) return true;
+  const status = error.response?.status;
+  return status === undefined || status >= 500;
+}
+
+export function studentCreateErrorMessage(error: unknown): string {
+  if (isUncertainStudentCreate(error)) return 'No se pudo confirmar el registro. Busca al alumno en el listado antes de intentarlo de nuevo.';
+  switch (studentErrorStatus(error)) {
+    case 400: return 'Revisa los datos del alumno: DNI de 8 dígitos, nombres, apellido paterno y fecha de nacimiento válidos.';
+    case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+    case 403: return 'Solo el Director puede registrar alumnos.';
+    case 409: return 'No se pudo registrar: el DNI ya está registrado para otra persona.';
+    default: return 'No se pudo registrar al alumno. Intenta nuevamente.';
+  }
+}
 
 export function studentErrorStatus(error: unknown): number | undefined {
   return isAxiosError(error) ? error.response?.status : undefined;

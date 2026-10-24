@@ -1,13 +1,16 @@
 ﻿'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft01Icon, PencilEdit01Icon, BookOpen01Icon, UserCircleIcon, AlertCircleIcon, Clock01Icon } from 'hugeicons-react';
 import { teachersService, teacherErrorMessage, teacherErrorStatus } from '@/services/admin/teachersService';
 import { toAdminTeacher, toAdminTeacherDetail } from '@/adapters/teacherAdapter';
 import type { AdminTeacherDetail } from '@/types/adminTeacher';
+import type { TeacherAccountResponse } from '@/types/teacherApi';
+import { AuthContext } from '@/contexts/AuthContext';
 import TeacherForm from './TeacherForm';
+import TeacherAccountModal from './TeacherAccountModal';
 
 type DetailResult = {
   revision: number;
@@ -37,9 +40,15 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const [notice, setNotice] = useState('');
+  const [accountOpen, setAccountOpen] = useState(false);
+  // Session-only: the backend does not expose existing accounts yet (BACK #66).
+  const [account, setAccount] = useState<TeacherAccountResponse | null>(null);
   const mutationRef = useRef(false);
+  const auth = useContext(AuthContext);
+  const canManageAccount = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
   const loading = result?.revision !== revision;
   const teacher = loading ? undefined : result?.teacher;
+  const accountBlocked = !!teacher && (!teacher.active || !teacher.dni?.trim());
 
   useEffect(() => {
     let current = true;
@@ -94,8 +103,11 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
             <div className="flex flex-wrap gap-2">
               <button disabled={busy} onClick={() => { setNotice(''); setActionError(''); setEditing(true); }} className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold min-h-10 shadow-sm hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"><PencilEdit01Icon size={16} aria-hidden="true" />Editar docente</button>
               <button disabled={busy} onClick={toggleActive} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">{busy ? 'Guardando...' : teacher.active ? 'Desactivar docente' : 'Reactivar docente'}</button>
+              {canManageAccount && !account && <button disabled={busy || accountBlocked} onClick={() => { setNotice(''); setActionError(''); setAccountOpen(true); }} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Crear cuenta de acceso</button>}
             </div>
           </header>
+          {canManageAccount && !account && accountBlocked && <p className="text-xs text-muted">Para crear la cuenta de acceso, el docente debe estar activo y tener DNI registrado.</p>}
+          {account && <p className="p-3 rounded-xl border border-line bg-neutral/40 text-sm text-ink break-words">El docente ya tiene cuenta de acceso: <strong>{account.email}</strong></p>}
           {notice && <p role="status" className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm">{notice}</p>}
           {actionError && <p role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm break-words">{actionError} Puedes volver a intentar la acción.</p>}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -134,6 +146,13 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
                     </div>}
             </section>
           </div>
+          {accountOpen && canManageAccount && <TeacherAccountModal teacherId={teacher.id} onCancel={() => setAccountOpen(false)} onCreated={created => {
+            setAccount(created);
+            setAccountOpen(false);
+            setNotice(created.created
+              ? `Cuenta de acceso creada para ${created.email}. La contraseña inicial es el DNI del docente; pídele que la cambie.`
+              : `El docente ya tenía una cuenta con ${created.email}. No se modificó su contraseña.`);
+          }} />}
           {editing && <div className="fixed inset-0 bg-ink/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
             <div role="dialog" aria-modal="true" aria-labelledby="edit-teacher-title" className="bg-white rounded-2xl border border-line border-t-4 border-t-accent p-5 sm:p-6 max-w-xl w-full shadow-xl max-h-[90vh] overflow-y-auto">
               <h2 id="edit-teacher-title" className="text-base font-bold tracking-tight mb-5 pb-3 border-b border-line flex items-center gap-2"><UserCircleIcon size={18} aria-hidden="true" className="text-accent" />Editar docente</h2>

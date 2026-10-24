@@ -4,7 +4,8 @@ import React, { useState, useContext } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AuthContext } from '@/contexts/AuthContext';
-import { 
+import type { BackendRole } from '@/types';
+import {
   DashboardSquare01Icon, 
   TeacherIcon, 
   UserGroupIcon, 
@@ -13,6 +14,7 @@ import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
   Calendar01Icon,
+  Calendar03Icon,
   Comment01Icon,
   ArrowDown01Icon,
   GridViewIcon,
@@ -37,6 +39,8 @@ type MenuItem = {
   icon: any;
   badge?: string | number;
   subItems?: SubItem[];
+  // When set, only these roles see the item.
+  roles?: BackendRole[];
 };
 
 type MenuSection = {
@@ -58,6 +62,7 @@ const MENU_SECTIONS: MenuSection[] = [
       { name: 'Alumnos', path: '/administrador/alumnos', icon: UserGroupIcon },
       { name: 'Cursos', path: '/administrador/cursos', icon: BookOpen01Icon },
       { name: 'Secciones', path: '/administrador/secciones', icon: GridViewIcon },
+      { name: 'Periodos', path: '/administrador/periodos', icon: Calendar03Icon, roles: ['ADMINISTRADOR'] },
       { name: 'Bimestres', path: '/administrador/bimestres', icon: Calendar01Icon },
       { name: 'Notas', path: '/administrador/notas', icon: Task01Icon },
     ]
@@ -178,7 +183,7 @@ export const AdminSidebar = () => {
             )}
 
             {/* Items */}
-            {section.items.map((item) => {
+            {section.items.filter(item => !item.roles || (!!authContext?.role && item.roles.includes(authContext.role))).map((item) => {
               const isActive = pathname === item.path || (item.path !== '/administrador' && item.path && pathname.startsWith(item.path));
               
               return (

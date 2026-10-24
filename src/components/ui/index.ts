@@ -8,3 +8,4 @@ export * from './ErrorState';
 export * from './Modal';
 export * from './Input';
 export * from './Tabs';
+export * from './AvisoModuloSimulado';

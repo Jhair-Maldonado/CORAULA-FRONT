@@ -82,3 +82,16 @@ export interface CreateStudentRequest {
   phone: string | null;
   reason: string;
 }
+
+// Basic version: always a new person (personId never travels); the backend has no lookup by DNI.
+export interface CreateStudentGuardianRequest {
+  dni: string;
+  firstNames: string;
+  paternalLastName: string;
+  maternalLastName: string | null;
+  phone: string | null;
+  relationship: GuardianRelationship;
+  primary: boolean;
+  authorizedPickup: boolean;
+  reason: string;
+}

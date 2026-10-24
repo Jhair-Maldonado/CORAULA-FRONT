@@ -53,3 +53,15 @@ export interface CreateTeacherRequest {
 export type UpdateTeacherRequest = {
   [K in keyof CreateTeacherRequest]?: CreateTeacherRequest[K] | null;
 } & { active?: boolean | null };
+
+export interface CreateTeacherAccountRequest {
+  email: string;
+}
+
+export interface TeacherAccountResponse {
+  userId: number;
+  teacherId: number;
+  email: string;
+  role: 'DOCENTE';
+  created: boolean;
+}

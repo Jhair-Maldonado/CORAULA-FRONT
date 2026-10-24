@@ -1,14 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FilterIcon, BookOpen01Icon, ArrowRight01Icon } from 'hugeicons-react';
+import { FilterIcon, BookOpen01Icon, ArrowRight01Icon, Add01Icon } from 'hugeicons-react';
+import { AuthContext } from '@/contexts/AuthContext';
 import { sectionsService } from '@/services/admin/sectionsService';
 import { sectionErrorMessage } from '@/services/admin/sectionErrors';
 import type { SectionListParams, SectionResponse } from '@/types/sectionApi';
-import { inputClass, labelClass, secondaryButtonClass, Failure, SectionBadge, SectionEmpty, SectionLoading, sectionName } from './sectionUi';
+import { inputClass, labelClass, primaryButtonClass, secondaryButtonClass, Failure, SectionBadge, SectionEmpty, SectionLoading, sectionName } from './sectionUi';
+import SectionForm from './SectionForm';
 
 export default function VistaSecciones() {
+  const auth = useContext(AuthContext);
+  const canManage = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
+  const [creating, setCreating] = useState(false);
+  const [notice, setNotice] = useState('');
   const [query, setQuery] = useState<SectionListParams>({});
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<{ key: string; data?: SectionResponse[]; error?: string }>();
@@ -22,7 +28,10 @@ export default function VistaSecciones() {
   }, [query, key]);
   return <div className="p-6 overflow-y-auto h-full bg-canvas text-ink font-sans">
     <div className="max-w-7xl mx-auto flex flex-col gap-5">
-      <header><p className="text-accent text-[11px] font-bold uppercase tracking-widest">Académico</p><h1 className="text-2xl font-bold tracking-tight mt-0.5">Secciones</h1><p className="text-muted text-xs font-medium mt-1">Consulta las secciones y gestiona sus cursos y docentes asignados.</p></header>
+      <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-accent text-[11px] font-bold uppercase tracking-widest">Académico</p><h1 className="text-2xl font-bold tracking-tight mt-0.5">Secciones</h1><p className="text-muted text-xs font-medium mt-1">Consulta las secciones y gestiona sus cursos y docentes asignados.</p></div>
+        {canManage && <button type="button" className={`${primaryButtonClass} flex items-center gap-1.5`} onClick={() => { setNotice(''); setCreating(true); }}><Add01Icon size={16} aria-hidden="true" />Nueva sección</button>}
+      </header>
+      {notice && <p role="status" className="p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs leading-relaxed break-words">{notice}</p>}
       <div className="flex flex-col sm:flex-row sm:items-end flex-wrap gap-3 p-3 bg-white border border-line rounded-xl shadow-sm">
         <div className="flex items-center gap-2 text-xs font-bold text-ink sm:self-center sm:mr-2"><FilterIcon size={16} aria-hidden="true" className="text-accent" />Filtros de vista</div>
         <label className={labelClass}>Nivel
@@ -52,6 +61,11 @@ export default function VistaSecciones() {
             </tr>)}</tbody>
           </table></div>
       )}
+      {creating && canManage && <SectionForm onCancel={() => setCreating(false)} onSaved={section => {
+        setCreating(false);
+        setNotice(`${sectionName(section.name)} de ${section.grade}° grado creada.`);
+        setRevision(n => n + 1);
+      }} />}
     </div>
   </div>;
 }

@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft01Icon, BookOpen01Icon, Add01Icon, UserIcon, Delete01Icon } from 'hugeicons-react';
+import { AuthContext } from '@/contexts/AuthContext';
 import type { SectionResponse } from '@/types/sectionApi';
 import type { SectionCourseResponse } from '@/types/sectionCourseApi';
-import { sectionsService } from '@/services/admin/sectionsService';
+import { confirmDeactivation, deactivateSection, sectionsService } from '@/services/admin/sectionsService';
+import { sectionManagementErrorMessage } from '@/services/admin/sectionErrors';
+import SectionForm from './SectionForm';
 import { sectionCoursesService } from '@/services/admin/sectionCoursesService';
 import { teachersService } from '@/services/admin/teachersService';
 import { teacherAssignmentsService } from '@/services/admin/teacherAssignmentsService';
@@ -16,6 +19,7 @@ import ResourceSelector from './resourceSelector';
 
 type Result<T> = { revision: number; data?: T; error?: string; notFound?: boolean };
 type Action = { kind: 'add' } | { kind: 'assign' | 'unassign' | 'remove' | 'reactivate'; relation: SectionCourseResponse };
+type Manage = { kind: 'edit' } | { kind: 'deactivate'; confirm: boolean } | { kind: 'reactivate' };
 
 export default function DetalleSeccion() {
   const { sectionId } = useParams<{ sectionId: string }>();
@@ -23,6 +27,10 @@ export default function DetalleSeccion() {
 }
 
 function SectionDetail({ sectionId }: { sectionId: string }) {
+  const auth = useContext(AuthContext);
+  const canManage = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
+  const [manage, setManage] = useState<Manage | null>(null);
+  const [manageError, setManageError] = useState('');
   const [sectionRevision, setSectionRevision] = useState(0);
   const [coursesRevision, setCoursesRevision] = useState(0);
   const [sectionResult, setSectionResult] = useState<Result<SectionResponse>>();
@@ -52,8 +60,44 @@ function SectionDetail({ sectionId }: { sectionId: string }) {
     return () => { current = false; };
   }, [sectionId, coursesRevision]);
 
+  function openManage(next: Manage) {
+    if (mutation.current || action) return;
+    setManageError('');
+    setNotice('');
+    setManage(next);
+  }
+
+  function sectionSaved(saved: SectionResponse, message: string) {
+    setSectionResult({ revision: sectionRevision, data: saved });
+    setManage(null);
+    setNotice(message);
+  }
+
+  async function submitStatus() {
+    if (!manage || manage.kind === 'edit' || mutation.current) return;
+    mutation.current = true;
+    setBusy(true);
+    setManageError('');
+    try {
+      if (manage.kind === 'reactivate') {
+        sectionSaved(await sectionsService.changeStatus(sectionId, { active: true }), 'Sección reactivada.');
+      } else if (manage.confirm) {
+        sectionSaved(await confirmDeactivation(sectionId), 'Sección desactivada. Sus estudiantes no se retiraron ni se trasladaron.');
+      } else {
+        const result = await deactivateSection(sectionId);
+        if (result.kind === 'needsConfirmation') setManage({ kind: 'deactivate', confirm: true });
+        else sectionSaved(result.section, result.kind === 'deactivated' ? 'Sección desactivada.' : 'La sección ya estaba inactiva.');
+      }
+    } catch (error) {
+      setManageError(sectionManagementErrorMessage(error));
+    } finally {
+      mutation.current = false;
+      setBusy(false);
+    }
+  }
+
   function open(next: Action) {
-    if (mutation.current) return;
+    if (mutation.current || manage) return;
     setSelected(null);
     setActionError('');
     setNotice('');
@@ -122,7 +166,13 @@ function SectionDetail({ sectionId }: { sectionId: string }) {
       </> : section && <header className="p-5 sm:p-6 bg-white rounded-2xl border border-line shadow-sm">
         <div className="border-b border-line pb-4 mb-4"><p className="text-accent text-[11px] font-bold uppercase tracking-widest">Identidad de sección</p><h1 className="text-2xl font-bold tracking-tight mt-0.5 break-words">{sectionName(section.name)} • {section.grade}° grado</h1><p className="text-muted text-xs font-medium mt-1">{section.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'} · {section.grade}° grado</p></div>
         <SectionIdentity section={section} />
-        <Link className={`${secondaryButtonClass} inline-flex mt-4 items-center`} href={`/administrador/alumnos/grado/${sectionId}`}>Ver alumnos</Link>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <Link className={`${secondaryButtonClass} inline-flex items-center`} href={`/administrador/alumnos/grado/${sectionId}`}>Ver alumnos</Link>
+          {canManage && (section.active ? <>
+            <button type="button" className={secondaryButtonClass} disabled={busy} onClick={() => openManage({ kind: 'edit' })}>Editar</button>
+            <button type="button" className={destructiveButtonClass} disabled={busy} onClick={() => openManage({ kind: 'deactivate', confirm: false })}>Desactivar</button>
+          </> : <button type="button" className={secondaryButtonClass} disabled={busy} onClick={() => openManage({ kind: 'reactivate' })}>Reactivar</button>)}
+        </div>
       </header>}
       {notice && <p role="status" className="p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs leading-relaxed break-words">{notice}</p>}
       <section className="flex flex-col gap-4" aria-labelledby="section-courses-title">
@@ -163,6 +213,22 @@ function SectionDetail({ sectionId }: { sectionId: string }) {
           <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
             <button type="button" className={secondaryButtonClass} disabled={busy} onClick={() => { if (!mutation.current) setAction(null); }}>Cancelar</button>
             <button className={action.kind === 'remove' || action.kind === 'unassign' ? `${destructiveButtonClass} bg-rose-50` : primaryButtonClass} disabled={busy || ((action.kind === 'add' || action.kind === 'assign') && selected === null)}>{busy ? 'Guardando...' : title}</button>
+          </div>
+        </form>
+      </SectionDialog>}
+      {manage?.kind === 'edit' && section && canManage && <SectionForm original={section} onCancel={() => setManage(null)} onSaved={saved => sectionSaved(saved, 'Sección actualizada.')} />}
+      {manage && manage.kind !== 'edit' && section && canManage && <SectionDialog title={manage.kind === 'reactivate' ? 'Reactivar sección' : 'Desactivar sección'} busy={busy} onClose={() => { if (!mutation.current) setManage(null); }}>
+        <form aria-label="Estado de la sección" className="flex flex-col gap-4" onSubmit={event => { event.preventDefault(); void submitStatus(); }}>
+          <p className="font-bold text-xs p-3 rounded-xl bg-neutral/50 border border-line break-words">{sectionName(section.name)} • {section.grade}° grado</p>
+          {manage.kind === 'reactivate' && <p className="text-xs leading-relaxed p-3 bg-neutral/50 border border-line rounded-xl">La sección volverá a estar activa. Su periodo académico debe estar activo.</p>}
+          {manage.kind === 'deactivate' && !manage.confirm && <p className="text-xs leading-relaxed p-3 bg-neutral/50 border border-line rounded-xl">La sección quedará inactiva y no podrá editarse hasta reactivarla.</p>}
+          {manage.kind === 'deactivate' && manage.confirm && <p role="alert" className="text-xs leading-relaxed p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl">La sección tiene matrículas activas. Si la desactivas, los estudiantes no se retiran ni se trasladan a otra sección: sus matrículas se conservan.</p>}
+          {manageError && <Failure message={manageError} />}
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+            <button type="button" className={secondaryButtonClass} disabled={busy} onClick={() => { if (!mutation.current) setManage(null); }}>Cancelar</button>
+            <button className={manage.kind === 'reactivate' ? primaryButtonClass : `${destructiveButtonClass} bg-rose-50`} disabled={busy}>
+              {busy ? 'Guardando...' : manage.kind === 'reactivate' ? 'Reactivar sección' : manage.confirm ? 'Desactivar con matrículas activas' : 'Desactivar sección'}
+            </button>
           </div>
         </form>
       </SectionDialog>}

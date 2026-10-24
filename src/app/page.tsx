@@ -1,16 +1,11 @@
+'use client';
+
 import Link from 'next/link';
-import React from 'react';
+import React, { useContext } from 'react';
+import { AuthContext } from '@/contexts/AuthContext';
+import { LogOut } from 'lucide-react';
 
 const ROLES = [
-  {
-    id: 'superadmin',
-    name: 'Super Admin',
-    path: '/superadmin',
-    desc: 'Gestión global de instituciones, tenants y configuraciones del sistema.',
-    badge: 'Sistema Global',
-    color: 'bg-purple-900 text-white',
-    hoverBorder: 'hover:border-purple-500',
-  },
   {
     id: 'administrador',
     name: 'Administrador',
@@ -21,9 +16,18 @@ const ROLES = [
     hoverBorder: 'hover:border-rose-500',
   },
   {
+    id: 'directivo',
+    name: 'Directivo',
+    path: '/administrador',
+    desc: 'Supervisión general, reportes estadísticos y control institucional.',
+    badge: 'Dirección',
+    color: 'bg-orange-700 text-white',
+    hoverBorder: 'hover:border-orange-500',
+  },
+  {
     id: 'docente',
     name: 'Docente',
-    path: '/docente',
+    path: '/docente/login',
     desc: 'Registro de asistencia, publicaciones, calificaciones y aula virtual.',
     badge: 'Docencia',
     color: 'bg-blue-700 text-white',
@@ -39,8 +43,8 @@ const ROLES = [
     hoverBorder: 'hover:border-emerald-500',
   },
   {
-    id: 'alumno',
-    name: 'Alumno',
+    id: 'estudiante',
+    name: 'Estudiante',
     path: '/alumno',
     desc: 'Consulta de horario, tareas asignadas, notas y recursos académicos.',
     badge: 'Estudiante',
@@ -50,29 +54,54 @@ const ROLES = [
 ];
 
 export default function HomePage() {
+  const authContext = useContext(AuthContext);
+  const activeRole = authContext?.role;
+  const isAuthenticated = authContext?.status === 'authenticated' && !!activeRole;
+
+  const handleLogout = () => {
+    authContext?.logout();
+  };
+
   return (
     <div className="min-h-screen bg-canvas flex flex-col justify-between p-6 sm:p-12 font-sans">
-      <header className="max-w-6xl mx-auto w-full flex justify-between items-center pb-8 border-b border-line">
+      <header className="max-w-6xl mx-auto w-full flex justify-between items-center pb-8 border-b border-line gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-white font-extrabold text-xl shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-white font-bold text-xl shadow-md">
             C
           </div>
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-ink">CORAULA</h1>
+            <h1 className="text-xl font-bold tracking-tight text-ink">CORAULA</h1>
             <p className="text-xs font-semibold text-muted tracking-wider uppercase">Plataforma Educativa Integrada</p>
           </div>
         </div>
-        <span className="px-3 py-1 bg-accent-soft text-accent text-xs font-bold rounded-full">
-          Versión 2026
-        </span>
+
+        <div className="flex items-center gap-3">
+          {isAuthenticated && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl text-xs text-amber-900">
+              <span>Sesión activa: <strong className="font-bold">{activeRole}</strong></span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="ml-2 inline-flex items-center gap-1 font-bold text-red-600 hover:text-red-800 transition-colors cursor-pointer"
+                title="Cerrar sesión actual para ingresar con otro rol"
+              >
+                <LogOut size={13} />
+                <span>Salir</span>
+              </button>
+            </div>
+          )}
+          <span className="px-3 py-1 bg-accent-soft text-accent text-xs font-bold rounded-full hidden sm:inline-block">
+            Versión 2026
+          </span>
+        </div>
       </header>
 
       <main className="max-w-6xl mx-auto w-full py-12 flex-1">
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-xs font-extrabold tracking-widest text-accent uppercase bg-accent-soft px-3 py-1 rounded-full inline-block mb-3">
+          <span className="text-xs font-bold tracking-widest text-accent uppercase bg-accent-soft px-3 py-1 rounded-full inline-block mb-3">
             SELECCIÓN DE ROL
           </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-ink tracking-tight mb-4">
+          <h2 className="text-3xl sm:text-4xl font-bold text-ink tracking-tight mb-4">
             Bienvenido al portal de CORAULA
           </h2>
           <p className="text-muted text-sm sm:text-base">

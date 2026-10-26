@@ -2,6 +2,8 @@
 
 CORAULA es el Sistema de Control y Registro Académico de Aula. Este frontend proporciona la interfaz de usuario para la gestión académica, integrando flujos para diferentes tipos de usuarios (Administradores, Directivos, Docentes, Estudiantes y Apoderados).
 
+> ¿Vas a contribuir? Lee primero la [guía de contribución](CONTRIBUTING.md).
+
 ## Stack Tecnológico
 - **Framework:** Next.js 16 (App Router)
 - **Librería UI:** React 19

@@ -8,6 +8,7 @@ import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/te
 import type { TeacherCourseDetailResponse } from '@/types/teacherCoursesApi';
 import { useDocenteSession } from '@/app/docente/components/DocenteSessionContext';
 import ActividadesDocente from './ActividadesDocente';
+import ModalAsistenciaCurso from './ModalAsistenciaCurso';
 
 type LoadResult<T> = { key: string; data?: T; error?: string };
 
@@ -27,18 +28,30 @@ function CourseDetail({ routeId }: { routeId: string }) {
   const course = loading ? undefined : detail?.data;
   const error = !validId ? 'Curso no encontrado o no asignado a tu cuenta.' : loading ? undefined : detail?.error;
 
+  // Estado del modal de asistencia
+  const [isAttendanceOpen, setIsAttendanceOpen] = useState(false);
+
   useEffect(() => {
     if (!validId) return;
     let current = true;
-    teacherCoursesService.getCourse(sectionCourseId).then(data => {
-      if (!current) return;
-      setDetail({ key: detailKey, data });
-      setCursoActivo({ id: String(data.sectionCourseId), nombre: data.name, grado: `${data.grade}° grado` });
-    }).catch(error => {
-      if (current) setDetail({ key: detailKey, error: teacherCoursesErrorMessage(error) });
-    });
-    return () => { current = false; };
+    teacherCoursesService
+      .getCourse(sectionCourseId)
+      .then(data => {
+        if (!current) return;
+        setDetail({ key: detailKey, data });
+        setCursoActivo({ id: String(data.sectionCourseId), nombre: data.name, grado: `${data.grade}° grado` });
+      })
+      .catch(error => {
+        if (current) setDetail({ key: detailKey, error: teacherCoursesErrorMessage(error) });
+      });
+    return () => {
+      current = false;
+    };
   }, [sectionCourseId, validId, detailKey, setCursoActivo]);
+
+  const gradeSectionSubtitle = course
+    ? `${course.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'} · ${course.grade}° grado · Sección ${course.sectionName}`
+    : '';
 
   return (
     <div className="flex flex-col gap-6">
@@ -72,24 +85,34 @@ function CourseDetail({ routeId }: { routeId: string }) {
           {/* Header simplificado: Nombre del curso con subtítulo y botón de Registrar Asistencia */}
           <header className="bg-white p-5 sm:p-6 rounded-xl border border-line shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink break-words">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink break-words capitalize">
                 {course.name}
               </h1>
               <p className="text-xs sm:text-sm text-muted mt-1 break-words">
-                {course.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'} · {course.grade}° grado · Sección {course.sectionName}
+                {gradeSectionSubtitle}
               </p>
             </div>
-            <Link
-              href="/docente/asistencia"
+            <button
+              type="button"
+              onClick={() => setIsAttendanceOpen(true)}
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white rounded-lg text-xs font-bold shadow-xs hover:bg-accent/90 transition-colors shrink-0 focus-visible:outline-2 focus-visible:outline-accent"
             >
               <CalendarCheck size={16} aria-hidden="true" />
               <span>Registrar asistencia</span>
-            </Link>
+            </button>
           </header>
 
           {/* Sección principal de Actividades (por defecto abre en el bimestre actual) */}
           <ActividadesDocente sectionCourseId={course.sectionCourseId} autoSelectCurrent />
+
+          {/* Componente Modal de Registro de Asistencia */}
+          <ModalAsistenciaCurso
+            isOpen={isAttendanceOpen}
+            onClose={() => setIsAttendanceOpen(false)}
+            sectionCourseId={course.sectionCourseId}
+            courseName={course.name}
+            gradeSectionSubtitle={gradeSectionSubtitle}
+          />
         </>
       )}
     </div>

@@ -6,10 +6,10 @@ import {
   Upload,
   FileText,
   Clock,
-  CheckCircle2,
   X,
   Calendar,
-  AlertCircle
+  Award,
+  ChevronRight
 } from 'lucide-react';
 import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
 import {
@@ -46,6 +46,60 @@ const emptyForm: CreateAcademicActivityRequest = {
   type: 'TAREA',
   cuentaParaPa: false
 };
+
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
+function getBimesterMonths(bimester?: Bimester): { index: number; name: string }[] {
+  if (!bimester?.startDate || !bimester?.endDate) {
+    return [
+      { index: 0, name: 'Enero' },
+      { index: 1, name: 'Febrero' }
+    ];
+  }
+  const start = new Date(bimester.startDate + 'T00:00:00');
+  const end = new Date(bimester.endDate + 'T23:59:59');
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return [
+      { index: 0, name: 'Enero' },
+      { index: 1, name: 'Febrero' }
+    ];
+  }
+  const months: { index: number; name: string }[] = [];
+  const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+  const last = new Date(end.getFullYear(), end.getMonth(), 1);
+  while (cur <= last) {
+    months.push({ index: cur.getMonth(), name: MONTH_NAMES[cur.getMonth()] });
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return months.length > 0 ? months : [
+    { index: 0, name: 'Enero' },
+    { index: 1, name: 'Febrero' }
+  ];
+}
+
+function formatHumanDate(dateStr?: string | null): string {
+  if (!dateStr) return '';
+  let day: number, monthIndex: number;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const parts = dateStr.split('-');
+    day = parseInt(parts[2], 10);
+    monthIndex = parseInt(parts[1], 10) - 1;
+  } else {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    day = d.getDate();
+    monthIndex = d.getMonth();
+  }
+  const monthName = MONTH_NAMES[monthIndex] || '';
+  return `${day} ${monthName}`;
+}
+
+function formatDisplayDate(dateStr?: string | null): string {
+  return formatHumanDate(dateStr);
+}
 
 export default function ActividadesDocente({
   sectionCourseId,
@@ -117,13 +171,13 @@ function CourseActivities({
 
         {valid && !!bimesters?.length && (
           <div className="shrink-0 w-full sm:w-auto">
-            <label className="block text-xs font-bold text-muted">
-              Bimestre
+            <label className="flex items-center gap-2 text-xs font-bold text-ink bg-neutral/30 px-3 py-1.5 rounded-lg border border-line">
+              <span className="text-muted font-medium">Bimestre:</span>
               <select
                 aria-label="Bimestre de actividades"
                 value={selected}
                 disabled={busy}
-                className={`${input} mt-1`}
+                className="bg-transparent font-bold text-xs text-ink focus-visible:outline-accent cursor-pointer py-1"
                 onChange={e => {
                   setEpoch(++generation.current);
                   setSelected(e.target.value);
@@ -163,6 +217,7 @@ function CourseActivities({
       {bimester ? (
         <ActivitySheet
           key={`${bimester.id}:${epoch}`}
+          bimester={bimester}
           context={{ sectionCourseId, bimesterId: bimester.id }}
           parentBusy={busy}
           lockRef={mutationLock}
@@ -184,6 +239,7 @@ function CourseActivities({
 }
 
 function ActivitySheet({
+  bimester,
   context,
   parentBusy,
   lockRef,
@@ -191,6 +247,7 @@ function ActivitySheet({
   epoch,
   setParentBusy
 }: {
+  bimester: Bimester;
   context: ActivityContext;
   parentBusy: boolean;
   lockRef: MutableRefObject<boolean>;
@@ -212,7 +269,7 @@ function ActivitySheet({
   const [detailRevision, setDetailRevision] = useState(0);
   const [detail, setDetail] = useState<Result<AcademicActivity> | null>(null);
 
-  // Estados añadidos para el formulario dual (Actividad / Material) y fechas
+  // Estados para formulario dual y fechas
   const [creationMode, setCreationMode] = useState<'actividad' | 'material'>('actividad');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -221,6 +278,13 @@ function ActivitySheet({
   const [materialFile, setMaterialFile] = useState<File | null>(null);
   const [materials, setMaterials] = useState<MaterialSubmission[]>([]);
   const [toastNotice, setToastNotice] = useState<string | null>(null);
+
+  // Fechas personalizadas de actividades por ID
+  const [activityDates, setActivityDates] = useState<Record<number, { startDate?: string; endDate?: string }>>({});
+
+  // Sub-filtro de meses
+  const bimesterMonths = getBimesterMonths(bimester);
+  const [selectedMonth, setSelectedMonth] = useState<number | 'ALL'>('ALL');
 
   const mounted = useRef(true);
   const key = String(revision);
@@ -302,6 +366,12 @@ function ActivitySheet({
         if (saved && !confirmed) setAmbiguous(true);
         if (saved && confirmed) {
           setNotice(`Actividad «${saved.title}» creada en estado PLANIFICADA y confirmada en el listado.`);
+          if (startDate || endDate) {
+            setActivityDates(prev => ({
+              ...prev,
+              [savedId]: { startDate, endDate }
+            }));
+          }
           setForm(emptyForm);
           setStartDate('');
           setEndDate('');
@@ -456,7 +526,28 @@ function ActivitySheet({
     }
   }
 
+  // Determinación de mes para actividades
+  function getActivityMonth(a: AcademicActivity): number {
+    const custom = activityDates[a.id];
+    const dateStr = custom?.startDate || a.createdAt;
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? 0 : d.getMonth();
+  }
+
+  // Filtrado por mes seleccionado
+  const filteredActivities = list?.data?.filter(a => {
+    if (selectedMonth === 'ALL') return true;
+    return getActivityMonth(a) === selectedMonth;
+  });
+
+  const filteredMaterials = materials.filter(m => {
+    if (selectedMonth === 'ALL') return true;
+    const d = new Date(m.date);
+    return isNaN(d.getTime()) ? true : d.getMonth() === selectedMonth;
+  });
+
   const hasAnyItems = (list?.data && list.data.length > 0) || materials.length > 0;
+  const hasFilteredItems = (filteredActivities && filteredActivities.length > 0) || filteredMaterials.length > 0;
 
   return (
     <div className="flex flex-col gap-5 mt-5">
@@ -767,7 +858,7 @@ function ActivitySheet({
                 <button
                   type="submit"
                   disabled={creationMode === 'actividad' ? disabled || !!titleError : !materialTitle.trim() || disabled}
-                  className={`${button} bg-accent text-white w-full sm:w-auto mt-1`}
+                  className={`${button} bg-accent text-white disabled:bg-neutral/60 disabled:text-muted disabled:border-line disabled:opacity-100 w-full sm:w-auto mt-1`}
                 >
                   {creationMode === 'actividad' ? 'Crear actividad' : 'Enviar solicitud'}
                 </button>
@@ -776,7 +867,7 @@ function ActivitySheet({
           )}
         </div>
 
-        {/* Columna Derecha: Lista de todas las actividades */}
+        {/* Columna Derecha: Lista de todas las actividades con filtro de mes */}
         <div className="lg:col-span-7 min-w-0 flex flex-col gap-4">
           <div className="flex flex-wrap justify-between items-center gap-3 pb-2 border-b border-line">
             <h3 className="text-sm font-bold text-ink">Actividades del bimestre</h3>
@@ -788,6 +879,36 @@ function ActivitySheet({
             >
               Actualizar actividades
             </button>
+          </div>
+
+          {/* Sub-filtro horizontal por meses del bimestre */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <span className="text-[11px] font-bold text-muted mr-1">Filtrar por mes:</span>
+            <button
+              type="button"
+              onClick={() => setSelectedMonth('ALL')}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                selectedMonth === 'ALL'
+                  ? 'bg-accent text-white shadow-xs'
+                  : 'bg-neutral/60 text-muted hover:text-ink hover:bg-neutral'
+              }`}
+            >
+              Todos
+            </button>
+            {bimesterMonths.map(m => (
+              <button
+                key={m.index}
+                type="button"
+                onClick={() => setSelectedMonth(m.index)}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                  selectedMonth === m.index
+                    ? 'bg-accent text-white shadow-xs'
+                    : 'bg-neutral/60 text-muted hover:text-ink hover:bg-neutral'
+                }`}
+              >
+                {m.name}
+              </button>
+            ))}
           </div>
 
           {loading ? (
@@ -805,10 +926,14 @@ function ActivitySheet({
             <p className="p-6 text-sm text-muted border border-dashed border-line rounded-xl text-center">
               No hay actividades registradas en este bimestre.
             </p>
+          ) : !hasFilteredItems ? (
+            <p className="p-6 text-sm text-muted border border-dashed border-line rounded-xl text-center">
+              No hay actividades registradas para el mes seleccionado.
+            </p>
           ) : (
             <ul className="flex flex-col gap-3">
               {/* Materiales en proceso de aprobación */}
-              {materials.map(m => (
+              {filteredMaterials.map(m => (
                 <li
                   key={m.id}
                   className="p-4 bg-amber-50/50 border border-amber-200 rounded-lg flex flex-wrap justify-between items-start gap-3 transition-colors"
@@ -823,52 +948,113 @@ function ActivitySheet({
                         En proceso
                       </span>
                       <span>Material pedagógico</span>
-                      <span>· Fecha: {m.date}</span>
+                      <span>· Fecha: {formatDisplayDate(m.date)}</span>
                     </div>
                     {m.fileName && <p className="text-[11px] text-muted mt-1 font-mono">Archivo: {m.fileName}</p>}
                   </div>
                 </li>
               ))}
 
-              {/* Actividades académicas persistidas */}
-              {list?.data?.map(a => (
-                <li
-                  key={a.id}
-                  className="p-4 bg-neutral/30 border border-line rounded-lg flex flex-wrap justify-between items-start gap-3 hover:bg-neutral/40 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <p className="font-bold text-sm text-ink break-words">{a.title}</p>
-                    <p className="text-xs text-muted mt-1">
-                      {a.type} · {a.status} · Cuenta para PA: {a.cuentaParaPa ? 'Sí' : 'No'}
-                    </p>
-                    <time className="text-[11px] text-muted block mt-0.5" dateTime={a.createdAt}>
-                      {a.createdAt}
-                    </time>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={busy || !!editing}
-                      className={`${button} bg-white hover:bg-neutral`}
-                      onClick={() => setSelectedId(a.id)}
-                    >
-                      Ver detalle #{a.id}
-                    </button>
-                    {a.status === 'PLANIFICADA' && (
+              {/* Actividades académicas con distinción destacada de EXAMEN */}
+              {filteredActivities?.map(a => {
+                const isExam = a.type === 'EXAMEN';
+                const customDates = activityDates[a.id];
+                const rawStart = customDates?.startDate || a.createdAt;
+                const rawEnd = customDates?.endDate || customDates?.startDate || a.createdAt;
+                const startFormatted = formatDisplayDate(rawStart);
+                const endFormatted = formatDisplayDate(rawEnd);
+
+                return (
+                  <li
+                    key={a.id}
+                    className={`p-4 rounded-xl flex flex-wrap justify-between items-start gap-3 transition-all ${
+                      isExam
+                        ? 'border-l-4 border-l-rose-600 border border-rose-200 bg-rose-50/20 shadow-xs hover:bg-rose-50/35'
+                        : 'border border-line bg-neutral/30 hover:bg-neutral/40'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      {/* Título de la actividad */}
+                      <div className="flex items-center gap-2">
+                        {isExam && (
+                          <span className="text-rose-600" title="Examen programado">
+                            <Award size={17} aria-hidden="true" />
+                          </span>
+                        )}
+                        <h4 className={`font-bold text-sm break-words ${isExam ? 'text-rose-950 font-extrabold' : 'text-ink'}`}>
+                          {a.title}
+                        </h4>
+                      </div>
+
+                      {/* Debajo: Un solo icono de calendario y formato limpio de fechas */}
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted mt-1.5 font-medium">
+                        <Calendar size={13} className="text-slate-400 shrink-0" aria-hidden="true" />
+                        <span>
+                          Inicio: <strong className="text-ink font-semibold">{startFormatted}</strong>
+                        </span>
+                        <span className="text-muted/40 mx-1" aria-hidden="true">&bull;</span>
+                        <span>
+                          Fin: <strong className="text-ink font-semibold">{endFormatted}</strong>
+                        </span>
+                      </div>
+
+                      {/* Badges indicando tipo y estado temporal */}
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        {isExam ? (
+                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold tracking-wider bg-rose-100 text-rose-800 border border-rose-300 uppercase shadow-2xs">
+                            Examen
+                          </span>
+                        ) : a.type === 'TAREA' ? (
+                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase">
+                            Tarea
+                          </span>
+                        ) : a.type === 'PRACTICA' ? (
+                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                            Práctica
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 uppercase">
+                            {a.type}
+                          </span>
+                        )}
+
+                        {a.cuentaParaPa && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            Cuenta para PA
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Acción de ingreso tipo flecha */}
+                    <div className="flex items-center gap-2 shrink-0 self-center">
                       <button
                         type="button"
-                        disabled={disabled || !!editing}
-                        className={`${button} bg-white hover:bg-neutral`}
-                        onClick={() => {
-                          void startEdit(a.id);
-                        }}
+                        disabled={busy || !!editing}
+                        className="p-2.5 rounded-xl border border-line bg-white hover:bg-neutral text-muted hover:text-accent transition-all shadow-xs group focus-visible:outline-2 focus-visible:outline-accent"
+                        onClick={() => setSelectedId(a.id)}
+                        title="Ingresar a la actividad"
+                        aria-label={`Ver detalle #${a.id}`}
                       >
-                        Editar #{a.id}
+                        <ChevronRight size={18} className="stroke-[2.5]" aria-hidden="true" />
+                        <span className="sr-only">Ver detalle #{a.id}</span>
                       </button>
-                    )}
-                  </div>
-                </li>
-              ))}
+                      {a.status === 'PLANIFICADA' && (
+                        <button
+                          type="button"
+                          disabled={disabled || !!editing}
+                          className="sr-only"
+                          onClick={() => {
+                            void startEdit(a.id);
+                          }}
+                        >
+                          Editar #{a.id}
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
 

@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 
 import { useRef, useState } from 'react';
+import { FileUp } from 'lucide-react';
 import { studentImportService, studentImportErrorMessage, studentImportErrorPreview } from '@/services/admin/studentImportService';
 import type { StudentImportConfirmation, StudentImportIssue, StudentImportPreview } from '@/types/studentImport';
 
@@ -107,37 +108,64 @@ export default function ImportadorMatricula() {
   const buttonClass = 'px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed';
   const display = (value: string | number | null) => value ?? '—';
   const fullName = (...parts: (string | null)[]) => parts.filter(Boolean).join(' ') || '—';
+
   return (
     <section className="w-full bg-white rounded-2xl border border-line p-6 flex flex-col gap-5" aria-busy={busy}>
       <div
+        role="button"
+        tabIndex={0}
+        onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
           const file = event.dataTransfer.files[0];
           if (file) selectFile(file);
         }}
-        className="border-2 border-dashed border-line rounded-xl p-8 text-center"
+        className="border-2 border-dashed border-line hover:border-accent rounded-2xl p-10 text-center cursor-pointer transition-all bg-neutral/20 hover:bg-neutral/40 flex flex-col items-center justify-center gap-3 group"
       >
-        <p className="text-ink font-bold">Selecciona o arrastra un archivo .XLSX</p>
-        <p className="text-sm text-muted mt-2">Usa la hoja ESTUDIANTES con las 21 columnas del contrato V2. El servidor revisará su estructura y la validez de cada fila.</p>
+        <div className="w-16 h-16 rounded-full bg-accent/10 text-accent flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+          <FileUp size={32} aria-hidden="true" />
+        </div>
+        <div>
+          <p className="text-ink font-bold text-base">Sube el archivo de tus estudiantes</p>
+          <p className="text-xs text-muted mt-1">Haz clic aquí o arrastra tu archivo (.xlsx)</p>
+        </div>
         <input
           ref={fileInputRef}
           type="file"
           accept=".xlsx"
           disabled={busy}
           aria-label="Seleccionar archivo de matrícula .XLSX"
-          className="mt-4 max-w-full text-sm"
+          className="hidden"
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) selectFile(file);
             event.target.value = '';
           }}
         />
-        {confirmation && <button type="button" className={`${buttonClass} mt-4`} onClick={() => fileInputRef.current?.click()}>Cargar otro archivo</button>}
+        {confirmation && (
+          <button
+            type="button"
+            className={`${buttonClass} mt-2`}
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
+          >
+            Cargar otro archivo
+          </button>
+        )}
       </div>
+
       {selectedFile && (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-ink">Archivo: {selectedFile.name}</p>
+          <p className="text-sm text-ink">Archivo: <strong>{selectedFile.name}</strong></p>
           <button type="button" className={buttonClass} disabled={busy || !!confirmation} onClick={requestPreview}>
             {previewLoading ? 'Validando en servidor...' : 'Obtener preview'}
           </button>

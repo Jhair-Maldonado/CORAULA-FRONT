@@ -4,7 +4,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft01Icon, PencilEdit01Icon, BookOpen01Icon, AlertCircleIcon, Clock01Icon } from 'hugeicons-react';
-import { Check } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { teachersService, teacherErrorMessage, teacherErrorStatus } from '@/services/admin/teachersService';
 import { toAdminTeacher, toAdminTeacherDetail, toUpdateTeacher } from '@/adapters/teacherAdapter';
 import type { AdminTeacherDetail, TeacherFormValues } from '@/types/adminTeacher';
@@ -53,6 +53,15 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
   const teacher = loading ? undefined : result?.teacher;
   const accountBlocked = !!teacher && (!teacher.active || !teacher.dni?.trim());
 
+  const [initialValues, setInitialValues] = useState<TeacherFormValues>({
+    dni: '',
+    firstNames: '',
+    paternalLastName: '',
+    maternalLastName: '',
+    phone: '',
+    specialty: '',
+  });
+
   const [editValues, setEditValues] = useState<TeacherFormValues>({
     dni: '',
     firstNames: '',
@@ -75,20 +84,26 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
     setNotice('');
     setActionError('');
     setEditError('');
-    setEditValues({
+    const vals: TeacherFormValues = {
       dni: teacher.dni || '',
       firstNames: teacher.firstNames || '',
       paternalLastName: teacher.paternalLastName || '',
       maternalLastName: teacher.maternalLastName || '',
       phone: teacher.phone || '',
       specialty: teacher.specialty || '',
-    });
+    };
+    setInitialValues(vals);
+    setEditValues(vals);
     setEditing(true);
   }
 
   function cancelEditing() {
     setEditing(false);
     setEditError('');
+  }
+
+  function isModified(key: keyof TeacherFormValues): boolean {
+    return (editValues[key] ?? '').trim() !== (initialValues[key] ?? '').trim();
   }
 
   async function handleSaveInline(e: React.FormEvent) {
@@ -212,18 +227,24 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
               </div>
 
               {!editing ? (
-                /* Modo lectura */
+                /* Modo lectura: misma distribución de 2 columnas por fila */
                 <dl className="flex flex-col gap-3">
-                  <Info label="DNI" value={teacher.dni} />
-                  <Info label="Nombres" value={teacher.firstNames} />
-                  <Info label="Apellido paterno" value={teacher.paternalLastName} />
-                  <Info label="Apellido materno" value={teacher.maternalLastName} />
-                  <Info label="Teléfono" value={teacher.phone} />
-                  <Info label="Especialidad" value={teacher.specialty} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Info label="DNI" value={teacher.dni} />
+                    <Info label="Nombres" value={teacher.firstNames} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Info label="Apellido paterno" value={teacher.paternalLastName} />
+                    <Info label="Apellido materno" value={teacher.maternalLastName} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Info label="Teléfono" value={teacher.phone} />
+                    <Info label="Especialidad" value={teacher.specialty} />
+                  </div>
                   <Info label="Estado" value={teacher.estadoLabel} />
                 </dl>
               ) : (
-                /* Modo edición en el mismo panel (sin formulario emergente) */
+                /* Modo edición: misma estructura de 2 columnas, input azul sin badge, icono ✓ o ✕ a la derecha */
                 <form className="flex flex-col gap-4" onSubmit={handleSaveInline}>
                   <div className="flex items-center justify-between pb-2 border-b border-line">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-accent flex items-center gap-1.5">
@@ -240,108 +261,149 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
                     </p>
                   )}
 
-                  <fieldset disabled={busy} className="flex flex-col gap-3 disabled:opacity-70">
-                    {/* DNI con contador X/8 y check de validación */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                        DNI <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        required
-                        maxLength={12}
-                        value={editValues.dni}
-                        onChange={e => setEditValues(prev => ({ ...prev, dni: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 text-xs font-medium text-ink bg-neutral/50 border border-line rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                        placeholder="Ej. 12345678"
-                      />
-                      <div className="flex items-center justify-between text-[11px] mt-1 font-medium px-0.5">
-                        <span className={editValues.dni.trim().length === 8 ? 'text-emerald-700 font-bold' : 'text-muted'}>
-                          {editValues.dni.trim().length}/8 caracteres
-                        </span>
-                        {editValues.dni.trim().length === 8 && (
-                          <span className="flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
-                            <Check size={12} className="stroke-[3]" /> Requisito cumplido
+                  <fieldset disabled={busy} className="flex flex-col gap-3.5 disabled:opacity-70">
+                    {/* Fila 1: DNI y Nombres en 2 columnas */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* DNI con indicador ✓ o ✕ en el lado derecho */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          DNI <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative mt-1.5">
+                          <input
+                            required
+                            maxLength={12}
+                            value={editValues.dni}
+                            onChange={e => setEditValues(prev => ({ ...prev, dni: e.target.value }))}
+                            className={`w-full pl-3 pr-9 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                              isModified('dni')
+                                ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                                : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                            }`}
+                            placeholder="Ej. 12345678"
+                          />
+                          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+                            {editValues.dni.trim().length === 8 ? (
+                              <Check size={16} className="text-emerald-600 stroke-[2.5]" aria-hidden="true" />
+                            ) : (
+                              <X size={16} className="text-rose-500 stroke-[2.5]" aria-hidden="true" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-[11px] mt-1 font-medium px-0.5">
+                          <span className={editValues.dni.trim().length === 8 ? 'text-emerald-700 font-bold' : 'text-muted'}>
+                            {editValues.dni.trim().length}/8
                           </span>
-                        )}
+                        </div>
+                      </div>
+
+                      {/* Nombres */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          Nombres <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          required
+                          maxLength={120}
+                          value={editValues.firstNames}
+                          onChange={e => setEditValues(prev => ({ ...prev, firstNames: e.target.value }))}
+                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                            isModified('firstNames')
+                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                          }`}
+                        />
                       </div>
                     </div>
 
-                    {/* Nombres */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                        Nombres <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        required
-                        maxLength={120}
-                        value={editValues.firstNames}
-                        onChange={e => setEditValues(prev => ({ ...prev, firstNames: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 text-xs font-medium text-ink bg-neutral/50 border border-line rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                      />
-                    </div>
+                    {/* Fila 2: Apellidos en 2 columnas */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Apellido paterno */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          Apellido paterno <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          required
+                          maxLength={120}
+                          value={editValues.paternalLastName}
+                          onChange={e => setEditValues(prev => ({ ...prev, paternalLastName: e.target.value }))}
+                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                            isModified('paternalLastName')
+                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                          }`}
+                        />
+                      </div>
 
-                    {/* Apellido paterno */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                        Apellido paterno <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        required
-                        maxLength={120}
-                        value={editValues.paternalLastName}
-                        onChange={e => setEditValues(prev => ({ ...prev, paternalLastName: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 text-xs font-medium text-ink bg-neutral/50 border border-line rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                      />
-                    </div>
-
-                    {/* Apellido materno */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                        Apellido materno
-                      </label>
-                      <input
-                        maxLength={120}
-                        value={editValues.maternalLastName}
-                        onChange={e => setEditValues(prev => ({ ...prev, maternalLastName: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 text-xs font-medium text-ink bg-neutral/50 border border-line rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                      />
-                    </div>
-
-                    {/* Teléfono con contador X/9 y check de validación */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                        Teléfono
-                      </label>
-                      <input
-                        maxLength={30}
-                        value={editValues.phone}
-                        onChange={e => setEditValues(prev => ({ ...prev, phone: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 text-xs font-medium text-ink bg-neutral/50 border border-line rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                        placeholder="Ej. 987654321"
-                      />
-                      <div className="flex items-center justify-between text-[11px] mt-1 font-medium px-0.5">
-                        <span className={editValues.phone.trim().length === 9 ? 'text-emerald-700 font-bold' : 'text-muted'}>
-                          {editValues.phone.trim().length}/9 caracteres
-                        </span>
-                        {editValues.phone.trim().length === 9 && (
-                          <span className="flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
-                            <Check size={12} className="stroke-[3]" /> Requisito cumplido
-                          </span>
-                        )}
+                      {/* Apellido materno */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          Apellido materno
+                        </label>
+                        <input
+                          maxLength={120}
+                          value={editValues.maternalLastName}
+                          onChange={e => setEditValues(prev => ({ ...prev, maternalLastName: e.target.value }))}
+                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                            isModified('maternalLastName')
+                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                          }`}
+                        />
                       </div>
                     </div>
 
-                    {/* Especialidad */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                        Especialidad
-                      </label>
-                      <input
-                        maxLength={100}
-                        value={editValues.specialty}
-                        onChange={e => setEditValues(prev => ({ ...prev, specialty: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 text-xs font-medium text-ink bg-neutral/50 border border-line rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                      />
+                    {/* Fila 3: Teléfono y Especialidad en 2 columnas */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Teléfono con indicador ✓ o ✕ en el lado derecho */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          Teléfono
+                        </label>
+                        <div className="relative mt-1.5">
+                          <input
+                            maxLength={30}
+                            value={editValues.phone}
+                            onChange={e => setEditValues(prev => ({ ...prev, phone: e.target.value }))}
+                            className={`w-full pl-3 pr-9 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                              isModified('phone')
+                                ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                                : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                            }`}
+                            placeholder="Ej. 987654321"
+                          />
+                          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+                            {editValues.phone.trim().length === 9 ? (
+                              <Check size={16} className="text-emerald-600 stroke-[2.5]" aria-hidden="true" />
+                            ) : (
+                              <X size={16} className="text-rose-500 stroke-[2.5]" aria-hidden="true" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-[11px] mt-1 font-medium px-0.5">
+                          <span className={editValues.phone.trim().length === 9 ? 'text-emerald-700 font-bold' : 'text-muted'}>
+                            {editValues.phone.trim().length}/9
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Especialidad */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          Especialidad
+                        </label>
+                        <input
+                          maxLength={100}
+                          value={editValues.specialty}
+                          onChange={e => setEditValues(prev => ({ ...prev, specialty: e.target.value }))}
+                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                            isModified('specialty')
+                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                          }`}
+                        />
+                      </div>
                     </div>
                   </fieldset>
 

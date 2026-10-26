@@ -1,6 +1,8 @@
 ﻿'use client';
 
-import { useRef, useState } from 'react';
+import { useContext, useRef, useState } from 'react';
+import { isAxiosError } from 'axios';
+import { AuthContext } from '@/contexts/AuthContext';
 import { studentImportService, studentImportErrorMessage, studentImportErrorPreview } from '@/services/admin/studentImportService';
 import type { StudentImportConfirmation, StudentImportIssue, StudentImportPreview } from '@/types/studentImport';
 
@@ -15,6 +17,9 @@ function Issues({ issues, warning = false }: { issues: StudentImportIssue[]; war
 
 /** Single implementation; backend owns structure and business validation. */
 export default function ImportadorMatricula() {
+  const auth = useContext(AuthContext);
+  // Confirming is ADMINISTRADOR (Director) only; DIRECTIVO keeps the preview (BACK #74).
+  const isAdmin = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [preview, setPreview] = useState<StudentImportPreview | null>(null);
@@ -24,16 +29,17 @@ export default function ImportadorMatricula() {
   const [confirmation, setConfirmation] = useState<StudentImportConfirmation | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [needsNewPreview, setNeedsNewPreview] = useState(false);
+  const [confirmForbidden, setConfirmForbidden] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Synchronous locks prevent repeated clicks before React updates state.
   const requestInProgress = useRef(false);
   const confirmed = useRef(false);
   const busy = previewLoading || confirmLoading;
-  const canConfirm = !!selectedFile && !!preview && previewFile === selectedFile &&
+  const canConfirm = isAdmin && !!selectedFile && !!preview && previewFile === selectedFile &&
     preview.totalRows > 0 && preview.invalidRows === 0 && preview.validRows === preview.totalRows &&
     preview.rows.length === preview.totalRows &&
     preview.rows.every(row => row.valid === true && row.errors.length === 0) &&
-    !busy && !confirmation && !needsNewPreview;
+    !busy && !confirmation && !needsNewPreview && !confirmForbidden;
 
   const selectFile = (file: File) => {
     if (requestInProgress.current) return;
@@ -43,6 +49,7 @@ export default function ImportadorMatricula() {
     setPreviewError(null);
     setConfirmError(null);
     setNeedsNewPreview(false);
+    setConfirmForbidden(false);
     confirmed.current = false;
     if (!/\.xlsx$/i.test(file.name)) {
       setSelectedFile(null);
@@ -97,7 +104,10 @@ export default function ImportadorMatricula() {
         // An error response never re-enables confirmation, even if counters look valid.
         setNeedsNewPreview(true);
       }
-      setConfirmError(studentImportErrorMessage(error));
+      const forbidden = isAxiosError(error) && error.response?.status === 403;
+      // A 403 is final for this file: the button stays disabled, no retry.
+      if (forbidden) setConfirmForbidden(true);
+      setConfirmError(forbidden ? 'Solo el Director puede confirmar la importación.' : studentImportErrorMessage(error));
     } finally {
       requestInProgress.current = false;
       setConfirmLoading(false);
@@ -141,9 +151,10 @@ export default function ImportadorMatricula() {
           <button type="button" className={buttonClass} disabled={busy || !!confirmation} onClick={requestPreview}>
             {previewLoading ? 'Validando en servidor...' : 'Obtener preview'}
           </button>
-          <button type="button" className={buttonClass} disabled={!canConfirm} onClick={requestConfirmation}>
+          {isAdmin && <button type="button" className={buttonClass} disabled={!canConfirm} onClick={requestConfirmation}>
             {confirmLoading ? 'Confirmando...' : 'Confirmar matrícula'}
-          </button>
+          </button>}
+          {auth?.role === 'DIRECTIVO' && <p className="text-sm text-muted">La confirmación de la importación la realiza el Director.</p>}
         </div>
       )}
       {selectedFile && !preview && !confirmation && !previewLoading && !previewError && (

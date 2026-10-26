@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { AlertCircleIcon } from 'hugeicons-react';
+import { Check } from 'lucide-react';
 import type { AdminTeacher, TeacherFormValues } from '@/types/adminTeacher';
 import type { CreateTeacherRequest, UpdateTeacherRequest } from '@/types/teacherApi';
 import { teacherFormValidation, toCreateTeacher, toTeacherForm, toUpdateTeacher } from '@/adapters/teacherAdapter';
@@ -49,14 +50,52 @@ export default function TeacherForm(props: FormProps) {
       finally { savingRef.current = false; setSaving(false); }
     }}>
       <fieldset disabled={saving} className="grid grid-cols-1 sm:grid-cols-2 gap-3 disabled:opacity-70">
-        {fields.map(field => <label key={field.key} className="text-[10px] font-bold uppercase tracking-wider text-muted">
-          {field.label}
-          <input required={field.required} maxLength={field.maxLength} value={values[field.key]}
-            onChange={event => setValues(previous => ({ ...previous, [field.key]: event.target.value }))}
-            className="w-full min-w-0 mt-1.5 px-3 py-2 min-h-10 bg-neutral/50 text-xs font-medium text-ink normal-case tracking-normal border border-line rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" />
-        </label>)}
+        {fields.map(field => {
+          const val = values[field.key] || '';
+          const isDni = field.key === 'dni';
+          const isPhone = field.key === 'phone';
+
+          return (
+            <div key={field.key} className="flex flex-col">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted">
+                {field.label} {field.required && <span className="text-rose-500">*</span>}
+              </label>
+              <input
+                required={field.required}
+                maxLength={field.maxLength}
+                value={val}
+                onChange={event => setValues(previous => ({ ...previous, [field.key]: event.target.value }))}
+                className="w-full min-w-0 mt-1 px-3 py-2 min-h-10 bg-neutral/50 text-xs font-medium text-ink normal-case tracking-normal border border-line rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              />
+              {isDni && (
+                <div className="flex items-center justify-between text-[11px] mt-1 font-medium px-0.5">
+                  <span className={val.trim().length === 8 ? 'text-emerald-700 font-bold' : 'text-muted'}>
+                    {val.trim().length}/8 caracteres
+                  </span>
+                  {val.trim().length === 8 && (
+                    <span className="flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
+                      <Check size={12} className="stroke-[3]" /> Requisito cumplido
+                    </span>
+                  )}
+                </div>
+              )}
+              {isPhone && (
+                <div className="flex items-center justify-between text-[11px] mt-1 font-medium px-0.5">
+                  <span className={val.trim().length === 9 ? 'text-emerald-700 font-bold' : 'text-muted'}>
+                    {val.trim().length}/9 caracteres
+                  </span>
+                  {val.trim().length === 9 && (
+                    <span className="flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
+                      <Check size={12} className="stroke-[3]" /> Requisito cumplido
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </fieldset>
-      <p className="text-xs text-muted">DNI: entre 8 y 12 caracteres alfanuméricos. Apellido materno, teléfono y especialidad son opcionales.</p>
+      <p className="text-xs text-muted">DNI: 8 caracteres alfanuméricos. Teléfono: 9 dígitos. Apellido materno y especialidad son opcionales.</p>
       {error && <p role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm flex items-start gap-2 break-words"><AlertCircleIcon size={18} aria-hidden="true" className="shrink-0" />{error}</p>}
       <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
         <button type="button" disabled={saving} onClick={props.onCancel} className="px-4 py-2 min-h-10 rounded-xl bg-white border border-line text-ink text-xs font-bold hover:bg-neutral disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Cancelar</button>

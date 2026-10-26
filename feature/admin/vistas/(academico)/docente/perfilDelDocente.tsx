@@ -1,15 +1,15 @@
-﻿'use client';
+'use client';
 
 import { useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft01Icon, PencilEdit01Icon, BookOpen01Icon, UserCircleIcon, AlertCircleIcon, Clock01Icon } from 'hugeicons-react';
+import { ArrowLeft01Icon, PencilEdit01Icon, BookOpen01Icon, AlertCircleIcon, Clock01Icon } from 'hugeicons-react';
+import { Check, X } from 'lucide-react';
 import { teachersService, teacherErrorMessage, teacherErrorStatus } from '@/services/admin/teachersService';
-import { toAdminTeacher, toAdminTeacherDetail } from '@/adapters/teacherAdapter';
-import type { AdminTeacherDetail } from '@/types/adminTeacher';
+import { toAdminTeacher, toAdminTeacherDetail, toUpdateTeacher } from '@/adapters/teacherAdapter';
+import type { AdminTeacherDetail, TeacherFormValues } from '@/types/adminTeacher';
 import type { TeacherAccountResponse } from '@/types/teacherApi';
 import { AuthContext } from '@/contexts/AuthContext';
-import TeacherForm from './TeacherForm';
 import TeacherAccountModal from './TeacherAccountModal';
 
 type DetailResult = {
@@ -22,10 +22,12 @@ type DetailResult = {
 };
 
 function Info({ label, value }: { label: string; value: string | null }) {
-  return <div className="p-3 bg-neutral/40 border border-line/60 rounded-xl min-w-0">
-    <dt className="text-[10px] font-bold text-muted uppercase tracking-wider">{label}</dt>
-    <dd className="text-xs font-bold text-ink mt-1 break-words">{value ?? 'No registrado'}</dd>
-  </div>;
+  return (
+    <div className="p-3 bg-neutral/40 border border-line/60 rounded-xl min-w-0">
+      <dt className="text-[10px] font-bold text-muted uppercase tracking-wider">{label}</dt>
+      <dd className="text-xs font-bold text-ink mt-1 break-words">{value ?? 'No registrado'}</dd>
+    </div>
+  );
 }
 
 export default function PerfilDelDocente() {
@@ -39,6 +41,7 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [editError, setEditError] = useState('');
   const [notice, setNotice] = useState('');
   const [accountOpen, setAccountOpen] = useState(false);
   // Session-only: the backend does not expose existing accounts yet (BACK #66).
@@ -50,6 +53,24 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
   const teacher = loading ? undefined : result?.teacher;
   const accountBlocked = !!teacher && (!teacher.active || !teacher.dni?.trim());
 
+  const [initialValues, setInitialValues] = useState<TeacherFormValues>({
+    dni: '',
+    firstNames: '',
+    paternalLastName: '',
+    maternalLastName: '',
+    phone: '',
+    specialty: '',
+  });
+
+  const [editValues, setEditValues] = useState<TeacherFormValues>({
+    dni: '',
+    firstNames: '',
+    paternalLastName: '',
+    maternalLastName: '',
+    phone: '',
+    specialty: '',
+  });
+
   useEffect(() => {
     let current = true;
     teachersService.getById(teacherId)
@@ -57,6 +78,70 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
       .catch(error => { if (current) setResult({ revision, error: teacherErrorMessage(error), notFound: teacherErrorStatus(error) === 404 }); });
     return () => { current = false; };
   }, [teacherId, revision]);
+
+  function startEditing() {
+    if (!teacher) return;
+    setNotice('');
+    setActionError('');
+    setEditError('');
+    const vals: TeacherFormValues = {
+      dni: teacher.dni || '',
+      firstNames: teacher.firstNames || '',
+      paternalLastName: teacher.paternalLastName || '',
+      maternalLastName: teacher.maternalLastName || '',
+      phone: teacher.phone || '',
+      specialty: teacher.specialty || '',
+    };
+    setInitialValues(vals);
+    setEditValues(vals);
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setEditing(false);
+    setEditError('');
+  }
+
+  function isModified(key: keyof TeacherFormValues): boolean {
+    return (editValues[key] ?? '').trim() !== (initialValues[key] ?? '').trim();
+  }
+
+  async function handleSaveInline(e: React.FormEvent) {
+    e.preventDefault();
+    if (mutationRef.current || !teacher) return;
+    if (!/^[0-9A-Z]{8,12}$/i.test(editValues.dni.trim())) {
+      setEditError('El DNI debe tener entre 8 y 12 caracteres (generalmente 8 dígitos).');
+      return;
+    }
+    if (!editValues.firstNames.trim() || !editValues.paternalLastName.trim()) {
+      setEditError('Nombres y apellido paterno son obligatorios.');
+      return;
+    }
+    const patch = toUpdateTeacher(editValues, teacher);
+    if (Object.keys(patch).length === 0) {
+      setEditing(false);
+      return;
+    }
+    mutationRef.current = true;
+    setBusy(true);
+    setEditError('');
+    setActionError('');
+    try {
+      const updated = await teachersService.update(teacher.id, patch);
+      setResult(previous => ({
+        revision,
+        teacher: { ...toAdminTeacher(updated), assignments: teacher.assignments },
+        assignmentsError: previous?.assignmentsError,
+      }));
+      setEditing(false);
+      setNotice('Datos del docente actualizados correctamente.');
+    } catch (failure) {
+      setEditError(teacherErrorMessage(failure));
+    } finally {
+      mutationRef.current = false;
+      setBusy(false);
+    }
+  }
 
   async function toggleActive() {
     if (!teacher || mutationRef.current) return;
@@ -101,7 +186,11 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div><span className="text-accent text-[11px] font-bold tracking-widest uppercase">Equipo académico</span><h1 className="text-ink text-2xl font-bold tracking-tight mt-1">Perfil de docente</h1></div>
             <div className="flex flex-wrap gap-2">
-              <button disabled={busy} onClick={() => { setNotice(''); setActionError(''); setEditing(true); }} className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold min-h-10 shadow-sm hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"><PencilEdit01Icon size={16} aria-hidden="true" />Editar docente</button>
+              {!editing ? (
+                <button disabled={busy} onClick={startEditing} className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold min-h-10 shadow-sm hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"><PencilEdit01Icon size={16} aria-hidden="true" />Editar docente</button>
+              ) : (
+                <button type="button" disabled={busy} onClick={cancelEditing} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Cancelar edición</button>
+              )}
               <button disabled={busy} onClick={toggleActive} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">{busy ? 'Guardando...' : teacher.active ? 'Desactivar docente' : 'Reactivar docente'}</button>
               {canManageAccount && !account && <button disabled={busy || accountBlocked} onClick={() => { setNotice(''); setActionError(''); setAccountOpen(true); }} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Crear cuenta de acceso</button>}
             </div>
@@ -113,19 +202,232 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <section className="lg:col-span-5 min-w-0 bg-white border border-line rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-5 pb-5 border-b border-line">
-                <span className="w-14 h-14 rounded-full border border-accent/20 bg-accent-soft text-accent flex items-center justify-center font-bold shrink-0">{teacher.iniciales}</span>
-                <div className="min-w-0"><h2 className="text-lg font-bold tracking-tight text-ink break-words">{teacher.nombreCompleto}</h2><p className="text-[10px] font-bold inline-block mt-2 rounded-full px-2 py-1 border border-line bg-neutral text-ink">{teacher.estadoLabel}</p></div>
+                <span className="w-14 h-14 rounded-full border border-accent/20 bg-accent-soft text-accent flex items-center justify-center font-bold shrink-0 text-base">{teacher.iniciales}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-lg font-bold tracking-tight text-ink break-words">{teacher.nombreCompleto}</h2>
+                    {/* Botón verde si activo, gris si inactivo */}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={toggleActive}
+                      title={teacher.active ? 'Docente activo (clic para desactivar)' : 'Docente inactivo (clic para activar)'}
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer border shadow-xs ${
+                        teacher.active
+                          ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-600'
+                          : 'bg-neutral hover:bg-neutral/80 text-muted border-line'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${teacher.active ? 'bg-white' : 'bg-muted'}`} />
+                      {teacher.active ? 'Activo' : 'Inactivo'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted mt-1">{teacher.specialty || 'Sin especialidad registrada'}</p>
+                </div>
               </div>
-              <dl className="flex flex-col gap-3">
-                <Info label="DNI" value={teacher.dni} />
-                <Info label="Nombres" value={teacher.firstNames} />
-                <Info label="Apellido paterno" value={teacher.paternalLastName} />
-                <Info label="Apellido materno" value={teacher.maternalLastName} />
-                <Info label="Teléfono" value={teacher.phone} />
-                <Info label="Especialidad" value={teacher.specialty} />
-                <Info label="Estado" value={teacher.estadoLabel} />
-              </dl>
+
+              {!editing ? (
+                /* Modo lectura: misma distribución de 2 columnas por fila */
+                <dl className="flex flex-col gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Info label="DNI" value={teacher.dni} />
+                    <Info label="Nombres" value={teacher.firstNames} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Info label="Apellido paterno" value={teacher.paternalLastName} />
+                    <Info label="Apellido materno" value={teacher.maternalLastName} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Info label="Teléfono" value={teacher.phone} />
+                    <Info label="Especialidad" value={teacher.specialty} />
+                  </div>
+                  <Info label="Estado" value={teacher.estadoLabel} />
+                </dl>
+              ) : (
+                /* Modo edición: misma estructura de 2 columnas, input azul sin badge, icono ✓ o ✕ a la derecha */
+                <form className="flex flex-col gap-4" onSubmit={handleSaveInline}>
+                  <div className="flex items-center justify-between pb-2 border-b border-line">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-accent flex items-center gap-1.5">
+                      <PencilEdit01Icon size={14} aria-hidden="true" />
+                      Edición en panel
+                    </h3>
+                    <span className="text-[11px] text-muted font-medium">Modifica los campos requeridos</span>
+                  </div>
+
+                  {editError && (
+                    <p role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs flex items-start gap-2 break-words">
+                      <AlertCircleIcon size={16} aria-hidden="true" className="shrink-0" />
+                      {editError}
+                    </p>
+                  )}
+
+                  <fieldset disabled={busy} className="flex flex-col gap-3.5 disabled:opacity-70">
+                    {/* Fila 1: DNI y Nombres en 2 columnas */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* DNI con indicador ✓ o ✕ en el lado derecho */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          DNI <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative mt-1.5">
+                          <input
+                            required
+                            maxLength={12}
+                            value={editValues.dni}
+                            onChange={e => setEditValues(prev => ({ ...prev, dni: e.target.value }))}
+                            className={`w-full pl-3 pr-9 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                              isModified('dni')
+                                ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                                : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                            }`}
+                            placeholder="Ej. 12345678"
+                          />
+                          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+                            {editValues.dni.trim().length === 8 ? (
+                              <Check size={16} className="text-emerald-600 stroke-[2.5]" aria-hidden="true" />
+                            ) : (
+                              <X size={16} className="text-rose-500 stroke-[2.5]" aria-hidden="true" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-[11px] mt-1 font-medium px-0.5">
+                          <span className={editValues.dni.trim().length === 8 ? 'text-emerald-700 font-bold' : 'text-muted'}>
+                            {editValues.dni.trim().length}/8
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Nombres */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          Nombres <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          required
+                          maxLength={120}
+                          value={editValues.firstNames}
+                          onChange={e => setEditValues(prev => ({ ...prev, firstNames: e.target.value }))}
+                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                            isModified('firstNames')
+                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Fila 2: Apellidos en 2 columnas */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Apellido paterno */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          Apellido paterno <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          required
+                          maxLength={120}
+                          value={editValues.paternalLastName}
+                          onChange={e => setEditValues(prev => ({ ...prev, paternalLastName: e.target.value }))}
+                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                            isModified('paternalLastName')
+                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Apellido materno */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          Apellido materno
+                        </label>
+                        <input
+                          maxLength={120}
+                          value={editValues.maternalLastName}
+                          onChange={e => setEditValues(prev => ({ ...prev, maternalLastName: e.target.value }))}
+                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                            isModified('maternalLastName')
+                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Fila 3: Teléfono y Especialidad en 2 columnas */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Teléfono con indicador ✓ o ✕ en el lado derecho */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          Teléfono
+                        </label>
+                        <div className="relative mt-1.5">
+                          <input
+                            maxLength={30}
+                            value={editValues.phone}
+                            onChange={e => setEditValues(prev => ({ ...prev, phone: e.target.value }))}
+                            className={`w-full pl-3 pr-9 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                              isModified('phone')
+                                ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                                : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                            }`}
+                            placeholder="Ej. 987654321"
+                          />
+                          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+                            {editValues.phone.trim().length === 9 ? (
+                              <Check size={16} className="text-emerald-600 stroke-[2.5]" aria-hidden="true" />
+                            ) : (
+                              <X size={16} className="text-rose-500 stroke-[2.5]" aria-hidden="true" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-[11px] mt-1 font-medium px-0.5">
+                          <span className={editValues.phone.trim().length === 9 ? 'text-emerald-700 font-bold' : 'text-muted'}>
+                            {editValues.phone.trim().length}/9
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Especialidad */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                          Especialidad
+                        </label>
+                        <input
+                          maxLength={100}
+                          value={editValues.specialty}
+                          onChange={e => setEditValues(prev => ({ ...prev, specialty: e.target.value }))}
+                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                            isModified('specialty')
+                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  </fieldset>
+
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={cancelEditing}
+                      className="px-3.5 py-2 min-h-9 rounded-xl bg-white border border-line text-ink text-xs font-bold hover:bg-neutral disabled:opacity-50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="px-4 py-2 min-h-9 rounded-xl bg-accent text-white text-xs font-bold shadow-sm hover:bg-accent/90 disabled:opacity-50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    >
+                      {busy ? 'Guardando...' : 'Guardar cambios'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </section>
+
             <section className="lg:col-span-7 min-w-0 bg-white border border-line rounded-2xl p-6 shadow-sm">
               <h2 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2 mb-4 pb-3 border-b border-line"><BookOpen01Icon size={18} aria-hidden="true" className="text-accent shrink-0" />Asignaciones actuales / históricas</h2>
               {result?.assignmentsLoading ? <p role="status" className="text-sm text-muted p-4 border border-line bg-neutral/30 rounded-xl flex items-center gap-2"><Clock01Icon size={18} aria-hidden="true" className="shrink-0" />Actualizando asignaciones...</p> :
@@ -146,32 +448,20 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
                     </div>}
             </section>
           </div>
-          {accountOpen && canManageAccount && <TeacherAccountModal teacherId={teacher.id} onCancel={() => setAccountOpen(false)} onCreated={created => {
-            setAccount(created);
-            setAccountOpen(false);
-            setNotice(created.created
-              ? `Cuenta de acceso creada para ${created.email}. La contraseña inicial es el DNI del docente; pídele que la cambie.`
-              : `El docente ya tenía una cuenta con ${created.email}. No se modificó su contraseña.`);
-          }} />}
-          {editing && <div className="fixed inset-0 bg-ink/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-            <div role="dialog" aria-modal="true" aria-labelledby="edit-teacher-title" className="bg-white rounded-2xl border border-line border-t-4 border-t-accent p-5 sm:p-6 max-w-xl w-full shadow-xl max-h-[90vh] overflow-y-auto">
-              <h2 id="edit-teacher-title" className="text-base font-bold tracking-tight mb-5 pb-3 border-b border-line flex items-center gap-2"><UserCircleIcon size={18} aria-hidden="true" className="text-accent" />Editar docente</h2>
-              <TeacherForm teacher={teacher} onCancel={() => setEditing(false)} onSave={async payload => {
-                if (mutationRef.current) throw new Error('Operación en curso');
-                mutationRef.current = true;
-                setBusy(true);
-                try {
-                  const updated = await teachersService.update(teacher.id, payload);
-                  setResult(previous => ({
-                    revision, teacher: { ...toAdminTeacher(updated), assignments: teacher.assignments },
-                    assignmentsError: previous?.assignmentsError,
-                  }));
-                  setEditing(false);
-                  setNotice('Cambios guardados por el servidor.');
-                } finally { mutationRef.current = false; setBusy(false); }
-              }} />
-            </div>
-          </div>}
+
+          {accountOpen && canManageAccount && (
+            <TeacherAccountModal
+              teacherId={teacher.id}
+              onCancel={() => setAccountOpen(false)}
+              onCreated={created => {
+                setAccount(created);
+                setAccountOpen(false);
+                setNotice(created.created
+                  ? `Cuenta de acceso creada para ${created.email}. La contraseña inicial es el DNI del docente; pídele que la cambie.`
+                  : `El docente ya tenía una cuenta con ${created.email}. No se modificó su contraseña.`);
+              }}
+            />
+          )}
         </>}
       </div>
     </div>

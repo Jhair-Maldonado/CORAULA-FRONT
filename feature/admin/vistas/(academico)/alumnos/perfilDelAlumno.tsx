@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -197,11 +197,17 @@ function StudentProfile({ studentId }: { studentId: string }) {
               <h2 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2 mb-4 pb-3 border-b border-line"><UserCircleIcon size={18} aria-hidden="true" className="text-accent shrink-0" />Identidad</h2>
               <dl className="grid grid-cols-1 gap-3">
                 <Info label="Código estudiante" value={student.studentCode} />
-                <Info label="DNI" value={student.dni} />
                 <Info label="Nombres" value={student.nombres} />
-                <Info label="Apellido paterno" value={student.apellidoPaterno} />
-                <Info label="Apellido materno" value={student.apellidoMaterno} />
-                <Info label="Fecha de nacimiento" value={student.birthDate} />
+                {/* Apellido paterno y materno en una sola fila */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Info label="Apellido paterno" value={student.apellidoPaterno} />
+                  <Info label="Apellido materno" value={student.apellidoMaterno} />
+                </div>
+                {/* DNI y fecha de nacimiento en una sola fila */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Info label="DNI" value={student.dni} />
+                  <Info label="Fecha de nacimiento" value={student.birthDate} />
+                </div>
                 <Info label="Teléfono" value={student.phone} />
                 <Info label="Estado estudiante" value={student.estadoLabel} />
               </dl>

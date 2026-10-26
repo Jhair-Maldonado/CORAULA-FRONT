@@ -2,21 +2,68 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
+import {
+  Upload,
+  FileText,
+  Clock,
+  CheckCircle2,
+  X,
+  Calendar,
+  AlertCircle
+} from 'lucide-react';
 import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
-import { activityTitleError, activityChanges, activityMatchesChanges, isAmbiguousActivityCreation, teacherActivitiesErrorMessage, teacherActivitiesService } from '@/services/teacher/teacherActivitiesService';
+import {
+  activityTitleError,
+  activityChanges,
+  activityMatchesChanges,
+  isAmbiguousActivityCreation,
+  teacherActivitiesErrorMessage,
+  teacherActivitiesService
+} from '@/services/teacher/teacherActivitiesService';
 import { ACADEMIC_ACTIVITY_TYPES } from '@/types/teacherActivitiesApi';
 import type { AcademicActivity, ActivityContext, CreateAcademicActivityRequest } from '@/types/teacherActivitiesApi';
 import type { Bimester } from '@/types/evaluationApi';
 
-const button = 'min-h-10 px-3 py-2 rounded-lg border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50';
-const input = 'w-full mt-2 p-3 rounded-lg border border-line bg-neutral/30 text-ink focus-visible:outline-accent';
-type Result<T> = { key: string; data?: T; error?: string };
-const emptyForm: CreateAcademicActivityRequest = { title: '', description: null, type: 'TAREA', cuentaParaPa: false };
+const button =
+  'min-h-10 px-3 py-2 rounded-lg border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 transition-colors';
+const input =
+  'w-full mt-1.5 p-2.5 rounded-lg border border-line bg-neutral/30 text-ink focus-visible:outline-accent text-xs';
 
-export default function ActividadesDocente({ sectionCourseId }: { sectionCourseId: number }) {
-  return <CourseActivities key={sectionCourseId} sectionCourseId={sectionCourseId} />;
+type Result<T> = { key: string; data?: T; error?: string };
+
+interface MaterialSubmission {
+  id: string;
+  title: string;
+  date: string;
+  fileName?: string;
+  status: 'EN_PROCESO';
+  createdAt: string;
 }
-function CourseActivities({ sectionCourseId }: { sectionCourseId: number }) {
+
+const emptyForm: CreateAcademicActivityRequest = {
+  title: '',
+  description: null,
+  type: 'TAREA',
+  cuentaParaPa: false
+};
+
+export default function ActividadesDocente({
+  sectionCourseId,
+  autoSelectCurrent = false
+}: {
+  sectionCourseId: number;
+  autoSelectCurrent?: boolean;
+}) {
+  return <CourseActivities key={sectionCourseId} sectionCourseId={sectionCourseId} autoSelectCurrent={autoSelectCurrent} />;
+}
+
+function CourseActivities({
+  sectionCourseId,
+  autoSelectCurrent = false
+}: {
+  sectionCourseId: number;
+  autoSelectCurrent?: boolean;
+}) {
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<Result<Bimester[]> | null>(null);
   const [selected, setSelected] = useState('');
@@ -29,27 +76,128 @@ function CourseActivities({ sectionCourseId }: { sectionCourseId: number }) {
   const loading = valid && result?.key !== key;
   const bimesters = !loading ? result?.data : undefined;
   const bimester = bimesters?.find(b => String(b.id) === selected);
+
   useEffect(() => {
     if (!valid) return;
     const controller = new AbortController();
     let current = true;
-    teacherGradesService.getBimesters(sectionCourseId, controller.signal)
-      .then(data => { if (current) setResult({ key, data }); })
-      .catch(error => { if (current) setResult({ key, error: teacherGradesErrorMessage(error) }); });
-    return () => { current = false; controller.abort(); };
-  }, [sectionCourseId, valid, key]);
-  return <section className="bg-white p-5 sm:p-6 rounded-xl border border-line shadow-sm min-w-0" aria-labelledby="activities-title">
-    <h2 id="activities-title" className="text-sm font-bold text-ink pb-3 border-b border-line">Actividades académicas</h2>
-    <p className="text-xs text-muted mt-3">Prepara actividades para este curso y sección. Cuenta para PA es una configuración futura; no calcula calificaciones.</p>
-    {!valid ? <p role="alert">Selecciona un curso asignado válido.</p> : loading ? <p role="status" className="py-4 text-sm text-muted">Cargando bimestres...</p>
-      : result?.error ? <div role="alert" className="mt-4 text-sm text-rose-700"><p>{result.error}</p><button type="button" className={`${button} bg-white mt-3`} onClick={() => setRevision(n => n + 1)}>Reintentar bimestres</button></div>
-      : bimesters?.length === 0 ? <p className="py-4 text-sm text-muted">No hay bimestres disponibles para este curso.</p>
-      : <label className="block max-w-sm mt-4 text-xs font-bold text-muted">Bimestre<select aria-label="Bimestre de actividades" value={selected} disabled={busy} className={input} onChange={e => { setEpoch(++generation.current); setSelected(e.target.value); }}><option value="">Selecciona un bimestre</option>{bimesters?.map(b => <option key={b.id} value={b.id}>{b.name} · {b.status}</option>)}</select></label>}
-    {bimester ? <ActivitySheet key={`${bimester.id}:${epoch}`} context={{ sectionCourseId, bimesterId: bimester.id }} parentBusy={busy} lockRef={mutationLock} generationRef={generation} epoch={epoch} setParentBusy={setBusy} /> : !loading && !result?.error && !!bimesters?.length && <p className="mt-4 text-sm text-muted">Elige un bimestre para consultar sus actividades.</p>}
-  </section>;
+    teacherGradesService
+      .getBimesters(sectionCourseId, controller.signal)
+      .then(data => {
+        if (current) {
+          setResult({ key, data });
+          if (autoSelectCurrent && data?.length) {
+            const currentBimester = data.find(b => b.status === 'ABIERTO') ?? data[0];
+            if (currentBimester) {
+              setSelected(String(currentBimester.id));
+            }
+          }
+        }
+      })
+      .catch(error => {
+        if (current) setResult({ key, error: teacherGradesErrorMessage(error) });
+      });
+    return () => {
+      current = false;
+      controller.abort();
+    };
+  }, [sectionCourseId, valid, key, autoSelectCurrent]);
+
+  return (
+    <section className="bg-white p-5 sm:p-6 rounded-xl border border-line shadow-sm min-w-0" aria-labelledby="activities-title">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-line">
+        <div>
+          <h2 id="activities-title" className="text-base font-bold text-ink">
+            Actividades académicas y materiales
+          </h2>
+          <p className="text-xs text-muted mt-0.5">
+            Prepara actividades para este curso y sección. Cuenta para PA es una configuración futura; no calcula calificaciones.
+          </p>
+        </div>
+
+        {valid && !!bimesters?.length && (
+          <div className="shrink-0 w-full sm:w-auto">
+            <label className="block text-xs font-bold text-muted">
+              Bimestre
+              <select
+                aria-label="Bimestre de actividades"
+                value={selected}
+                disabled={busy}
+                className={`${input} mt-1`}
+                onChange={e => {
+                  setEpoch(++generation.current);
+                  setSelected(e.target.value);
+                }}
+              >
+                <option value="">Selecciona un bimestre</option>
+                {bimesters.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} · {b.status}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
+      </div>
+
+      {!valid ? (
+        <p role="alert" className="mt-4 text-xs text-rose-700">
+          Selecciona un curso asignado válido.
+        </p>
+      ) : loading ? (
+        <p role="status" className="py-6 text-sm text-muted">
+          Cargando bimestres...
+        </p>
+      ) : result?.error ? (
+        <div role="alert" className="mt-4 text-sm text-rose-700">
+          <p>{result.error}</p>
+          <button type="button" className={`${button} bg-white mt-3`} onClick={() => setRevision(n => n + 1)}>
+            Reintentar bimestres
+          </button>
+        </div>
+      ) : bimesters?.length === 0 ? (
+        <p className="py-6 text-sm text-muted">No hay bimestres disponibles para este curso.</p>
+      ) : null}
+
+      {bimester ? (
+        <ActivitySheet
+          key={`${bimester.id}:${epoch}`}
+          context={{ sectionCourseId, bimesterId: bimester.id }}
+          parentBusy={busy}
+          lockRef={mutationLock}
+          generationRef={generation}
+          epoch={epoch}
+          setParentBusy={setBusy}
+        />
+      ) : (
+        !loading &&
+        !result?.error &&
+        !!bimesters?.length && (
+          <p className="mt-6 p-8 text-center text-sm text-muted border border-dashed border-line rounded-xl">
+            Elige un bimestre para consultar o crear sus actividades y materiales.
+          </p>
+        )
+      )}
+    </section>
+  );
 }
 
-function ActivitySheet({ context, parentBusy, lockRef, generationRef, epoch, setParentBusy }: { context: ActivityContext; parentBusy: boolean; lockRef: MutableRefObject<boolean>; generationRef: MutableRefObject<number>; epoch: number; setParentBusy: (busy: boolean) => void }) {
+function ActivitySheet({
+  context,
+  parentBusy,
+  lockRef,
+  generationRef,
+  epoch,
+  setParentBusy
+}: {
+  context: ActivityContext;
+  parentBusy: boolean;
+  lockRef: MutableRefObject<boolean>;
+  generationRef: MutableRefObject<number>;
+  epoch: number;
+  setParentBusy: (busy: boolean) => void;
+}) {
   const [revision, setRevision] = useState(0);
   const [list, setList] = useState<Result<AcademicActivity[]> | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -63,40 +211,86 @@ function ActivitySheet({ context, parentBusy, lockRef, generationRef, epoch, set
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
   const [detail, setDetail] = useState<Result<AcademicActivity> | null>(null);
+
+  // Estados añadidos para el formulario dual (Actividad / Material) y fechas
+  const [creationMode, setCreationMode] = useState<'actividad' | 'material'>('actividad');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [materialTitle, setMaterialTitle] = useState('');
+  const [materialDate, setMaterialDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [materialFile, setMaterialFile] = useState<File | null>(null);
+  const [materials, setMaterials] = useState<MaterialSubmission[]>([]);
+  const [toastNotice, setToastNotice] = useState<string | null>(null);
+
   const mounted = useRef(true);
-  const key = String(revision), detailKey = JSON.stringify([selectedId, detailRevision]);
+  const key = String(revision);
+  const detailKey = JSON.stringify([selectedId, detailRevision]);
   const loading = list?.key !== key;
   const titleError = activityTitleError(form.title);
   const disabled = busy || parentBusy || loading || !!list?.error || ambiguous || refreshRequired;
   const { sectionCourseId, bimesterId } = context;
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     let current = true;
     const controller = new AbortController();
-    teacherActivitiesService.getActivities({ sectionCourseId, bimesterId }, controller.signal)
-      .then(data => { if (current) { setList({ key, data }); setRefreshRequired(false); } })
-      .catch(error => { if (current) setList({ key, error: teacherActivitiesErrorMessage(error) }); });
-    return () => { current = false; controller.abort(); };
+    teacherActivitiesService
+      .getActivities({ sectionCourseId, bimesterId }, controller.signal)
+      .then(data => {
+        if (current) {
+          setList({ key, data });
+          setRefreshRequired(false);
+        }
+      })
+      .catch(error => {
+        if (current) setList({ key, error: teacherActivitiesErrorMessage(error) });
+      });
+    return () => {
+      current = false;
+      controller.abort();
+    };
   }, [sectionCourseId, bimesterId, key]);
+
   useEffect(() => {
     if (selectedId === null) return;
     let current = true;
     const controller = new AbortController();
-    teacherActivitiesService.getActivity({ sectionCourseId, bimesterId }, selectedId, controller.signal)
-      .then(data => { if (current) setDetail({ key: detailKey, data }); })
-      .catch(error => { if (current) setDetail({ key: detailKey, error: teacherActivitiesErrorMessage(error) }); });
-    return () => { current = false; controller.abort(); };
+    teacherActivitiesService
+      .getActivity({ sectionCourseId, bimesterId }, selectedId, controller.signal)
+      .then(data => {
+        if (current) setDetail({ key: detailKey, data });
+      })
+      .catch(error => {
+        if (current) setDetail({ key: detailKey, error: teacherActivitiesErrorMessage(error) });
+      });
+    return () => {
+      current = false;
+      controller.abort();
+    };
   }, [sectionCourseId, bimesterId, selectedId, detailKey]);
 
   async function createActivity() {
     if (!mounted.current || generationRef.current !== epoch || lockRef.current || disabled || editing || titleError) return;
-    lockRef.current = true; setBusy(true); setParentBusy(true); setError(null); setNotice(null); setRefreshRequired(true);
-    let saved: AcademicActivity | null = null, failure: string | null = null;
+    lockRef.current = true;
+    setBusy(true);
+    setParentBusy(true);
+    setError(null);
+    setNotice(null);
+    setRefreshRequired(true);
+    let saved: AcademicActivity | null = null;
+    let failure: string | null = null;
     try {
-      try { saved = await teacherActivitiesService.createActivity(context, form); }
-      catch (error) {
-        failure = teacherActivitiesErrorMessage(error);
-        if (mounted.current && generationRef.current === epoch && isAmbiguousActivityCreation(error)) setAmbiguous(true);
+      try {
+        saved = await teacherActivitiesService.createActivity(context, form);
+      } catch (err) {
+        failure = teacherActivitiesErrorMessage(err);
+        if (mounted.current && generationRef.current === epoch && isAmbiguousActivityCreation(err)) setAmbiguous(true);
       }
       try {
         const rows = await teacherActivitiesService.getActivities(context);
@@ -106,92 +300,623 @@ function ActivitySheet({ context, parentBusy, lockRef, generationRef, epoch, set
         const confirmed = savedId !== undefined && rows.some(a => a.id === savedId);
         setRefreshRequired(!!saved && !confirmed);
         if (saved && !confirmed) setAmbiguous(true);
-        if (saved && confirmed) { setNotice(`Actividad «${saved.title}» creada en estado PLANIFICADA y confirmada en el listado.`); setForm(emptyForm); }
-        else setError(failure ?? 'El servidor aceptó la actividad, pero no se confirmó en el listado. Actualiza antes de continuar.');
+        if (saved && confirmed) {
+          setNotice(`Actividad «${saved.title}» creada en estado PLANIFICADA y confirmada en el listado.`);
+          setForm(emptyForm);
+          setStartDate('');
+          setEndDate('');
+        } else {
+          setError(failure ?? 'El servidor aceptó la actividad, pero no se confirmó en el listado. Actualiza antes de continuar.');
+        }
       } catch {
-        if (mounted.current && generationRef.current === epoch) { if (saved) setAmbiguous(true); setError(`${failure ?? 'El servidor aceptó la actividad.'} No se pudo recargar el listado. Actualiza antes de continuar.`); }
+        if (mounted.current && generationRef.current === epoch) {
+          if (saved) setAmbiguous(true);
+          setError(`${failure ?? 'El servidor aceptó la actividad.'} No se pudo recargar el listado. Actualiza antes de continuar.`);
+        }
       }
-    } finally { lockRef.current = false; setParentBusy(false); if (mounted.current) setBusy(false); }
+    } finally {
+      lockRef.current = false;
+      setParentBusy(false);
+      if (mounted.current) setBusy(false);
+    }
   }
-  function cancelEdit() { if (!lockRef.current) { editRef.current = null; setEditing(null); } }
+
+  function handleMaterialSubmit() {
+    if (!materialTitle.trim() || disabled) return;
+    const newSubmission: MaterialSubmission = {
+      id: `mat-${Date.now()}`,
+      title: materialTitle.trim(),
+      date: materialDate || new Date().toISOString().slice(0, 10),
+      fileName: materialFile?.name,
+      status: 'EN_PROCESO',
+      createdAt: new Date().toISOString()
+    };
+    setMaterials(prev => [newSubmission, ...prev]);
+    setToastNotice('Solicitud de aprobación enviada con éxito. El material aparecerá en la lista de actividades como «En proceso».');
+    setMaterialTitle('');
+    setMaterialFile(null);
+  }
+
+  function cancelEdit() {
+    if (!lockRef.current) {
+      editRef.current = null;
+      setEditing(null);
+    }
+  }
+
   async function startEdit(activityId: number) {
     if (!mounted.current || generationRef.current !== epoch || lockRef.current || disabled || editing) return;
-    lockRef.current = true; setBusy(true); setParentBusy(true); setNotice(null); setError(null); setSelectedId(null);
+    lockRef.current = true;
+    setBusy(true);
+    setParentBusy(true);
+    setNotice(null);
+    setError(null);
+    setSelectedId(null);
     try {
       const original = await teacherActivitiesService.getActivity(context, activityId);
       if (!mounted.current || generationRef.current !== epoch) return;
       if (original.status !== 'PLANIFICADA') throw new Error('Estado no editable.');
       editRef.current = original;
-      setEditing({ original, values: { title: original.title, description: original.description, type: original.type, cuentaParaPa: original.cuentaParaPa } });
-    } catch (error) { if (mounted.current && generationRef.current === epoch) setError(teacherActivitiesErrorMessage(error)); }
-    finally { lockRef.current = false; setParentBusy(false); if (mounted.current) setBusy(false); }
+      setEditing({
+        original,
+        values: {
+          title: original.title,
+          description: original.description,
+          type: original.type,
+          cuentaParaPa: original.cuentaParaPa
+        }
+      });
+    } catch (err) {
+      if (mounted.current && generationRef.current === epoch) setError(teacherActivitiesErrorMessage(err));
+    } finally {
+      lockRef.current = false;
+      setParentBusy(false);
+      if (mounted.current) setBusy(false);
+    }
   }
+
   let editError: string | null = null;
   let changed = false;
   if (editing) {
-    try { changed = Object.keys(activityChanges(editing.original, editing.values)).length > 0; }
-    catch { editError = 'Revisa el título (obligatorio, hasta 255 caracteres), tipo y configuración.'; }
+    try {
+      changed = Object.keys(activityChanges(editing.original, editing.values)).length > 0;
+    } catch {
+      editError = 'Revisa el título (obligatorio, hasta 255 caracteres), tipo y configuración.';
+    }
   }
+
   async function saveEdit() {
-    if (!mounted.current || generationRef.current !== epoch || lockRef.current || disabled || !editing || editRef.current !== editing.original || editError || !changed) return;
-    const original = editing.original, changes = activityChanges(original, editing.values);
-    lockRef.current = true; setBusy(true); setParentBusy(true); editRef.current = null; setEditing(null); setNotice(null); setError(null); setSelectedId(null); setRefreshRequired(true);
-    let accepted = false, failure: string | null = null;
+    if (
+      !mounted.current ||
+      generationRef.current !== epoch ||
+      lockRef.current ||
+      disabled ||
+      !editing ||
+      editRef.current !== editing.original ||
+      editError ||
+      !changed
+    )
+      return;
+    const original = editing.original;
+    const changes = activityChanges(original, editing.values);
+    lockRef.current = true;
+    setBusy(true);
+    setParentBusy(true);
+    editRef.current = null;
+    setEditing(null);
+    setNotice(null);
+    setError(null);
+    setSelectedId(null);
+    setRefreshRequired(true);
+    let accepted = false;
+    let failure: string | null = null;
     try {
       try {
         const saved = await teacherActivitiesService.updateActivity(context, original.id, changes);
-        if (saved.createdAt !== original.createdAt || saved.createdByTeacherId !== original.createdByTeacherId) throw new Error('Datos inmutables inconsistentes.');
+        if (saved.createdAt !== original.createdAt || saved.createdByTeacherId !== original.createdByTeacherId) {
+          throw new Error('Datos inmutables inconsistentes.');
+        }
         accepted = true;
-      } catch (error) { failure = teacherActivitiesErrorMessage(error); }
-      // Both reads run even after an ambiguous PATCH; never retry the mutation.
-      const [fresh, collection] = await Promise.allSettled([teacherActivitiesService.getActivity(context, original.id), teacherActivitiesService.getActivities(context)]);
+      } catch (err) {
+        failure = teacherActivitiesErrorMessage(err);
+      }
+      const [fresh, collection] = await Promise.allSettled([
+        teacherActivitiesService.getActivity(context, original.id),
+        teacherActivitiesService.getActivities(context)
+      ]);
       if (!mounted.current || generationRef.current !== epoch) return;
       if (collection.status === 'fulfilled') setList({ key, data: collection.value });
       if (fresh.status === 'fulfilled') setDetail({ key: JSON.stringify([original.id, detailRevision]), data: fresh.value });
       const row = collection.status === 'fulfilled' ? collection.value.find(a => a.id === original.id) : undefined;
-      const verified = fresh.status === 'fulfilled' && row && activityMatchesChanges(fresh.value, changes) && activityMatchesChanges(row, changes);
+      const verified =
+        fresh.status === 'fulfilled' && row && activityMatchesChanges(fresh.value, changes) && activityMatchesChanges(row, changes);
       setRefreshRequired(fresh.status !== 'fulfilled' || collection.status !== 'fulfilled' || (accepted && !verified));
       if (accepted && verified) setNotice('Edición confirmada mediante detalle y listado recargados.');
-      else setError(`${failure ?? 'La edición no se corroboró en el servidor.'} ${fresh.status !== 'fulfilled' || collection.status !== 'fulfilled' ? 'Falló la recarga; actualiza antes de continuar.' : 'Revisa los valores actuales antes de otra edición.'}`);
-    } finally { lockRef.current = false; setParentBusy(false); if (mounted.current) setBusy(false); }
+      else
+        setError(
+          `${failure ?? 'La edición no se corroboró en el servidor.'} ${
+            fresh.status !== 'fulfilled' || collection.status !== 'fulfilled'
+              ? 'Falló la recarga; actualiza antes de continuar.'
+              : 'Revisa los valores actuales antes de otra edición.'
+          }`
+        );
+    } finally {
+      lockRef.current = false;
+      setParentBusy(false);
+      if (mounted.current) setBusy(false);
+    }
   }
-  function refresh() { if (!lockRef.current) { cancelEdit(); setSelectedId(null); setNotice(null); setRevision(n => n + 1); } }
-  return <div className="flex flex-col gap-5 mt-5">
-    <div className="flex flex-wrap justify-between items-center gap-3"><h3 className="text-sm font-bold text-ink">Actividades del bimestre</h3><button type="button" disabled={busy || loading} className={`${button} bg-white hover:bg-neutral`} onClick={refresh}>Actualizar actividades</button></div>
-    {loading ? <p role="status" className="text-sm text-muted">Cargando actividades...</p> : list?.error ? <div role="alert" className="text-sm text-rose-700"><p>{list.error}</p><button type="button" disabled={busy} className={`${button} bg-white mt-3`} onClick={refresh}>Reintentar actividades</button></div>
-      : list?.data?.length === 0 ? <p className="p-5 text-sm text-muted border border-dashed border-line rounded-xl">No hay actividades registradas en este bimestre.</p>
-      : <ul className="flex flex-col gap-3">{list?.data?.map(a => <li key={a.id} className="p-4 bg-neutral/30 border border-line rounded-lg flex flex-wrap justify-between items-start gap-3"><div className="min-w-0"><p className="font-bold text-sm text-ink break-words">{a.title}</p><p className="text-xs text-muted mt-1">{a.type} · {a.status} · Cuenta para PA: {a.cuentaParaPa ? 'Sí' : 'No'}</p><time className="text-xs text-muted" dateTime={a.createdAt}>{a.createdAt}</time></div><div className="flex flex-wrap gap-2"><button type="button" disabled={busy || !!editing} className={`${button} bg-white`} onClick={() => setSelectedId(a.id)}>Ver detalle #{a.id}</button>{a.status === 'PLANIFICADA' && <button type="button" disabled={disabled || !!editing} className={`${button} bg-white`} onClick={() => { void startEdit(a.id); }}>Editar #{a.id}</button>}</div></li>)}</ul>}
-    {selectedId !== null && <section className="p-4 border border-line rounded-xl" aria-label="Detalle de actividad"><div className="flex flex-wrap justify-between gap-3"><h3 className="font-bold text-sm text-ink">Detalle de actividad</h3><button type="button" className={`${button} bg-white`} onClick={() => setSelectedId(null)}>Cerrar detalle</button></div>
-      {detail?.key !== detailKey ? <p role="status">Cargando detalle...</p> : detail.error ? <div role="alert" className="text-sm text-rose-700"><p>{detail.error}</p><button type="button" className={`${button} bg-white mt-3`} onClick={() => setDetailRevision(n => n + 1)}>Reintentar detalle</button></div> : detail.data && <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs break-words">{Object.entries({ Actividad: `#${detail.data.id} · ${detail.data.title}`, Descripción: detail.data.description ?? 'Sin descripción', Tipo: detail.data.type, Estado: detail.data.status, 'Cuenta para PA': detail.data.cuentaParaPa ? 'Sí' : 'No', 'Curso-sección': detail.data.sectionCourseId, Bimestre: detail.data.bimesterId, 'ID docente creador': detail.data.createdByTeacherId, Creación: detail.data.createdAt, Actualización: detail.data.updatedAt ?? 'Sin actualización' }).map(([label, value]) => <div key={label}><dt className="font-bold text-muted">{label}</dt><dd className="text-ink whitespace-pre-wrap mt-1">{value}</dd></div>)}</dl>}
-    </section>}
-    {notice && <p role="status" className="text-sm text-emerald-700">{notice}</p>}
-    {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
-    {busy && <p role="status" className="text-sm text-muted">Procesando actividad y consultando el servidor...</p>}
-    {refreshRequired && !busy && <p role="alert" className="text-sm text-rose-700">Actualiza el listado antes de otra operación.</p>}
-    {editing && <form aria-label="Editar actividad académica" className="p-4 sm:p-5 rounded-xl border border-line border-t-4 border-t-accent flex flex-col gap-4" onSubmit={e => { e.preventDefault(); void saveEdit(); }}>
-      <h3 className="font-bold text-sm text-ink">Editar actividad #{editing.original.id}</h3>
-      <fieldset disabled={disabled} className="flex flex-col gap-4 text-xs font-bold text-muted">
-        <label>Título<input aria-label="Título editado" autoFocus required maxLength={255} className={input} value={editing.values.title} onChange={e => setEditing({ ...editing, values: { ...editing.values, title: e.target.value } })} /></label>
-        <label>Descripción (opcional)<textarea aria-label="Descripción editada" rows={3} className={input} value={editing.values.description ?? ''} onChange={e => setEditing({ ...editing, values: { ...editing.values, description: e.target.value || null } })} /></label>
-        <label>Tipo<select aria-label="Tipo editado" className={input} value={editing.values.type} onChange={e => setEditing({ ...editing, values: { ...editing.values, type: e.target.value as CreateAcademicActivityRequest['type'] } })}>{ACADEMIC_ACTIVITY_TYPES.map(type => <option key={type} value={type}>{type}</option>)}</select></label>
-        <label className="flex items-center gap-2 min-h-10"><input aria-label="Cuenta para PA editada" type="checkbox" checked={editing.values.cuentaParaPa} onChange={e => setEditing({ ...editing, values: { ...editing.values, cuentaParaPa: e.target.checked } })} />Cuenta para PA</label>
-      </fieldset>
-      {editError && <p role="alert" className="text-xs text-rose-700">{editError}</p>}
-      {!editError && !changed && <p className="text-xs text-muted">No hay cambios efectivos.</p>}
-      <div className="flex flex-wrap gap-3"><button type="submit" disabled={disabled || !!editError || !changed} className={`${button} bg-accent text-white`}>Guardar cambios</button><button type="button" disabled={busy} className={`${button} bg-white`} onClick={cancelEdit}>Cancelar edición</button></div>
-    </form>}
-    {ambiguous && <div role="alert" className="p-4 bg-neutral/40 border border-line rounded-xl text-sm text-ink"><p>La creación no está confirmada. Revisa las actividades antes de enviar otra solicitud; repetirla podría crear un duplicado.</p><button type="button" disabled={busy || loading || !!list?.error || refreshRequired} className={`${button} bg-white mt-3`} onClick={() => { if (!lockRef.current) { setAmbiguous(false); setForm(emptyForm); setError(null); } }}>Revisé el listado; permitir una nueva actividad</button></div>}
-    <form onSubmit={e => { e.preventDefault(); void createActivity(); }} className="p-4 sm:p-5 border border-line rounded-xl flex flex-col gap-4" aria-label="Crear actividad académica">
-      <h3 className="font-bold text-sm text-ink">Crear actividad</h3>
-      <fieldset disabled={disabled || !!editing} className="flex flex-col gap-4 text-xs font-bold text-muted">
-        <label>Título<input aria-label="Título de actividad" required maxLength={255} className={input} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} aria-invalid={!!form.title && !!titleError} /></label>
-        {form.title && titleError && <p role="alert" className="text-rose-700">{titleError}</p>}
-        <label>Descripción (opcional)<textarea aria-label="Descripción de actividad" rows={3} className={input} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
-        <label>Tipo<select aria-label="Tipo de actividad" className={input} value={form.type} onChange={e => setForm({ ...form, type: e.target.value as CreateAcademicActivityRequest['type'] })}>{ACADEMIC_ACTIVITY_TYPES.map(type => <option key={type} value={type}>{type}</option>)}</select></label>
-        <label className="flex items-center gap-2 min-h-10"><input type="checkbox" checked={form.cuentaParaPa} onChange={e => setForm({ ...form, cuentaParaPa: e.target.checked })} />Cuenta para PA</label>
-        <p className="font-normal">La actividad se crea PLANIFICADA. Esta pantalla no publica ni recibe entregas.</p>
-      </fieldset>
-      <button type="submit" disabled={disabled || !!editing || !!titleError} className={`${button} bg-accent text-white w-fit`}>Crear actividad</button>
-    </form>
-  </div>;
+
+  function refresh() {
+    if (!lockRef.current) {
+      cancelEdit();
+      setSelectedId(null);
+      setNotice(null);
+      setRevision(n => n + 1);
+    }
+  }
+
+  const hasAnyItems = (list?.data && list.data.length > 0) || materials.length > 0;
+
+  return (
+    <div className="flex flex-col gap-5 mt-5">
+      {/* Toast Alert para confirmación de solicitud de material */}
+      {toastNotice && (
+        <div
+          role="status"
+          className="p-4 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl flex items-start justify-between gap-3 shadow-sm animate-in fade-in"
+        >
+          <div className="flex items-start gap-2.5">
+            <Clock size={18} className="text-amber-700 shrink-0 mt-0.5" aria-hidden="true" />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider">Solicitud de aprobación</p>
+              <p className="text-xs mt-0.5">{toastNotice}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastNotice(null)}
+            className="text-amber-700 hover:text-amber-950 p-1"
+            aria-label="Cerrar alerta"
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      {notice && <p role="status" className="text-xs font-medium text-emerald-700 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">{notice}</p>}
+      {error && <p role="alert" className="text-xs font-medium text-rose-700 p-3 bg-rose-50 border border-rose-200 rounded-lg">{error}</p>}
+      {busy && <p role="status" className="text-xs text-muted">Procesando y sincronizando con el servidor...</p>}
+      {refreshRequired && !busy && <p role="alert" className="text-xs text-rose-700">Actualiza el listado antes de otra operación.</p>}
+
+      {ambiguous && (
+        <div role="alert" className="p-4 bg-neutral/40 border border-line rounded-xl text-xs text-ink">
+          <p>La creación no está confirmada. Revisa las actividades antes de enviar otra solicitud; repetirla podría crear un duplicado.</p>
+          <button
+            type="button"
+            disabled={busy || loading || !!list?.error || refreshRequired}
+            className={`${button} bg-white mt-3`}
+            onClick={() => {
+              if (!lockRef.current) {
+                setAmbiguous(false);
+                setForm(emptyForm);
+                setError(null);
+              }
+            }}
+          >
+            Revisé el listado; permitir una nueva actividad
+          </button>
+        </div>
+      )}
+
+      {/* Grid de dos columnas: Izquierda creación (Actividad o Material) / Derecha lista de actividades */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Columna Izquierda: Formulario (Actividad con fechas / Subir material) */}
+        <div className="lg:col-span-5 min-w-0">
+          {editing ? (
+            <form
+              aria-label="Editar actividad académica"
+              className="p-5 rounded-xl border border-line border-t-4 border-t-accent bg-neutral/10 flex flex-col gap-4"
+              onSubmit={e => {
+                e.preventDefault();
+                void saveEdit();
+              }}
+            >
+              <h3 className="font-bold text-sm text-ink">Editar actividad #{editing.original.id}</h3>
+              <fieldset disabled={disabled} className="flex flex-col gap-3 text-xs font-bold text-muted">
+                <label>
+                  Título
+                  <input
+                    aria-label="Título editado"
+                    autoFocus
+                    required
+                    maxLength={255}
+                    className={input}
+                    value={editing.values.title}
+                    onChange={e => setEditing({ ...editing, values: { ...editing.values, title: e.target.value } })}
+                  />
+                </label>
+                <label>
+                  Descripción (opcional)
+                  <textarea
+                    aria-label="Descripción editada"
+                    rows={3}
+                    className={input}
+                    value={editing.values.description ?? ''}
+                    onChange={e => setEditing({ ...editing, values: { ...editing.values, description: e.target.value || null } })}
+                  />
+                </label>
+                <label>
+                  Tipo
+                  <select
+                    aria-label="Tipo editado"
+                    className={input}
+                    value={editing.values.type}
+                    onChange={e =>
+                      setEditing({ ...editing, values: { ...editing.values, type: e.target.value as CreateAcademicActivityRequest['type'] } })
+                    }
+                  >
+                    {ACADEMIC_ACTIVITY_TYPES.map(type => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 min-h-8 cursor-pointer select-none">
+                  <input
+                    aria-label="Cuenta para PA editada"
+                    type="checkbox"
+                    checked={editing.values.cuentaParaPa}
+                    onChange={e => setEditing({ ...editing, values: { ...editing.values, cuentaParaPa: e.target.checked } })}
+                  />
+                  Cuenta para PA
+                </label>
+              </fieldset>
+              {editError && <p role="alert" className="text-xs text-rose-700">{editError}</p>}
+              {!editError && !changed && <p className="text-xs text-muted">No hay cambios efectivos.</p>}
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-line">
+                <button type="submit" disabled={disabled || !!editError || !changed} className={`${button} bg-accent text-white`}>
+                  Guardar cambios
+                </button>
+                <button type="button" disabled={busy} className={`${button} bg-white`} onClick={cancelEdit}>
+                  Cancelar edición
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="p-5 border border-line rounded-xl bg-neutral/10 flex flex-col gap-4">
+              {/* Selector de pestañas: Actividad vs Subir material */}
+              <div className="flex border-b border-line gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCreationMode('actividad')}
+                  className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all ${
+                    creationMode === 'actividad'
+                      ? 'border-accent text-accent'
+                      : 'border-transparent text-muted hover:text-ink'
+                  }`}
+                >
+                  Actividad
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreationMode('material')}
+                  className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all ${
+                    creationMode === 'material'
+                      ? 'border-accent text-accent'
+                      : 'border-transparent text-muted hover:text-ink'
+                  }`}
+                >
+                  Subir material
+                </button>
+              </div>
+
+              {/* Formulario Unificado */}
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  if (creationMode === 'actividad') {
+                    void createActivity();
+                  } else {
+                    handleMaterialSubmit();
+                  }
+                }}
+                className="flex flex-col gap-4"
+                aria-label="Crear actividad académica"
+              >
+                <fieldset disabled={disabled} className="flex flex-col gap-3 text-xs font-bold text-muted">
+                  {creationMode === 'actividad' ? (
+                    <>
+                      <label>
+                        Título
+                        <input
+                          aria-label="Título de actividad"
+                          required
+                          maxLength={255}
+                          className={input}
+                          placeholder="Ej. Práctica calificada de ecuaciones"
+                          value={form.title}
+                          onChange={e => setForm({ ...form, title: e.target.value })}
+                          aria-invalid={!!form.title && !!titleError}
+                        />
+                      </label>
+                      {form.title && titleError && <p role="alert" className="text-rose-700 text-xs">{titleError}</p>}
+
+                      {/* Fechas de inicio y finalización */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label>
+                          Fecha de inicio
+                          <input
+                            type="date"
+                            className={input}
+                            value={startDate}
+                            onChange={e => setStartDate(e.target.value)}
+                          />
+                        </label>
+                        <label>
+                          Fecha de finalización
+                          <input
+                            type="date"
+                            className={input}
+                            value={endDate}
+                            onChange={e => setEndDate(e.target.value)}
+                          />
+                        </label>
+                      </div>
+
+                      <label>
+                        Tipo
+                        <select
+                          aria-label="Tipo de actividad"
+                          className={input}
+                          value={form.type}
+                          onChange={e =>
+                            setForm({ ...form, type: e.target.value as CreateAcademicActivityRequest['type'] })
+                          }
+                        >
+                          {ACADEMIC_ACTIVITY_TYPES.map(type => (
+                            <option key={type} value={type}>
+                              {type}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label>
+                        Descripción (opcional)
+                        <textarea
+                          aria-label="Descripción de actividad"
+                          rows={3}
+                          className={input}
+                          placeholder="Instrucciones o detalles de la actividad..."
+                          value={form.description ?? ''}
+                          onChange={e => setForm({ ...form, description: e.target.value })}
+                        />
+                      </label>
+
+                      <label className="flex items-center gap-2 min-h-8 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={form.cuentaParaPa}
+                          onChange={e => setForm({ ...form, cuentaParaPa: e.target.checked })}
+                        />
+                        Cuenta para PA
+                      </label>
+
+                      <p className="font-normal text-[11px] text-muted">
+                        La actividad se crea PLANIFICADA. Esta pantalla no publica ni recibe entregas ni calcula calificaciones.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <label>
+                        Título del material
+                        <input
+                          required
+                          maxLength={255}
+                          className={input}
+                          placeholder="Ej. Diapositivas - Módulo 2"
+                          value={materialTitle}
+                          onChange={e => setMaterialTitle(e.target.value)}
+                        />
+                      </label>
+
+                      <label>
+                        Fecha
+                        <input
+                          type="date"
+                          required
+                          className={input}
+                          value={materialDate}
+                          onChange={e => setMaterialDate(e.target.value)}
+                        />
+                      </label>
+
+                      <label className="block">
+                        <span className="text-xs font-bold text-muted">Subir documento</span>
+                        <div className="mt-1.5 flex justify-center px-4 pt-4 pb-5 border-2 border-line border-dashed rounded-lg bg-white hover:border-accent/50 transition-colors">
+                          <div className="space-y-1 text-center">
+                            <Upload className="mx-auto h-7 w-7 text-muted" aria-hidden="true" />
+                            <div className="text-xs text-muted">
+                              <label className="relative cursor-pointer rounded-md font-bold text-accent hover:underline">
+                                <span>Seleccionar archivo</span>
+                                <input
+                                  type="file"
+                                  className="sr-only"
+                                  onChange={e => setMaterialFile(e.target.files?.[0] || null)}
+                                />
+                              </label>
+                              {materialFile ? (
+                                <p className="text-xs text-ink font-semibold mt-1 truncate max-w-xs">{materialFile.name}</p>
+                              ) : (
+                                <p className="text-[11px] text-muted">PDF, Word o diapositivas</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </label>
+
+                      <p className="font-normal text-[11px] text-muted">
+                        Al enviar la solicitud, pasará por aprobación administrativa y se listará con estado en proceso.
+                      </p>
+                    </>
+                  )}
+                </fieldset>
+
+                <button
+                  type="submit"
+                  disabled={creationMode === 'actividad' ? disabled || !!titleError : !materialTitle.trim() || disabled}
+                  className={`${button} bg-accent text-white w-full sm:w-auto mt-1`}
+                >
+                  {creationMode === 'actividad' ? 'Crear actividad' : 'Enviar solicitud'}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+
+        {/* Columna Derecha: Lista de todas las actividades */}
+        <div className="lg:col-span-7 min-w-0 flex flex-col gap-4">
+          <div className="flex flex-wrap justify-between items-center gap-3 pb-2 border-b border-line">
+            <h3 className="text-sm font-bold text-ink">Actividades del bimestre</h3>
+            <button
+              type="button"
+              disabled={busy || loading}
+              className={`${button} bg-white hover:bg-neutral`}
+              onClick={refresh}
+            >
+              Actualizar actividades
+            </button>
+          </div>
+
+          {loading ? (
+            <p role="status" className="text-xs text-muted py-4">
+              Cargando actividades...
+            </p>
+          ) : list?.error ? (
+            <div role="alert" className="text-xs text-rose-700 p-4 border border-rose-200 bg-rose-50 rounded-xl">
+              <p>{list.error}</p>
+              <button type="button" disabled={busy} className={`${button} bg-white mt-3`} onClick={refresh}>
+                Reintentar actividades
+              </button>
+            </div>
+          ) : !hasAnyItems ? (
+            <p className="p-6 text-sm text-muted border border-dashed border-line rounded-xl text-center">
+              No hay actividades registradas en este bimestre.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {/* Materiales en proceso de aprobación */}
+              {materials.map(m => (
+                <li
+                  key={m.id}
+                  className="p-4 bg-amber-50/50 border border-amber-200 rounded-lg flex flex-wrap justify-between items-start gap-3 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <FileText size={16} className="text-amber-700 shrink-0" aria-hidden="true" />
+                      <p className="font-bold text-sm text-ink break-words">{m.title}</p>
+                    </div>
+                    <div className="text-xs text-muted mt-1.5 flex flex-wrap items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                        En proceso
+                      </span>
+                      <span>Material pedagógico</span>
+                      <span>· Fecha: {m.date}</span>
+                    </div>
+                    {m.fileName && <p className="text-[11px] text-muted mt-1 font-mono">Archivo: {m.fileName}</p>}
+                  </div>
+                </li>
+              ))}
+
+              {/* Actividades académicas persistidas */}
+              {list?.data?.map(a => (
+                <li
+                  key={a.id}
+                  className="p-4 bg-neutral/30 border border-line rounded-lg flex flex-wrap justify-between items-start gap-3 hover:bg-neutral/40 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm text-ink break-words">{a.title}</p>
+                    <p className="text-xs text-muted mt-1">
+                      {a.type} · {a.status} · Cuenta para PA: {a.cuentaParaPa ? 'Sí' : 'No'}
+                    </p>
+                    <time className="text-[11px] text-muted block mt-0.5" dateTime={a.createdAt}>
+                      {a.createdAt}
+                    </time>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={busy || !!editing}
+                      className={`${button} bg-white hover:bg-neutral`}
+                      onClick={() => setSelectedId(a.id)}
+                    >
+                      Ver detalle #{a.id}
+                    </button>
+                    {a.status === 'PLANIFICADA' && (
+                      <button
+                        type="button"
+                        disabled={disabled || !!editing}
+                        className={`${button} bg-white hover:bg-neutral`}
+                        onClick={() => {
+                          void startEdit(a.id);
+                        }}
+                      >
+                        Editar #{a.id}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Modal / Card de Detalle de Actividad */}
+          {selectedId !== null && (
+            <section className="p-4 border border-line rounded-xl bg-white shadow-sm mt-2" aria-label="Detalle de actividad">
+              <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-line">
+                <h4 className="font-bold text-sm text-ink">Detalle de actividad</h4>
+                <button type="button" className={`${button} bg-white`} onClick={() => setSelectedId(null)}>
+                  Cerrar detalle
+                </button>
+              </div>
+              {detail?.key !== detailKey ? (
+                <p role="status" className="text-xs text-muted py-3">
+                  Cargando detalle...
+                </p>
+              ) : detail.error ? (
+                <div role="alert" className="text-xs text-rose-700 py-3">
+                  <p>{detail.error}</p>
+                  <button type="button" className={`${button} bg-white mt-2`} onClick={() => setDetailRevision(n => n + 1)}>
+                    Reintentar detalle
+                  </button>
+                </div>
+              ) : detail.data ? (
+                <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs break-words">
+                  {Object.entries({
+                    Actividad: `#${detail.data.id} · ${detail.data.title}`,
+                    Descripción: detail.data.description ?? 'Sin descripción',
+                    Tipo: detail.data.type,
+                    Estado: detail.data.status,
+                    'Cuenta para PA': detail.data.cuentaParaPa ? 'Sí' : 'No',
+                    'Curso-sección': detail.data.sectionCourseId,
+                    Bimestre: detail.data.bimesterId,
+                    'ID docente creador': detail.data.createdByTeacherId,
+                    Creación: detail.data.createdAt,
+                    Actualización: detail.data.updatedAt ?? 'Sin actualización'
+                  }).map(([lbl, val]) => (
+                    <div key={lbl} className="p-2.5 bg-neutral/30 border border-line/60 rounded-lg">
+                      <dt className="font-bold text-muted text-[10px] uppercase tracking-wider">{lbl}</dt>
+                      <dd className="text-ink whitespace-pre-wrap mt-0.5">{val}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+            </section>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -2,48 +2,78 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getMaterialesAlumno } from '@/lib/api';
 import { MaterialesAlumnoData, MaterialEstudioAlumno } from '@/types/alumno';
 import { AlumnoHeader } from '@/components/alumno/AlumnoHeader';
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Download, FileText, ArrowLeft } from 'lucide-react';
-
-const slugify = (text: string) => text.toString().toLowerCase()
-  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  .replace(/\s+/g, '-')
-  .replace(/[^\w\-]+/g, '')
-  .replace(/\-\-+/g, '-')
-  .replace(/^-+/, '')
-  .replace(/-+$/, '');
+import { Download, FileText, ArrowLeft, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  descargarArchivoMaterial,
+  getAlumnoCursosAsignados,
+  resolverCursoAlumno,
+  CursoAsignadoAlumno
+} from '@/services/materialesService';
 
 interface VistaDetalleMaterialesProps {
   slug: string;
 }
 
 export default function VistaDetalleMateriales({ slug }: VistaDetalleMaterialesProps) {
+  const router = useRouter();
   const [data, setData] = useState<MaterialesAlumnoData | null>(null);
+  const [courses, setCourses] = useState<CursoAsignadoAlumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadNotice, setDownloadNotice] = useState<{ id: string; success: boolean; message: string } | null>(null);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await getMaterialesAlumno('Todos los cursos', 'Todos los archivos');
-      setData(res);
-    } catch (err: any) {
-      setError(err?.message || 'Error al cargar los materiales de estudio');
+      const [resMats, resCourses] = await Promise.all([
+        getMaterialesAlumno('Todos los cursos', 'Todos los archivos'),
+        getAlumnoCursosAsignados()
+      ]);
+      setData(resMats);
+      setCourses(resCourses);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al cargar los materiales de estudio';
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
   useEffect(() => {
     fetchData();
   }, [slug]);
+
+  const handleDownload = async (material: MaterialEstudioAlumno) => {
+    try {
+      setDownloadingId(material.id);
+      setDownloadNotice(null);
+      await descargarArchivoMaterial(material);
+      setDownloadNotice({
+        id: material.id,
+        success: true,
+        message: `Descarga completada: ${material.titulo} (${material.formato})`
+      });
+      setTimeout(() => setDownloadNotice(null), 5000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al procesar la descarga';
+      setDownloadNotice({
+        id: material.id,
+        success: false,
+        message: msg
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   if (loading && !data) {
     return (
@@ -63,20 +93,19 @@ export default function VistaDetalleMateriales({ slug }: VistaDetalleMaterialesP
     );
   }
 
-  // Find the exact course name that matches the slug
-  const uniqueCourses = Array.from(new Set(data?.materiales.map(m => m.curso) || []));
-  const selectedCurso = uniqueCourses.find(c => slugify(c) === slug) || null;
+  // Resolver el curso asignado al alumno a partir del parámetro de ruta
+  const resolved = resolverCursoAlumno(courses, data?.materiales || [], slug);
+  const selectedCurso = resolved?.cursoNombre || null;
+  const docenteAsignado = resolved?.docente || '';
+  const courseMaterials = resolved?.materiales || [];
 
-  // Materials for selected course grouped by week
-  let materialsByWeek: Record<string, MaterialEstudioAlumno[]> = {};
-  if (selectedCurso && data) {
-    const filtered = data.materiales.filter(m => m.curso === selectedCurso);
-    filtered.forEach(m => {
-      const week = m.semana || 'Material General';
-      if (!materialsByWeek[week]) materialsByWeek[week] = [];
-      materialsByWeek[week].push(m);
-    });
-  }
+  // Agrupar los materiales por semana cronológica
+  const materialsByWeek: Record<string, MaterialEstudioAlumno[]> = {};
+  courseMaterials.forEach(m => {
+    const week = m.semana || 'Material General';
+    if (!materialsByWeek[week]) materialsByWeek[week] = [];
+    materialsByWeek[week].push(m);
+  });
 
   const sortedWeeks = Object.keys(materialsByWeek).sort();
 
@@ -96,21 +125,43 @@ export default function VistaDetalleMateriales({ slug }: VistaDetalleMaterialesP
             <span>{selectedCurso || 'Curso no encontrado'}</span>
           </div>
         }
-        subtitle="Materiales organizados cronológicamente por semanas"
+        subtitle={
+          selectedCurso
+            ? `${docenteAsignado ? `${docenteAsignado} · ` : ''}Materiales pedagógicos organizados por semana lectiva`
+            : 'Materiales organizados cronológicamente por semanas'
+        }
       />
 
       <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 sm:p-6 shadow-xs flex flex-col gap-6">
+        {downloadNotice && (
+          <div
+            role="status"
+            className={`flex items-center gap-2.5 p-3 rounded-lg text-xs font-semibold border ${
+              downloadNotice.success
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}
+          >
+            {downloadNotice.success ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{downloadNotice.message}</span>
+          </div>
+        )}
+
         {!selectedCurso ? (
           <EmptyState
             title="Curso no encontrado"
-            description="No se encontró ningún curso con ese identificador."
-            actionText="Volver a materiales"
-            onAction={() => window.location.href = '/alumno/materiales'}
+            description="No se encontró ningún curso asignado con ese identificador en tu matrícula."
+            actionText="Volver a mis cursos"
+            onAction={() => { router.push('/alumno/materiales'); }}
           />
-        ) : sortedWeeks.length === 0 ? (
+        ) : courseMaterials.length === 0 ? (
           <EmptyState
-            title="No hay materiales"
-            description="Este curso aún no tiene materiales subidos."
+            title="No hay materiales disponibles"
+            description={`El docente aún no ha publicado materiales ni archivos para ${selectedCurso}.`}
           />
         ) : (
           <div className="flex flex-col gap-6">
@@ -120,32 +171,42 @@ export default function VistaDetalleMateriales({ slug }: VistaDetalleMaterialesP
                   {week}
                 </h4>
                 <div className="flex flex-col gap-3">
-                  {materialsByWeek[week].map(m => (
-                    <div key={m.id} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E7EB] hover:border-gray-300 hover:shadow-sm transition-all bg-white">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-[#FFE4E6] flex items-center justify-center text-[#BE123C] shrink-0">
-                          <FileText className="w-4.5 h-4.5" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-bold text-[#111827]">
-                            {m.titulo}
-                          </span>
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[#6B7280] font-medium">
-                            <span>{m.fecha}</span>
-                            <span className="w-1 h-1 rounded-full bg-slate-300" />
-                            <span className="uppercase">{m.formato} · {m.tamanio}</span>
+                  {materialsByWeek[week].map(m => {
+                    const isDownloading = downloadingId === m.id;
+                    return (
+                      <div key={m.id} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E7EB] hover:border-gray-300 hover:shadow-sm transition-all bg-white">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-[#FFE4E6] flex items-center justify-center text-[#BE123C] shrink-0">
+                            <FileText className="w-4.5 h-4.5" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[13px] font-bold text-[#111827]">
+                              {m.titulo}
+                            </span>
+                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[#6B7280] font-medium">
+                              <span>{m.fecha}</span>
+                              <span className="w-1 h-1 rounded-full bg-slate-300" />
+                              <span className="uppercase">{m.formato} · {m.tamanio}</span>
+                            </div>
                           </div>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => { void handleDownload(m); }}
+                          disabled={isDownloading}
+                          className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-[#111827] hover:bg-[#111827] hover:text-white transition-colors border border-[#E5E7EB] disabled:opacity-60 cursor-pointer"
+                          title={`Descargar archivo: ${m.titulo}`}
+                          aria-label={`Descargar archivo ${m.titulo}`}
+                        >
+                          {isDownloading ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-[#BE123C]" />
+                          ) : (
+                            <Download className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => alert(`Iniciando descarga: ${m.titulo}`)}
-                        className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-[#111827] hover:bg-[#111827] hover:text-white transition-colors border border-[#E5E7EB]"
-                        title="Descargar archivo"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}

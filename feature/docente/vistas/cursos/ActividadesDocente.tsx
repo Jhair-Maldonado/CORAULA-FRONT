@@ -9,8 +9,10 @@ import {
   X,
   Calendar,
   Award,
-  ChevronRight
+  ChevronRight,
+  AlertCircle
 } from 'lucide-react';
+import { validateMaterialFile } from '@/services/materialesService';
 import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
 import {
   activityTitleError,
@@ -36,6 +38,7 @@ interface MaterialSubmission {
   title: string;
   date: string;
   fileName?: string;
+  fileSize?: string;
   status: 'EN_PROCESO';
   createdAt: string;
 }
@@ -276,6 +279,8 @@ function ActivitySheet({
   const [materialTitle, setMaterialTitle] = useState('');
   const [materialDate, setMaterialDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [materialFile, setMaterialFile] = useState<File | null>(null);
+  const [materialFileSize, setMaterialFileSize] = useState<string | null>(null);
+  const [materialFileError, setMaterialFileError] = useState<string | null>(null);
   const [materials, setMaterials] = useState<MaterialSubmission[]>([]);
   const [toastNotice, setToastNotice] = useState<string | null>(null);
 
@@ -391,13 +396,43 @@ function ActivitySheet({
     }
   }
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] || null;
+    if (!file) {
+      setMaterialFile(null);
+      setMaterialFileSize(null);
+      setMaterialFileError(null);
+      return;
+    }
+    const result = validateMaterialFile(file);
+    if (!result.valid) {
+      setMaterialFile(null);
+      setMaterialFileSize(null);
+      setMaterialFileError(result.error);
+    } else {
+      setMaterialFile(file);
+      setMaterialFileSize(result.formattedSize);
+      setMaterialFileError(null);
+    }
+  }
+
   function handleMaterialSubmit() {
     if (!materialTitle.trim() || disabled) return;
+    if (!materialFile) {
+      setMaterialFileError('Debe adjuntar un archivo para el material de clase.');
+      return;
+    }
+    const validation = validateMaterialFile(materialFile);
+    if (!validation.valid) {
+      setMaterialFileError(validation.error);
+      return;
+    }
     const newSubmission: MaterialSubmission = {
-      id: `mat-${Date.now()}`,
+      id: `mat-${materials.length + 1}-${materialTitle.trim().toLowerCase().slice(0, 10).replace(/\s+/g, '_')}`,
       title: materialTitle.trim(),
       date: materialDate || new Date().toISOString().slice(0, 10),
-      fileName: materialFile?.name,
+      fileName: materialFile.name,
+      fileSize: validation.formattedSize,
       status: 'EN_PROCESO',
       createdAt: new Date().toISOString()
     };
@@ -405,6 +440,8 @@ function ActivitySheet({
     setToastNotice('Solicitud de aprobación enviada con éxito. El material aparecerá en la lista de actividades como «En proceso».');
     setMaterialTitle('');
     setMaterialFile(null);
+    setMaterialFileSize(null);
+    setMaterialFileError(null);
   }
 
   function cancelEdit() {
@@ -826,26 +863,37 @@ function ActivitySheet({
 
                       <label className="block">
                         <span className="text-xs font-bold text-muted">Subir documento</span>
-                        <div className="mt-1.5 flex justify-center px-4 pt-4 pb-5 border-2 border-line border-dashed rounded-lg bg-white hover:border-accent/50 transition-colors">
+                        <div className={`mt-1.5 flex justify-center px-4 pt-4 pb-5 border-2 border-dashed rounded-lg bg-white transition-colors ${
+                          materialFileError ? 'border-rose-300 bg-rose-50/20' : 'border-line hover:border-accent/50'
+                        }`}>
                           <div className="space-y-1 text-center">
-                            <Upload className="mx-auto h-7 w-7 text-muted" aria-hidden="true" />
+                            <Upload className={`mx-auto h-7 w-7 ${materialFileError ? 'text-rose-500' : 'text-muted'}`} aria-hidden="true" />
                             <div className="text-xs text-muted">
                               <label className="relative cursor-pointer rounded-md font-bold text-accent hover:underline">
                                 <span>Seleccionar archivo</span>
                                 <input
                                   type="file"
                                   className="sr-only"
-                                  onChange={e => setMaterialFile(e.target.files?.[0] || null)}
+                                  accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.zip,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.*"
+                                  onChange={handleFileChange}
                                 />
                               </label>
                               {materialFile ? (
-                                <p className="text-xs text-ink font-semibold mt-1 truncate max-w-xs">{materialFile.name}</p>
+                                <p className="text-xs text-ink font-semibold mt-1 truncate max-w-xs">
+                                  {materialFile.name} <span className="text-muted font-normal">({materialFileSize})</span>
+                                </p>
                               ) : (
-                                <p className="text-[11px] text-muted">PDF, Word o diapositivas</p>
+                                <p className="text-[11px] text-muted">PDF, Word, PowerPoint, Excel o ZIP (Máx. 15 MB)</p>
                               )}
                             </div>
                           </div>
                         </div>
+                        {materialFileError && (
+                          <div role="alert" className="mt-2 flex items-start gap-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                            <span>{materialFileError}</span>
+                          </div>
+                        )}
                       </label>
 
                       <p className="font-normal text-[11px] text-muted">
@@ -857,7 +905,11 @@ function ActivitySheet({
 
                 <button
                   type="submit"
-                  disabled={creationMode === 'actividad' ? disabled || !!titleError : !materialTitle.trim() || disabled}
+                  disabled={
+                    creationMode === 'actividad'
+                      ? disabled || !!titleError
+                      : !materialTitle.trim() || !materialFile || !!materialFileError || disabled
+                  }
                   className={`${button} bg-accent text-white disabled:bg-neutral/60 disabled:text-muted disabled:border-line disabled:opacity-100 w-full sm:w-auto mt-1`}
                 >
                   {creationMode === 'actividad' ? 'Crear actividad' : 'Enviar solicitud'}
@@ -950,7 +1002,11 @@ function ActivitySheet({
                       <span>Material pedagógico</span>
                       <span>· Fecha: {formatDisplayDate(m.date)}</span>
                     </div>
-                    {m.fileName && <p className="text-[11px] text-muted mt-1 font-mono">Archivo: {m.fileName}</p>}
+                    {m.fileName && (
+                      <p className="text-[11px] text-muted mt-1 font-mono">
+                        Archivo: {m.fileName} {m.fileSize && `· ${m.fileSize}`}
+                      </p>
+                    )}
                   </div>
                 </li>
               ))}

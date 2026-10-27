@@ -1,5 +1,5 @@
-import VistaNotasDocente from '../../../../feature/docente/vistas/notas/vistaNotasDocente';
+import VistaCatalogoNotasDocente from '../../../../feature/docente/vistas/notas/vistaCatalogoNotasDocente';
 
 export default function DocenteNotasPage() {
-  return <VistaNotasDocente />;
+  return <VistaCatalogoNotasDocente />;
 }

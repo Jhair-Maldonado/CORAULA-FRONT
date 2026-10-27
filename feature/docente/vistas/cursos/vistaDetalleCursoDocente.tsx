@@ -9,6 +9,7 @@ import type { TeacherCourseDetailResponse } from '@/types/teacherCoursesApi';
 import { useDocenteSession } from '@/app/docente/components/DocenteSessionContext';
 import ActividadesDocente from './ActividadesDocente';
 import ModalAsistenciaCurso from './ModalAsistenciaCurso';
+import ResultadosCursoDocente from './ResultadosCursoDocente';
 
 type LoadResult<T> = { key: string; data?: T; error?: string };
 
@@ -104,6 +105,9 @@ function CourseDetail({ routeId }: { routeId: string }) {
 
           {/* Sección principal de Actividades (por defecto abre en el bimestre actual) */}
           <ActividadesDocente sectionCourseId={course.sectionCourseId} autoSelectCurrent />
+
+          {/* Resultados calculados del bimestre (#45), solo lectura */}
+          <ResultadosCursoDocente sectionCourseId={course.sectionCourseId} />
 
           {/* Componente Modal de Registro de Asistencia */}
           <ModalAsistenciaCurso

@@ -4,6 +4,7 @@ import { MANUAL_GRADES_CONTRACT_VERIFIED } from '@/types/teacherGradesApi';
 import type { CreateManualCriterionGradeRequest } from '@/types/teacherGradesApi';
 import { manualGradesErrorMessage, parseBimestersResponse, parseCriterionGradeResponse, parseCriterionGradesSheetResponse } from '@/lib/manualGradesContract';
 import { gradeInputError } from '@/lib/manualGrades';
+import { parseEvaluationResultsResponse } from '@/lib/evaluationResultsContract';
 
 const path = (sectionCourseId: number) => `/v1/teacher/courses/${sectionCourseId}/bimesters`;
 
@@ -15,6 +16,10 @@ export const teacherGradesService = {
   },
   async getSheet(context: { sectionCourseId: number; courseId: number; bimesterId: number; academicPeriodId: number }, signal?: AbortSignal) {
     return parseCriterionGradesSheetResponse((await httpClient.get<unknown>(`${path(context.sectionCourseId)}/${context.bimesterId}/criterion-grades`, { signal })).data, context);
+  },
+  // #45: read-only results calculated from sources; not a published revision.
+  async getResults(sectionCourseId: number, bimesterId: number, signal?: AbortSignal) {
+    return parseEvaluationResultsResponse((await httpClient.get<unknown>(`${path(sectionCourseId)}/${bimesterId}/results`, { signal })).data, { sectionCourseId, bimesterId });
   },
   async registerGrade(sectionCourseId: number, bimesterId: number, request: CreateManualCriterionGradeRequest) {
     if (!MANUAL_GRADES_CONTRACT_VERIFIED) throw new Error('El registro real está bloqueado hasta verificar el contrato N2 con backend.');

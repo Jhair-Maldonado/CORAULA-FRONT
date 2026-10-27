@@ -24,6 +24,8 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
   const [refreshRequired, setRefreshRequired] = useState(false);
   const [contextVersion, setContextVersion] = useState(0);
   const [annulledNotice, setAnnulledNotice] = useState<string | null>(null);
+  // Bumped on every sheet read and after a save with accepted grades: results consumers reload.
+  const [resultsRevision, setResultsRevision] = useState(0);
   const mutation = useRef(false);
   const mounted = useRef(true);
   const selectionGeneration = useRef(0);
@@ -69,7 +71,7 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
       .then(sheet => {
         if (abort.signal.aborted) return;
         if (sheet.bimester.status === 'ANULADO') { discardAnnulled(sheet.bimester); return; }
-        setSheetResult({ key: sheetKey, data: { evaluation: adaptCriterionGradesSheet(sheet), bimester: sheet.bimester } }); setRefreshRequired(false);
+        setSheetResult({ key: sheetKey, data: { evaluation: adaptCriterionGradesSheet(sheet), bimester: sheet.bimester } }); setRefreshRequired(false); setResultsRevision(n => n + 1);
       })
       .catch(error => { if (!abort.signal.aborted) setSheetResult({ key: sheetKey, error: teacherGradesErrorMessage(error) }); });
     return () => abort.abort();
@@ -129,7 +131,8 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
     } finally {
       mutation.current = false;
       // Discard only after saving ends: it bumps the generation that stillCurrent() checks.
-      if (stillCurrent()) { setSaving(false); if (annulled) discardAnnulled(annulled, failure); }
+      // Any accepted grade changes the #45 results, even when a later cell failed.
+      if (stillCurrent()) { setSaving(false); if (accepted.length) setResultsRevision(n => n + 1); if (annulled) discardAnnulled(annulled, failure); }
     }
   }
 
@@ -138,6 +141,6 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
     evaluation: current?.evaluation, bimester: current?.bimester ?? selected,
     evaluationLoading, evaluationError, refreshSheet, annulledNotice,
     refreshBimesters: () => { if (!mutation.current) { selectionGeneration.current++; setContextVersion(selectionGeneration.current); setDrafts({}); setSelectedBimesterId(''); setBimesterRevision(n => n + 1); setSheetRevision(n => n + 1); } },
-    drafts, changeDraft, saving, save, saveError, saveMessage, refreshRequired,
+    drafts, changeDraft, saving, save, saveError, saveMessage, refreshRequired, resultsRevision,
   };
 }

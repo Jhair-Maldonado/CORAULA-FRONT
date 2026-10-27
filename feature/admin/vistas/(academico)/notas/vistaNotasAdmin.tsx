@@ -9,6 +9,7 @@ import { adminGradesService, adminGradesErrorMessage, correctionError } from '@/
 import type { AdminGradeContext } from '@/services/admin/adminGradesService';
 import type { SectionResponse } from '@/types/sectionApi';
 import ScheduleDialog from '../../(administrativo)/horario/components/ScheduleDialog';
+import ResultadosBimestre from '@/components/evaluation/ResultadosBimestre';
 
 const button = 'min-h-10 px-3 py-2 rounded-xl border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50';
 const input = 'w-full mt-2 p-3 rounded-xl border border-line bg-neutral/30 text-ink focus-visible:outline-accent';
@@ -77,11 +78,13 @@ function AdminSheet({ context, canCorrect, isCurrent }: { context: AdminGradeCon
   const [busy, setBusy] = useState(false), lock = useRef(false), mounted = useRef(true);
   const [refreshRequired, setRefreshRequired] = useState(false);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const [resultsRevision, setResultsRevision] = useState(0);
+  const loadResults = useCallback((signal: AbortSignal) => adminGradesService.getResults(sectionCourseId, bimesterId, signal), [sectionCourseId, bimesterId]);
   const data = sheet.data;
   const disabled = busy || sheet.loading || !!sheet.error || refreshRequired;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   function close() { if (!lock.current) { targetRef.current = null; setTarget(null); } }
-  function refresh() { if (!lock.current) { close(); setHistoryId(null); setNotice(''); setRefreshRequired(false); sheet.refresh(); } }
+  function refresh() { if (!lock.current) { close(); setHistoryId(null); setNotice(''); setRefreshRequired(false); sheet.refresh(); setResultsRevision(n => n + 1); } }
   function eligible(t: Target, s = data) {
     const cell = s?.students.find(student => student.enrollmentId === t.enrollmentId)?.grades.find(g => g.criterionId === t.criterionId);
     return canCorrect && s?.bimester.status === 'ABIERTO' && s.criteria.some(c => c.id === t.criterionId && c.type === 'MANUAL' && c.active) && cell?.gradeId === t.gradeId && cell.grade === t.grade;
@@ -109,7 +112,7 @@ function AdminSheet({ context, canCorrect, isCurrent }: { context: AdminGradeCon
       } catch {
         if (mounted.current && isCurrent()) setError(`${failure || 'El servidor aceptó la corrección.'} No se pudo recargar la planilla; actualiza antes de continuar.`);
       }
-    } finally { lock.current = false; if (mounted.current) setBusy(false); }
+    } finally { lock.current = false; if (mounted.current) { setBusy(false); if (accepted) setResultsRevision(n => n + 1); } }
   }
   const criteria = data?.criteria.filter(c => c.type === 'MANUAL').sort((a, b) => a.order - b.order || a.id - b.id) ?? [];
   return <section className="bg-white rounded-2xl border border-line p-5 shadow-sm flex flex-col gap-4">
@@ -133,6 +136,7 @@ function AdminSheet({ context, canCorrect, isCurrent }: { context: AdminGradeCon
       {correctionError(newGrade, reason, target.grade) && <p role="status" className="text-xs text-muted">{correctionError(newGrade, reason, target.grade)}</p>}
       <div className="flex gap-3"><button type="submit" disabled={disabled || !!correctionError(newGrade, reason, target.grade)} className={`${button} bg-accent text-white`}>Confirmar corrección</button><button type="button" className={`${button} bg-white`} onClick={close}>Cancelar</button></div>
     </form></ScheduleDialog>}
+    {data && <ResultadosBimestre load={loadResults} reloadKey={resultsRevision} criterionName={criterionId => data.criteria.find(c => c.id === criterionId)?.name} />}
     {historyId !== null && <GradeHistoryView key={historyId} gradeId={historyId} close={() => setHistoryId(null)} />}
   </section>;
 }

@@ -233,8 +233,10 @@ export default function VistaIncidenciasDocente() {
       accionesTomadas: accionesTomadas.trim() ? accionesTomadas.trim() : null
     };
 
+    const generatedId = `inc-${incidencias.length + 1}`;
+
     const nuevaIncidencia: IncidenciaRegistro = {
-      id: `inc-${Date.now()}`,
+      id: generatedId,
       studentId: selectedStudent.enrollmentId,
       studentName: selectedStudent.fullName,
       courseName: selectedCourse.name,
@@ -245,7 +247,7 @@ export default function VistaIncidenciasDocente() {
       gravedad: payload.gravedad,
       descripcion: payload.descripcion,
       accionesTomadas: payload.accionesTomadas || '',
-      createdAt: new Date().toISOString()
+      createdAt: `${dateTime}:00Z`
     };
 
     setTimeout(() => {

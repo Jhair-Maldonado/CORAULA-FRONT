@@ -162,7 +162,7 @@ export default function StudentLoginPage() {
                   <span className="text-[11px] font-bold tracking-widest uppercase text-accent">
                     CORAULA
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-neutral/80 text-muted px-2 py-0.5 rounded-md">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-neutral/80 text-ink/80 px-2 py-0.5 rounded-md">
                     <StudentIcon size={12} className="text-accent" /> Alumnos
                   </span>
                 </div>

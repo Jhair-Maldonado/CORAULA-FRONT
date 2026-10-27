@@ -1,0 +1,253 @@
+{
+  "base": "http://localhost:3100",
+  "browser": "Microsoft Edge 156.0.4314.42",
+  "routes": {
+    "/login": {
+      "finalUrl": "http://localhost:3100/login",
+      "axe": {
+        "byImpact": {
+          "serious": 1
+        },
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": 1,
+            "targets": [
+              ".gap-1"
+            ]
+          }
+        ]
+      },
+      "mobile": {
+        "performance": 80,
+        "accessibility": 91,
+        "bestPractices": 100,
+        "seo": 100,
+        "fcp": "2.0 s",
+        "lcp": "4.4 s",
+        "tbt": "190 ms",
+        "cls": "0",
+        "failedA11y": [
+          "color-contrast",
+          "target-size"
+        ]
+      },
+      "desktop": {
+        "performance": 99,
+        "accessibility": 91,
+        "bestPractices": 100,
+        "seo": 100,
+        "fcp": "0.6 s",
+        "lcp": "0.9 s",
+        "tbt": "0 ms",
+        "cls": "0",
+        "failedA11y": [
+          "color-contrast",
+          "target-size"
+        ]
+      }
+    },
+    "/login/security/administrador": {
+      "finalUrl": "http://localhost:3100/login/security/administrador",
+      "axe": {
+        "byImpact": {},
+        "violations": []
+      },
+      "mobile": {
+        "performance": 95,
+        "accessibility": 95,
+        "bestPractices": 100,
+        "seo": 100,
+        "fcp": "1.8 s",
+        "lcp": "2.8 s",
+        "tbt": "40 ms",
+        "cls": "0.01",
+        "failedA11y": [
+          "target-size"
+        ]
+      },
+      "desktop": {
+        "performance": 99,
+        "accessibility": 96,
+        "bestPractices": 100,
+        "seo": 100,
+        "fcp": "0.5 s",
+        "lcp": "0.8 s",
+        "tbt": "0 ms",
+        "cls": "0.009",
+        "failedA11y": [
+          "target-size"
+        ]
+      }
+    },
+    "/docente/login": {
+      "finalUrl": "http://localhost:3100/docente/login",
+      "axe": {
+        "byImpact": {},
+        "violations": []
+      },
+      "mobile": {
+        "performance": 96,
+        "accessibility": 96,
+        "bestPractices": 100,
+        "seo": 100,
+        "fcp": "1.7 s",
+        "lcp": "2.6 s",
+        "tbt": "50 ms",
+        "cls": "0.007",
+        "failedA11y": [
+          "target-size"
+        ]
+      },
+      "desktop": {
+        "performance": 100,
+        "accessibility": 96,
+        "bestPractices": 100,
+        "seo": 100,
+        "fcp": "0.5 s",
+        "lcp": "0.6 s",
+        "tbt": "0 ms",
+        "cls": "0",
+        "failedA11y": [
+          "target-size"
+        ]
+      }
+    },
+    "/alumno/login": {
+      "finalUrl": "http://localhost:3100/alumno/login",
+      "axe": {
+        "byImpact": {
+          "serious": 1,
+          "moderate": 10
+        },
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": 1,
+            "targets": [
+              "p"
+            ]
+          },
+          {
+            "id": "landmark-one-main",
+            "impact": "moderate",
+            "nodes": 1,
+            "targets": [
+              "html"
+            ]
+          },
+          {
+            "id": "region",
+            "impact": "moderate",
+            "nodes": 9,
+            "targets": [
+              "h1",
+              ".font-normal",
+              ".mt-2\\.5",
+              "label[for=\"usuario\"]",
+              "#usuario"
+            ]
+          }
+        ]
+      },
+      "mobile": {
+        "performance": 82,
+        "accessibility": 93,
+        "bestPractices": 100,
+        "seo": 100,
+        "fcp": "2.9 s",
+        "lcp": "4.1 s",
+        "tbt": "0 ms",
+        "cls": "0",
+        "failedA11y": [
+          "color-contrast",
+          "landmark-one-main"
+        ]
+      },
+      "desktop": {
+        "performance": 100,
+        "accessibility": 93,
+        "bestPractices": 100,
+        "seo": 100,
+        "fcp": "0.6 s",
+        "lcp": "0.6 s",
+        "tbt": "0 ms",
+        "cls": "0",
+        "failedA11y": [
+          "color-contrast",
+          "landmark-one-main"
+        ]
+      }
+    },
+    "/alumno": {
+      "finalUrl": "http://localhost:3100/alumno/login",
+      "axe": {
+        "byImpact": {
+          "serious": 1,
+          "moderate": 10
+        },
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": 1,
+            "targets": [
+              "p"
+            ]
+          },
+          {
+            "id": "landmark-one-main",
+            "impact": "moderate",
+            "nodes": 1,
+            "targets": [
+              "html"
+            ]
+          },
+          {
+            "id": "region",
+            "impact": "moderate",
+            "nodes": 9,
+            "targets": [
+              "h1",
+              ".font-normal",
+              ".mt-2\\.5",
+              "label[for=\"usuario\"]",
+              "#usuario"
+            ]
+          }
+        ]
+      },
+      "mobile": {
+        "performance": 76,
+        "accessibility": 93,
+        "bestPractices": 100,
+        "seo": 100,
+        "fcp": "2.9 s",
+        "lcp": "4.4 s",
+        "tbt": "210 ms",
+        "cls": "0",
+        "failedA11y": [
+          "color-contrast",
+          "landmark-one-main"
+        ]
+      },
+      "desktop": {
+        "performance": 99,
+        "accessibility": 93,
+        "bestPractices": 100,
+        "seo": 100,
+        "fcp": "0.5 s",
+        "lcp": "1.0 s",
+        "tbt": "0 ms",
+        "cls": "0",
+        "failedA11y": [
+          "color-contrast",
+          "landmark-one-main"
+        ]
+      }
+    }
+  },
+  "lighthouseVersion": "lighthouse 13.5.0"
+}

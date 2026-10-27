@@ -142,9 +142,11 @@ function getMimeForFormat(formato: string): string {
   }
 }
 
+export const DESCARGA_NO_DISPONIBLE = 'Descarga no disponible: módulo en construcción';
+
 /**
- * Ejecuta la descarga real autorizada del material pedagógico en el navegador,
- * eliminando cualquier uso de alert() o descarga simulada.
+ * Ejecuta la descarga real autorizada del material pedagógico en el navegador.
+ * Sin urlDescarga real no descarga nada y lanza DESCARGA_NO_DISPONIBLE.
  */
 export async function descargarArchivoMaterial(material: MaterialEstudioAlumno): Promise<void> {
   const extension = material.formato.toLowerCase();
@@ -168,25 +170,8 @@ export async function descargarArchivoMaterial(material: MaterialEstudioAlumno):
     }
   }
 
-  // Descarga real de archivo auténtico generado en cliente cuando se trabaja con recursos de prueba/sintéticos
-  try {
-    const fileContent = `Institución Educativa Coraula - Material de Estudio Oficial\n` +
-      `============================================================\n` +
-      `Título: ${material.titulo}\n` +
-      `Curso: ${material.curso}\n` +
-      `Docente: ${material.docente}\n` +
-      `Fecha de publicación: ${material.fecha}\n` +
-      `Formato original: ${material.formato}\n` +
-      `Tamaño declarado: ${material.tamanio}\n` +
-      `Semana lectiva: ${material.semana || 'Semana regular'}\n` +
-      `============================================================\n\n` +
-      `Este documento certifica la descarga autorizada del material pedagógico.\n`;
-
-    const blob = new Blob([fileContent], { type: getMimeForFormat(material.formato) });
-    triggerBrowserDownload(blob, safeFilename);
-  } catch {
-    throw new Error(`Error inesperado al generar la descarga del archivo «${material.titulo}».`);
-  }
+  // Sin URL real (datos simulados, BACK #53 pendiente) no se genera ningún archivo.
+  throw new Error(DESCARGA_NO_DISPONIBLE);
 }
 
 /**

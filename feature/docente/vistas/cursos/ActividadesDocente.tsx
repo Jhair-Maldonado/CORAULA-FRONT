@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { validateMaterialFile } from '@/services/materialesService';
+import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
 import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
 import {
   activityTitleError,
@@ -437,7 +438,8 @@ function ActivitySheet({
       createdAt: new Date().toISOString()
     };
     setMaterials(prev => [newSubmission, ...prev]);
-    setToastNotice('Solicitud de aprobación enviada con éxito. El material aparecerá en la lista de actividades como «En proceso».');
+    // La subida de material es siempre local hasta BACK #53.
+    setToastNotice('Simulación: el material no se subió (módulo en construcción).');
     setMaterialTitle('');
     setMaterialFile(null);
     setMaterialFileSize(null);
@@ -838,6 +840,7 @@ function ActivitySheet({
                     </>
                   ) : (
                     <>
+                      <AvisoModuloSimulado className="mb-0" detalle="la subida de materiales aún no está conectada; los materiales son de demostración y no se guardan." />
                       <label>
                         Título del material
                         <input

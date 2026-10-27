@@ -5,8 +5,74 @@ import {
   formatBytes,
   MAX_MATERIAL_FILE_SIZE_BYTES,
   slugifyCurso,
-  resolverCursoAlumno
+  resolverCursoAlumno,
+  descargarArchivoMaterial,
+  DESCARGA_NO_DISPONIBLE
 } from '../src/services/materialesService.ts';
+import httpClientModule from '../src/services/httpClient.ts';
+
+// Interop ESM/CJS de tsx: el default puede llegar envuelto.
+const httpClient = httpClientModule.defaults ? httpClientModule : httpClientModule.default;
+
+const materialBase = { id: 'm-1', titulo: 'Guía de Álgebra', curso: 'Matemática', docente: 'Prof. Marco Aurelio', fecha: '01/09/2026', formato: 'PDF', tamanio: '2 MB' };
+
+// Stubs de DOM para observar descargas sin navegador; el adaptador de Axios evita red real.
+async function withDownloadStubs(adapter, run) {
+  const originalAdapter = httpClient.defaults.adapter;
+  const originalWindow = globalThis.window, originalDocument = globalThis.document, originalStorage = globalThis.localStorage;
+  const calls = { requests: [], blobs: [], anchors: [] };
+  httpClient.defaults.adapter = async config => { calls.requests.push(config); return adapter(config); };
+  globalThis.window = { URL: { createObjectURL: blob => { calls.blobs.push(blob); return 'blob:fake'; }, revokeObjectURL() {} } };
+  globalThis.document = {
+    createElement: () => { const a = { style: {}, click() { a.clicked = true; } }; calls.anchors.push(a); return a; },
+    body: { appendChild() {}, removeChild() {} }
+  };
+  Object.defineProperty(globalThis, 'localStorage', { value: { getItem: () => null }, configurable: true, writable: true });
+  try { await run(calls); } finally {
+    httpClient.defaults.adapter = originalAdapter;
+    Object.defineProperty(globalThis, 'localStorage', { value: originalStorage, configurable: true, writable: true });
+    if (originalWindow === undefined) delete globalThis.window; else globalThis.window = originalWindow;
+    if (originalDocument === undefined) delete globalThis.document; else globalThis.document = originalDocument;
+  }
+}
+
+test('descargarArchivoMaterial without a real urlDescarga generates no file and reports it is unavailable', async () => {
+  await withDownloadStubs(async () => { throw new Error('no debe llamarse'); }, async calls => {
+    for (const urlDescarga of [undefined, '', '#']) {
+      await assert.rejects(descargarArchivoMaterial({ ...materialBase, urlDescarga }), { message: DESCARGA_NO_DISPONIBLE });
+    }
+    assert.equal(DESCARGA_NO_DISPONIBLE, 'Descarga no disponible: módulo en construcción');
+    assert.equal(calls.requests.length, 0);
+    assert.equal(calls.blobs.length, 0);
+    assert.equal(calls.anchors.length, 0);
+  });
+});
+
+test('descargarArchivoMaterial downloads the real file from urlDescarga', async () => {
+  await withDownloadStubs(
+    async config => ({ config, status: 200, statusText: 'OK', headers: { 'content-type': 'application/pdf' }, data: 'contenido-real' }),
+    async calls => {
+      await descargarArchivoMaterial({ ...materialBase, urlDescarga: '/v1/materiales/m-1/archivo' });
+      assert.equal(calls.requests.length, 1);
+      assert.equal(calls.requests[0].url, '/v1/materiales/m-1/archivo');
+      assert.equal(calls.requests[0].responseType, 'blob');
+      assert.equal(calls.blobs.length, 1);
+      assert.equal(calls.blobs[0].type, 'application/pdf');
+      assert.equal(await calls.blobs[0].text(), 'contenido-real');
+      assert.equal(calls.anchors[0].download, 'gu_a_de__lgebra.pdf');
+      assert.equal(calls.anchors[0].href, 'blob:fake');
+      assert.equal(calls.anchors[0].clicked, true);
+      await new Promise(res => setTimeout(res, 250)); // deja terminar la limpieza del ancla
+    }
+  );
+});
+
+test('descargarArchivoMaterial reports a failed real download without generating a file', async () => {
+  await withDownloadStubs(async () => { throw new Error('network'); }, async calls => {
+    await assert.rejects(descargarArchivoMaterial({ ...materialBase, urlDescarga: '/v1/materiales/m-1/archivo' }), /No fue posible descargar/);
+    assert.equal(calls.blobs.length, 0);
+  });
+});
 
 test('formatBytes formats bytes correctly into human-readable units', () => {
   assert.equal(formatBytes(0), '0 Bytes');

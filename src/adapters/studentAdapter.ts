@@ -38,20 +38,21 @@ export function toStudentEditValues(student: AdminStudentDetail): StudentEditVal
   };
 }
 
-export function toUpdateStudent(values: StudentEditValues, original: AdminStudentDetail): UpdateStudentRequest {
-  const patch: UpdateStudentRequest = {};
+// Returns null when no field changed, so the form can close without a request.
+export function toUpdateStudent(values: StudentEditValues, original: AdminStudentDetail): UpdateStudentRequest | null {
+  const patch: Omit<UpdateStudentRequest, 'reason'> = {};
   const previous = toStudentEditValues(original);
   const fields = ['studentCode', 'dni', 'firstNames', 'paternalLastName', 'maternalLastName', 'birthDate', 'phone'] as const;
   for (const field of fields) {
     const next = values[field].trim();
     if (next !== previous[field].trim()) patch[field] = next;
   }
-  if (Object.keys(patch).length) patch.reason = values.reason.trim() || null;
-  return patch;
+  return Object.keys(patch).length ? { ...patch, reason: values.reason.trim() } : null;
 }
 
 export function studentEditValidation(values: StudentEditValues, original: AdminStudentDetail): string | null {
   if (!values.firstNames.trim() || !values.paternalLastName.trim()) return 'Nombres y apellido paterno son obligatorios.';
+  if (!values.reason.trim()) return 'Indica el motivo de la actualización.';
   const limits = { studentCode: 50, dni: 20, firstNames: 120, paternalLastName: 120, maternalLastName: 120, phone: 30 } as const;
   for (const field of Object.keys(limits) as (keyof typeof limits)[]) {
     if (values[field].trim().length > limits[field]) return 'Uno de los campos supera la longitud permitida.';

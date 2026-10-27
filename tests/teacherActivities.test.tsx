@@ -14,7 +14,7 @@ import type { Bimester } from '../src/types/evaluationApi';
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const context = { sectionCourseId: 10, bimesterId: 1 };
 const request: CreateAcademicActivityRequest = { title: 'Práctica de álgebra', description: null, type: 'PRACTICA', cuentaParaPa: true };
-const activity = (id = 1, overrides: Partial<AcademicActivity> = {}): AcademicActivity => ({ ...request, ...context, id, createdByTeacherId: 7, status: 'PLANIFICADA', createdAt: '2026-10-10T15:00:00Z', updatedAt: null, ...overrides });
+const activity = (id = 1, overrides: Partial<AcademicActivity> = {}): AcademicActivity => ({ ...request, ...context, id, createdByTeacherId: 7, status: 'PLANIFICADA', createdAt: '2026-10-10T15:00:00Z', updatedAt: null, publishedAt: null, annulledAt: null, annulledByUserId: null, annulmentReason: null, ...overrides });
 const bimester = (id = 1): Bimester => ({ id, academicPeriodId: 30, number: id, name: `Bimestre ${id}`, startDate: '2026-03-01', endDate: '2026-04-30', status: 'PLANIFICADO' });
 const httpError = (status?: number) => new AxiosError('private details', 'ERR_BAD_REQUEST', undefined, undefined, status ? { status, data: { message: 'Información sensible' } } as AxiosResponse : undefined);
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(yes => { resolve = yes; }); return { promise, resolve }; }
@@ -93,7 +93,7 @@ test('activities requires selected bimester, displays empty state, validates tit
     await h.change('Título de actividad', 'Título válido'); assert.equal(h.button('Crear actividad')?.props.disabled, false);
     assert.deepEqual(h.renderer.root.findByProps({ 'aria-label': 'Tipo de actividad' }).findAllByType('option').map(o => o.props.value), ['TAREA', 'PRACTICA', 'EXAMEN', 'PROYECTO']);
     assert.equal(h.renderer.root.findAllByType('input').filter(i => i.props.type === 'number').length, 0);
-    assert.match(text(h.renderer.root), /no calcula calificaciones/);
+    assert.match(text(h.renderer.root), /calculado por el servidor y de solo lectura/); assert.doesNotMatch(text(h.renderer.root), /configuración futura/);
   });
 });
 
@@ -252,6 +252,17 @@ test('editing loads authoritative detail, validates title, skips no-op and cance
     assert.equal(patches, 0);
     await h.change('Título editado', 'Válido'); const submit = h.renderer.root.findByProps({ 'aria-label': 'Editar actividad académica' }).props.onSubmit;
     await h.click('Cancelar edición'); await act(async () => { submit({ preventDefault() {} }); }); assert.equal(patches, 0);
+  });
+});
+
+test('editing an activity that is no longer PLANIFICADA explains the state and opens no form', async () => {
+  let patches = 0;
+  const published = activity(1, { status: 'PUBLICADA', publishedAt: '2026-10-10T16:00:00Z' });
+  await view({ getActivities: async () => [activity()], getActivity: async () => published, updateActivity: async () => { patches++; return published; } }, async h => {
+    await h.select('1'); await h.click('Editar #1');
+    assert.equal(h.renderer.root.findAllByProps({ 'aria-label': 'Editar actividad académica' }).length, 0);
+    assert.match(text(h.renderer.root), /ya está publicada y no admite esta edición/);
+    assert.equal(patches, 0);
   });
 });
 

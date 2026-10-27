@@ -1,6 +1,9 @@
-﻿'use client';
+'use client';
 
-import { useRef, useState } from 'react';
+import { useContext, useRef, useState } from 'react';
+import { isAxiosError } from 'axios';
+import { FileUp } from 'lucide-react';
+import { AuthContext } from '@/contexts/AuthContext';
 import { studentImportService, studentImportErrorMessage, studentImportErrorPreview } from '@/services/admin/studentImportService';
 import type { StudentImportConfirmation, StudentImportIssue, StudentImportPreview } from '@/types/studentImport';
 
@@ -15,6 +18,9 @@ function Issues({ issues, warning = false }: { issues: StudentImportIssue[]; war
 
 /** Single implementation; backend owns structure and business validation. */
 export default function ImportadorMatricula() {
+  const auth = useContext(AuthContext);
+  // Confirming is ADMINISTRADOR (Director) only; DIRECTIVO keeps the preview (BACK #74).
+  const isAdmin = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [preview, setPreview] = useState<StudentImportPreview | null>(null);
@@ -24,16 +30,17 @@ export default function ImportadorMatricula() {
   const [confirmation, setConfirmation] = useState<StudentImportConfirmation | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [needsNewPreview, setNeedsNewPreview] = useState(false);
+  const [confirmForbidden, setConfirmForbidden] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Synchronous locks prevent repeated clicks before React updates state.
   const requestInProgress = useRef(false);
   const confirmed = useRef(false);
   const busy = previewLoading || confirmLoading;
-  const canConfirm = !!selectedFile && !!preview && previewFile === selectedFile &&
+  const canConfirm = isAdmin && !!selectedFile && !!preview && previewFile === selectedFile &&
     preview.totalRows > 0 && preview.invalidRows === 0 && preview.validRows === preview.totalRows &&
     preview.rows.length === preview.totalRows &&
     preview.rows.every(row => row.valid === true && row.errors.length === 0) &&
-    !busy && !confirmation && !needsNewPreview;
+    !busy && !confirmation && !needsNewPreview && !confirmForbidden;
 
   const selectFile = (file: File) => {
     if (requestInProgress.current) return;
@@ -43,6 +50,7 @@ export default function ImportadorMatricula() {
     setPreviewError(null);
     setConfirmError(null);
     setNeedsNewPreview(false);
+    setConfirmForbidden(false);
     confirmed.current = false;
     if (!/\.xlsx$/i.test(file.name)) {
       setSelectedFile(null);
@@ -97,7 +105,10 @@ export default function ImportadorMatricula() {
         // An error response never re-enables confirmation, even if counters look valid.
         setNeedsNewPreview(true);
       }
-      setConfirmError(studentImportErrorMessage(error));
+      const forbidden = isAxiosError(error) && error.response?.status === 403;
+      // A 403 is final for this file: the button stays disabled, no retry.
+      if (forbidden) setConfirmForbidden(true);
+      setConfirmError(forbidden ? 'Solo el Director puede confirmar la importación.' : studentImportErrorMessage(error));
     } finally {
       requestInProgress.current = false;
       setConfirmLoading(false);
@@ -107,43 +118,71 @@ export default function ImportadorMatricula() {
   const buttonClass = 'px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed';
   const display = (value: string | number | null) => value ?? '—';
   const fullName = (...parts: (string | null)[]) => parts.filter(Boolean).join(' ') || '—';
+
   return (
     <section className="w-full bg-white rounded-2xl border border-line p-6 flex flex-col gap-5" aria-busy={busy}>
       <div
+        role="button"
+        tabIndex={0}
+        onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
           const file = event.dataTransfer.files[0];
           if (file) selectFile(file);
         }}
-        className="border-2 border-dashed border-line rounded-xl p-8 text-center"
+        className="border-2 border-dashed border-line hover:border-accent rounded-2xl p-10 text-center cursor-pointer transition-all bg-neutral/20 hover:bg-neutral/40 flex flex-col items-center justify-center gap-3 group"
       >
-        <p className="text-ink font-bold">Selecciona o arrastra un archivo .XLSX</p>
-        <p className="text-sm text-muted mt-2">Usa la hoja ESTUDIANTES con las 21 columnas del contrato V2. El servidor revisará su estructura y la validez de cada fila.</p>
+        <div className="w-16 h-16 rounded-full bg-accent/10 text-accent flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+          <FileUp size={32} aria-hidden="true" />
+        </div>
+        <div>
+          <p className="text-ink font-bold text-base">Sube el archivo de tus estudiantes</p>
+          <p className="text-xs text-muted mt-1">Haz clic aquí o arrastra tu archivo (.xlsx)</p>
+        </div>
         <input
           ref={fileInputRef}
           type="file"
           accept=".xlsx"
           disabled={busy}
           aria-label="Seleccionar archivo de matrícula .XLSX"
-          className="mt-4 max-w-full text-sm"
+          className="hidden"
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) selectFile(file);
             event.target.value = '';
           }}
         />
-        {confirmation && <button type="button" className={`${buttonClass} mt-4`} onClick={() => fileInputRef.current?.click()}>Cargar otro archivo</button>}
+        {confirmation && (
+          <button
+            type="button"
+            className={`${buttonClass} mt-2`}
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
+          >
+            Cargar otro archivo
+          </button>
+        )}
       </div>
+
       {selectedFile && (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-ink">Archivo: {selectedFile.name}</p>
+          <p className="text-sm text-ink">Archivo: <strong>{selectedFile.name}</strong></p>
           <button type="button" className={buttonClass} disabled={busy || !!confirmation} onClick={requestPreview}>
             {previewLoading ? 'Validando en servidor...' : 'Obtener preview'}
           </button>
-          <button type="button" className={buttonClass} disabled={!canConfirm} onClick={requestConfirmation}>
+          {isAdmin && <button type="button" className={buttonClass} disabled={!canConfirm} onClick={requestConfirmation}>
             {confirmLoading ? 'Confirmando...' : 'Confirmar matrícula'}
-          </button>
+          </button>}
+          {auth?.role === 'DIRECTIVO' && <p className="text-sm text-muted">La confirmación de la importación la realiza el Director.</p>}
         </div>
       )}
       {selectedFile && !preview && !confirmation && !previewLoading && !previewError && (

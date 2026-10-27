@@ -9,15 +9,16 @@ import {
   User,
   Users,
   CheckCheck,
-  Smile,
-  MoreVertical,
   Phone,
-  Video
+  Video,
+  Flag,
+  X
 } from 'lucide-react';
 import { getDocenteChats, enviarMensajeDocenteChat } from '@/lib/api';
 import { ChatContactoDocente, MensajeDocenteItem } from '@/types/docentes';
 import { CardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
+import ModalReportarIncidencia, { GravedadIncidencia } from './ModalReportarIncidencia';
 
 export default function VistaChatDocente() {
   const [activeTab, setActiveTab] = useState<'alumnos' | 'padres'>('alumnos');
@@ -28,6 +29,12 @@ export default function VistaChatDocente() {
   const [enviando, setEnviando] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Estados para reporte de incidencias en el chat (RF-21 / DOC-INCIDENCIAS-UI)
+  const [messageToReport, setMessageToReport] = useState<MensajeDocenteItem | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportedMessageIds, setReportedMessageIds] = useState<Set<string>>(new Set());
+  const [reportFeedback, setReportFeedback] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -91,6 +98,25 @@ export default function VistaChatDocente() {
     } finally {
       setEnviando(false);
     }
+  };
+
+  const handleOpenReport = (msg: MensajeDocenteItem) => {
+    setMessageToReport(msg);
+    setIsReportModalOpen(true);
+  };
+
+  const handleConfirmReport = async (data: {
+    gravedad: GravedadIncidencia;
+    descripcion: string;
+    mensajeId: string;
+    mensajeTexto: string;
+  }) => {
+    // Marcar el mensaje como reportado
+    setReportedMessageIds((prev) => new Set([...prev, data.mensajeId]));
+    setReportFeedback('Simulación: la incidencia no se registró (módulo en construcción).');
+    setTimeout(() => {
+      setReportFeedback(null);
+    }, 4000);
   };
 
   const contactosFiltrados = contactos.filter((c) =>
@@ -283,8 +309,27 @@ export default function VistaChatDocente() {
                 </span>
               </div>
 
+              {/* Toast de confirmación de reporte */}
+              {reportFeedback && (
+                <div
+                  role="status"
+                  className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center justify-between gap-2 shadow-xs animate-in fade-in"
+                >
+                  <span>{reportFeedback}</span>
+                  <button
+                    type="button"
+                    onClick={() => setReportFeedback(null)}
+                    className="p-1 hover:text-emerald-950"
+                    aria-label="Cerrar notificación"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
               {selectedContacto.mensajes.map((msg) => {
                 const esDocente = msg.remitente === 'docente';
+                const isReported = reportedMessageIds.has(msg.id);
 
                 return (
                   <div
@@ -293,14 +338,36 @@ export default function VistaChatDocente() {
                       esDocente ? 'items-end' : 'items-start'
                     }`}
                   >
-                    <div
-                      className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-xs shadow-2xs leading-relaxed ${
-                        esDocente
-                          ? 'bg-[#BE123C] text-white rounded-tr-none'
-                          : 'bg-white text-[#111827] border border-[#E5E7EB] rounded-tl-none'
-                      }`}
-                    >
-                      <p>{msg.texto}</p>
+                    <div className="flex items-center gap-1.5 group max-w-[85%]">
+                      <div
+                        className={`px-4 py-2.5 rounded-2xl text-xs shadow-2xs leading-relaxed ${
+                          esDocente
+                            ? 'bg-[#BE123C] text-white rounded-tr-none'
+                            : 'bg-white text-[#111827] border border-[#E5E7EB] rounded-tl-none'
+                        }`}
+                      >
+                        <p>{msg.texto}</p>
+                      </div>
+
+                      {/* Icono de Reportar Incidencia para mensajes de alumnos o apoderados */}
+                      {!esDocente && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenReport(msg)}
+                          className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 cursor-pointer shrink-0 ${
+                            isReported
+                              ? 'text-rose-700 bg-rose-50 border border-rose-200'
+                              : 'opacity-0 group-hover:opacity-100 text-[#64748B] hover:text-rose-700 hover:bg-rose-50'
+                          }`}
+                          title={isReported ? 'Incidencia ya registrada' : 'Reportar incidencia de este mensaje'}
+                          aria-label={`Reportar incidencia para: ${msg.texto.slice(0, 30)}`}
+                        >
+                          <Flag size={14} className={isReported ? 'fill-rose-600 text-rose-600' : ''} />
+                          {isReported && (
+                            <span className="text-[10px] font-bold text-rose-700">Reportado</span>
+                          )}
+                        </button>
+                      )}
                     </div>
 
                     <span className="text-[10px] text-[#94A3B8] mt-1 px-1 flex items-center gap-1 font-medium">
@@ -350,6 +417,19 @@ export default function VistaChatDocente() {
           </div>
         )}
       </section>
+
+      {/* Modal de Reporte de Incidencia Disciplinaria (RF-21) */}
+      <ModalReportarIncidencia
+        isOpen={isReportModalOpen}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setMessageToReport(null);
+        }}
+        studentName={selectedContacto?.nombre || ''}
+        studentSubtitle={selectedContacto?.subtitulo}
+        mensaje={messageToReport}
+        onSubmitReport={handleConfirmReport}
+      />
     </div>
   );
 }

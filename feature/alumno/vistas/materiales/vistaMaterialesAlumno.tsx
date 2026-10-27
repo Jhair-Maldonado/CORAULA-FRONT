@@ -1,26 +1,20 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { getMaterialesAlumno } from '@/lib/api';
+import { getAlumnoCursosAsignados, CursoAsignadoAlumno } from '@/services/materialesService';
 import { MaterialesAlumnoData } from '@/types/alumno';
 import { AlumnoHeader } from '@/components/alumno/AlumnoHeader';
 import { CardSkeleton, TableSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { HardDrive, ExternalLink, BookOpen } from 'lucide-react';
+import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
+import { HardDrive, ExternalLink } from 'lucide-react';
 import { CardCurso } from './component/cardCurso';
-
-const slugify = (text: string) => text.toString().toLowerCase()
-  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  .replace(/\s+/g, '-')
-  .replace(/[^\w\-]+/g, '')
-  .replace(/\-\-+/g, '-')
-  .replace(/^-+/, '')
-  .replace(/-+$/, '');
 
 export default function VistaMaterialesAlumno() {
   const [data, setData] = useState<MaterialesAlumnoData | null>(null);
+  const [coursesInfo, setCoursesInfo] = useState<CursoAsignadoAlumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,16 +22,20 @@ export default function VistaMaterialesAlumno() {
     try {
       setLoading(true);
       setError(null);
-      const res = await getMaterialesAlumno('Todos los cursos', 'Todos los archivos');
-      setData(res);
-    } catch (err: any) {
-      setError(err?.message || 'Error al cargar los materiales de estudio');
+      const [resMats, assignedCourses] = await Promise.all([
+        getMaterialesAlumno('Todos los cursos', 'Todos los archivos'),
+        getAlumnoCursosAsignados()
+      ]);
+      setData(resMats);
+      setCoursesInfo(assignedCourses);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al cargar los materiales de estudio';
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
   useEffect(() => {
     fetchData();
   }, []);
@@ -71,17 +69,6 @@ export default function VistaMaterialesAlumno() {
     ? Math.round((data.espacioUsadoMb / data.espacioTotalMb) * 100)
     : 42;
 
-  const uniqueCourses = Array.from(new Set(data?.materiales.map(m => m.curso) || []));
-  const coursesInfo = uniqueCourses.map(curso => {
-    const materials = data?.materiales.filter(m => m.curso === curso) || [];
-    return {
-      curso,
-      slug: slugify(curso),
-      docente: materials[0]?.docente || '',
-      count: materials.length
-    };
-  });
-
   return (
     <div className="flex flex-col gap-6">
       <AlumnoHeader
@@ -90,27 +77,34 @@ export default function VistaMaterialesAlumno() {
         subtitle="Descarga de separatas, lecturas y presentaciones oficiales"
       />
 
+      <AvisoModuloSimulado className="mb-0" detalle="los materiales de estudio son de demostración y no pueden descargarse." />
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-8 flex flex-col gap-6">
           <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 sm:p-6 shadow-xs flex flex-col gap-5">
-            <div>
-              <h3 className="text-base font-bold text-[#111827]">
-                Asignaturas
-              </h3>
-              <p className="text-[11px] text-[#6B7280] font-medium mt-0.5">
-                Selecciona un curso para ver sus materiales organizados por semana
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#111827]">
+                  Asignaturas Asignadas
+                </h3>
+                <p className="text-[11px] text-[#6B7280] font-medium mt-0.5">
+                  Selecciona un curso para ver sus materiales organizados por semana
+                </p>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-[#111827] rounded-full border border-[#E5E7EB]">
+                {coursesInfo.length} {coursesInfo.length === 1 ? 'curso' : 'cursos'}
+              </span>
             </div>
 
             {coursesInfo.length === 0 ? (
               <EmptyState
-                title="No hay materiales disponibles"
-                description="Aún no se han subido materiales para tus cursos."
+                title="No tienes cursos asignados"
+                description="Aún no se han asignado cursos para tu matrícula en el periodo actual."
               />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {coursesInfo.map(info => (
-                  <CardCurso key={info.curso} info={info} />
+                  <CardCurso key={String(info.id || info.slug)} info={info} />
                 ))}
               </div>
             )}

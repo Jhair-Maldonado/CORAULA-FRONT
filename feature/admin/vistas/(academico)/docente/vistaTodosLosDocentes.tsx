@@ -1,12 +1,15 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Add01Icon, ViewIcon, ArrowLeft01Icon, ArrowRight01Icon, Search01Icon, UserCircleIcon, AlertCircleIcon, Clock01Icon } from 'hugeicons-react';
 import { teachersService, teacherErrorMessage } from '@/services/admin/teachersService';
 import { toAdminTeacher } from '@/adapters/teacherAdapter';
+import type { AdminTeacher } from '@/types/adminTeacher';
 import type { PagedTeachersResponse, TeacherListParams, TeacherResponse } from '@/types/teacherApi';
 import TeacherForm from './TeacherForm';
+import DeactivateTeacherDialog from './DeactivateTeacherDialog';
+import { Failure } from '../secciones/sectionUi';
 
 type ListResult = { key: string; data?: PagedTeachersResponse; error?: string };
 
@@ -17,6 +20,10 @@ export default function VistaTodosLosDocentes() {
   const [result, setResult] = useState<ListResult | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [created, setCreated] = useState<TeacherResponse | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [toggleNotice, setToggleNotice] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<AdminTeacher | null>(null);
   const key = JSON.stringify([query, revision]);
   const loading = result?.key !== key;
   const data = loading ? undefined : result?.data;
@@ -29,6 +36,40 @@ export default function VistaTodosLosDocentes() {
       .catch(error => { if (current) setResult({ key, error: teacherErrorMessage(error) }); });
     return () => { current = false; };
   }, [query, revision, key]);
+
+  function requestToggleStatus(teacher: AdminTeacher) {
+    if (togglingId) return;
+    if (teacher.active) setConfirming(teacher);
+    else void handleToggleStatus(teacher);
+  }
+
+  async function handleToggleStatus(teacher: AdminTeacher) {
+    if (togglingId) return;
+    const nextActive = !teacher.active;
+    setTogglingId(teacher.id);
+    setToggleNotice(null);
+    setToggleError(null);
+    try {
+      await teachersService.update(teacher.id, { active: nextActive });
+      setResult(prev => {
+        if (!prev?.data) return prev;
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            content: prev.data.content.map(t =>
+              String(t.id) === teacher.id ? { ...t, active: nextActive } : t
+            ),
+          },
+        };
+      });
+      setToggleNotice(`Docente "${teacher.nombreCompleto}" ${nextActive ? 'activado' : 'desactivado'} con éxito.`);
+    } catch (err) {
+      setToggleError(teacherErrorMessage(err));
+    } finally {
+      setTogglingId(null);
+    }
+  }
 
   return (
     <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans flex flex-col gap-5">
@@ -43,6 +84,13 @@ export default function VistaTodosLosDocentes() {
       {created && <div role="status" className="max-w-7xl mx-auto w-full rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">
         Docente creado: <Link href={`/administrador/docentes/${created.id}`} className="underline font-bold">{created.fullName}</Link> (Activo).
       </div>}
+      {toggleNotice && (
+        <div role="status" className="max-w-7xl mx-auto w-full rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm flex items-center justify-between">
+          <span>{toggleNotice}</span>
+          <button onClick={() => setToggleNotice(null)} className="text-xs font-bold underline ml-2">Cerrar</button>
+        </div>
+      )}
+      {toggleError && <div className="max-w-7xl mx-auto w-full"><Failure message={toggleError} /></div>}
       <div className="max-w-7xl mx-auto w-full bg-white border border-line rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-sm text-xs">
         <form className="flex gap-2 flex-1 min-w-0 w-full sm:min-w-64 max-w-md" onSubmit={event => {
           event.preventDefault();
@@ -76,7 +124,31 @@ export default function VistaTodosLosDocentes() {
                   <td className="py-3 px-4 break-words">{teacher.dni}</td>
                   <td className="py-3 px-4 break-words">{teacher.phone ?? 'No registrado'}</td>
                   <td className="py-3 px-4 break-words">{teacher.specialty ?? 'No registrada'}</td>
-                  <td className="py-3 px-4 break-words"><span className={`px-2 py-1 rounded-full text-[10px] font-bold border ${teacher.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-neutral text-muted border-line'}`}>{teacher.estadoLabel}</span></td>
+                  <td className="py-3 px-4 break-words">
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={teacher.active}
+                        disabled={togglingId === teacher.id}
+                        onClick={() => requestToggleStatus(teacher)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 ${
+                          teacher.active ? 'bg-emerald-500' : 'bg-neutral-300'
+                        }`}
+                        title={teacher.active ? 'Clic para desactivar docente' : 'Clic para activar docente'}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            teacher.active ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                      <span className={`text-[11px] font-bold ${teacher.active ? 'text-emerald-700' : 'text-muted'}`}>
+                        {teacher.active ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </div>
+                  </td>
                   <td className="py-3 px-4 break-words"><Link href={`/administrador/docentes/${teacher.id}`} aria-label={`Ver perfil de ${teacher.nombreCompleto}`} className="inline-flex items-center justify-center p-2 min-w-10 min-h-10 rounded-lg bg-neutral text-muted hover:bg-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><ViewIcon size={16} aria-hidden="true" /></Link></td>
                 </tr>)}
               </tbody>
@@ -103,6 +175,11 @@ export default function VistaTodosLosDocentes() {
           }} />
         </div>
       </div>}
+      {confirming && <DeactivateTeacherDialog
+        message={`¿Deseas desactivar al docente ${confirming.nombreCompleto}? También se desactivarán sus asignaciones activas.`}
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => { const teacher = confirming; setConfirming(null); void handleToggleStatus(teacher); }}
+      />}
     </div>
   );
 }

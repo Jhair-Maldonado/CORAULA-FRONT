@@ -90,8 +90,7 @@ test('service calls the management endpoint, omits empty filters and validates t
     // Responses for other filters are rejected.
     await assert.rejects(dailyAttendanceService.get({ academicPeriodId: 16, sectionId: 21 }), /no corresponde/);
     await assert.rejects(dailyAttendanceService.get({ academicPeriodId: 15 }), /no corresponde/);
-    await assert.rejects(dailyAttendanceService.get({ academicPeriodId: 15, date: '2026-10-27', sectionId: 21 }), /no corresponde/);
-    for (const bad of [{ academicPeriodId: 0 }, { academicPeriodId: 1.5 }, { academicPeriodId: 1, sectionId: -2 }, { academicPeriodId: 1, date: '2026-02-30' }]) {
++   await assert.rejects(dailyAttendanceService.get({ academicPeriodId: 15, date: '2000-01-03', sectionId: 21 }), /no corresponde/);    for (const bad of [{ academicPeriodId: 0 }, { academicPeriodId: 1.5 }, { academicPeriodId: 1, sectionId: -2 }, { academicPeriodId: 1, date: '2026-02-30' }]) {
       await assert.rejects(dailyAttendanceService.get(bad));
     }
     assert.equal(calls.length, 5);

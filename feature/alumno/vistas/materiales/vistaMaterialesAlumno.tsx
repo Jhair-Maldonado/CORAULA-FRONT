@@ -8,6 +8,7 @@ import { AlumnoHeader } from '@/components/alumno/AlumnoHeader';
 import { CardSkeleton, TableSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
 import { HardDrive, ExternalLink } from 'lucide-react';
 import { CardCurso } from './component/cardCurso';
 
@@ -75,6 +76,8 @@ export default function VistaMaterialesAlumno() {
         title="Materiales y Guías de Estudio"
         subtitle="Descarga de separatas, lecturas y presentaciones oficiales"
       />
+
+      <AvisoModuloSimulado className="mb-0" detalle="los materiales de estudio son de demostración y no pueden descargarse." />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-8 flex flex-col gap-6">

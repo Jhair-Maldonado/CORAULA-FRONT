@@ -15,7 +15,7 @@ export type LugarIncidencia =
 
 /**
  * Payload para el registro de incidencia disciplinaria
- * Endpoint previsto: POST /v1/teacher/incidents
+ * Propuesta, pendiente de contrato en BACK #54: POST /v1/teacher/incidents
  */
 export interface RegistrarIncidenciaRequest {
   sectionCourseId: number;
@@ -52,7 +52,7 @@ export interface IncidenciaResponse {
 
 /**
  * Filtros para el listado o historial por alumno/sección
- * Endpoint previsto: GET /v1/teacher/incidents?sectionCourseId=:id&enrollmentId=:id&gravedad=:gravedad
+ * Propuesta, pendiente de contrato en BACK #54: GET /v1/teacher/incidents?sectionCourseId=:id&enrollmentId=:id&gravedad=:gravedad
  */
 export interface IncidenciasFilterQuery {
   sectionCourseId?: number;

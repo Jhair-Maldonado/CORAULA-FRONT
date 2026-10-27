@@ -24,6 +24,7 @@ import { useDocenteSession } from '@/app/docente/components/DocenteSessionContex
 import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
 import type { TeacherCourseStudentResponse } from '@/types/teacherCoursesApi';
 import type { GravedadIncidencia, RegistrarIncidenciaRequest, IncidenciaResponse } from '@/types/incidenciasApi';
+import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
 
 export type { GravedadIncidencia };
 
@@ -252,7 +253,7 @@ export default function VistaIncidenciasDocente() {
 
     setTimeout(() => {
       setIncidencias(prev => [nuevaIncidencia, ...prev]);
-      setFormSuccess(`Incidencia disciplinaria registrada con éxito para ${selectedStudent.fullName}.`);
+      setFormSuccess('Simulación: la incidencia no se guardó (módulo en construcción).');
       setDescripcion('');
       setAccionesTomadas('');
       setGravedad('MODERADA');
@@ -276,6 +277,7 @@ export default function VistaIncidenciasDocente() {
 
   return (
     <div className="flex flex-col gap-6">
+      <AvisoModuloSimulado activo={true} className="mb-0" detalle="el registro de incidencias aún no está conectado; los registros son de demostración y no se guardan." />
       {/* Cabecera del Módulo */}
       <header className="bg-white p-5 sm:p-6 rounded-xl border border-line shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -310,8 +312,8 @@ export default function VistaIncidenciasDocente() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-xs font-bold text-muted">
             {/* Feedback Banners */}
             {formSuccess && (
-              <div role="status" className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
-                <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
+              <div role="status" className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold flex items-center gap-2">
+                <AlertTriangle size={16} className="shrink-0 text-amber-600" />
                 <span>{formSuccess}</span>
               </div>
             )}

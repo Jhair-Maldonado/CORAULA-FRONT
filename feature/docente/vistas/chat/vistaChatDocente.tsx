@@ -113,9 +113,7 @@ export default function VistaChatDocente() {
   }) => {
     // Marcar el mensaje como reportado
     setReportedMessageIds((prev) => new Set([...prev, data.mensajeId]));
-    setReportFeedback(
-      `Incidencia (${data.gravedad}) registrada para ${selectedContacto?.nombre || 'el estudiante'}.`
-    );
+    setReportFeedback('Simulación: la incidencia no se registró (módulo en construcción).');
     setTimeout(() => {
       setReportFeedback(null);
     }, 4000);

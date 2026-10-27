@@ -9,6 +9,7 @@ import { AlumnoHeader } from '@/components/alumno/AlumnoHeader';
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
 import { Download, FileText, ArrowLeft, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import {
   descargarArchivoMaterial,
@@ -131,6 +132,8 @@ export default function VistaDetalleMateriales({ slug }: VistaDetalleMaterialesP
             : 'Materiales organizados cronológicamente por semanas'
         }
       />
+
+      <AvisoModuloSimulado className="mb-0" detalle="los materiales de estudio son de demostración y no pueden descargarse." />
 
       <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 sm:p-6 shadow-xs flex flex-col gap-6">
         {downloadNotice && (

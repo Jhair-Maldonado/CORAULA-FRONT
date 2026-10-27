@@ -10,6 +10,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { MensajeDocenteItem } from '@/types/docentes';
+import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
 
 export type GravedadIncidencia = 'LEVE' | 'MODERADA' | 'GRAVE';
 
@@ -136,6 +137,7 @@ export default function ModalReportarIncidencia({
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+            <AvisoModuloSimulado activo={true} className="mb-0" detalle="el reporte de incidencias aún no está conectado; el reporte no se guarda." />
             {/* Contexto: Mensaje reportado como evidencia */}
             <div className="bg-neutral/20 border border-line rounded-xl p-3 sm:p-4">
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-muted uppercase tracking-wider mb-1.5">
@@ -221,9 +223,9 @@ export default function ModalReportarIncidencia({
             )}
 
             {success && (
-              <div role="status" className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
-                <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
-                <span>Incidencia registrada y vinculada al historial del estudiante.</span>
+              <div role="status" className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                <AlertTriangle size={16} className="shrink-0 text-amber-600" />
+                <span>Simulación: la incidencia no se guardó (módulo en construcción).</span>
               </div>
             )}
           </div>

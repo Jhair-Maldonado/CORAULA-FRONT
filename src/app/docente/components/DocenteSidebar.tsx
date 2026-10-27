@@ -8,6 +8,7 @@ import {
   BookOpen,
   CalendarCheck,
   ClipboardCheck,
+  ShieldAlert,
   MessageSquare,
   LogOut,
   Settings
@@ -45,6 +46,12 @@ export const DocenteSidebar: React.FC<DocenteSidebarProps> = ({ onMobileClose })
       name: 'Notas',
       path: '/docente/notas',
       icon: ClipboardCheck,
+      matchExact: false
+    },
+    {
+      name: 'Incidencias',
+      path: '/docente/incidencias',
+      icon: ShieldAlert,
       matchExact: false
     },
     {

@@ -183,7 +183,7 @@ export default function LoginDocente() {
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted/70 hover:text-ink transition-colors cursor-pointer"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-w-6 min-h-6 p-1 text-muted/70 hover:text-ink transition-colors cursor-pointer"
                       >
                         {showPassword ? <ViewOffIcon size={16} /> : <ViewIcon size={16} />}
                       </button>
@@ -191,7 +191,7 @@ export default function LoginDocente() {
                   </div>
 
                   {errorMsg && (
-                    <div role="alert" className="text-center bg-red-50 text-red-600 text-xs py-2 px-3 rounded-xl border border-red-100 font-medium">
+                    <div role="alert" aria-live="assertive" className="text-center bg-red-50 text-red-600 text-xs py-2 px-3 rounded-xl border border-red-100 font-medium">
                       {errorMsg}
                     </div>
                   )}

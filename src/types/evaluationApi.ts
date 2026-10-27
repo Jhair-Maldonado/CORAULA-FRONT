@@ -25,8 +25,9 @@ export interface Bimester {
   name: string;
   startDate: string;
   endDate: string;
-  status: 'PLANIFICADO' | 'ABIERTO' | 'EN_REVISION' | 'CERRADO';
+  status: 'PLANIFICADO' | 'ABIERTO' | 'EN_REVISION' | 'CERRADO' | 'ANULADO';
 }
+export const bimesterStatusLabels: Record<Bimester['status'], string> = { PLANIFICADO: 'Planificado', ABIERTO: 'Abierto', EN_REVISION: 'En revisión', CERRADO: 'Cerrado', ANULADO: 'Anulado' };
 export type BimesterInput = Pick<Bimester, 'number' | 'name' | 'startDate' | 'endDate'>;
 export interface EvaluationStudentRow {
   enrollmentId: number;

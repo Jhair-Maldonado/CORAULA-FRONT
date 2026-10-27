@@ -25,7 +25,7 @@ import {
 } from '@/services/teacher/teacherActivitiesService';
 import { ACADEMIC_ACTIVITY_TYPES } from '@/types/teacherActivitiesApi';
 import type { AcademicActivity, ActivityContext, CreateAcademicActivityRequest } from '@/types/teacherActivitiesApi';
-import type { Bimester } from '@/types/evaluationApi';
+import { bimesterStatusLabels, type Bimester } from '@/types/evaluationApi';
 
 const button =
   'min-h-10 px-3 py-2 rounded-lg border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 transition-colors';
@@ -145,7 +145,7 @@ function CourseActivities({
         if (current) {
           setResult({ key, data });
           if (autoSelectCurrent && data?.length) {
-            const currentBimester = data.find(b => b.status === 'ABIERTO') ?? data[0];
+            const currentBimester = data.find(b => b.status === 'ABIERTO') ?? data.find(b => b.status !== 'ANULADO');
             if (currentBimester) {
               setSelected(String(currentBimester.id));
             }
@@ -190,7 +190,7 @@ function CourseActivities({
                 <option value="">Selecciona un bimestre</option>
                 {bimesters.map(b => (
                   <option key={b.id} value={b.id}>
-                    {b.name} · {b.status}
+                    {b.name} · {bimesterStatusLabels[b.status]}
                   </option>
                 ))}
               </select>
@@ -297,7 +297,9 @@ function ActivitySheet({
   const detailKey = JSON.stringify([selectedId, detailRevision]);
   const loading = list?.key !== key;
   const titleError = activityTitleError(form.title);
-  const disabled = busy || parentBusy || loading || !!list?.error || ambiguous || refreshRequired;
+  // An annulled bimester is read-only: no creation, material request or edit.
+  const annulled = bimester.status === 'ANULADO';
+  const disabled = annulled || busy || parentBusy || loading || !!list?.error || ambiguous || refreshRequired;
   const { sectionCourseId, bimesterId } = context;
 
   useEffect(() => {
@@ -614,6 +616,7 @@ function ActivitySheet({
         </div>
       )}
 
+      {annulled && <p role="status" className="text-xs font-medium text-amber-800 p-3 bg-amber-50 border border-amber-200 rounded-lg">Este bimestre está anulado. Solo puedes consultar sus actividades; no se pueden crear ni editar.</p>}
       {notice && <p role="status" className="text-xs font-medium text-emerald-700 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">{notice}</p>}
       {error && <p role="alert" className="text-xs font-medium text-rose-700 p-3 bg-rose-50 border border-rose-200 rounded-lg">{error}</p>}
       {busy && <p role="status" className="text-xs text-muted">Procesando y sincronizando con el servidor...</p>}

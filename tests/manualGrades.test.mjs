@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { gradeInputError, canEnterFirstGrade, manualSheetColumns, adaptCriterionGradesSheet, prepareFirstGrades, registerFirstGrades } from '../src/lib/manualGrades.ts';
 import { parseBimestersResponse, parseCriterionGradesSheetResponse, manualGradesErrorMessage } from '../src/lib/manualGradesContract.ts';
 import { MANUAL_GRADES_CONTRACT_VERIFIED } from '../src/types/teacherGradesApi.ts';
+import { bimesterStatusLabels } from '../src/types/evaluationApi.ts';
 import { participationGrade } from '../src/lib/evaluationPreparation.ts';
 
 // Fixtures and injected transports are confined to tests; never production data.
@@ -114,4 +115,15 @@ test('empty data stays empty; incomplete DTOs and duplicate/PA cells are rejecte
   assert.throws(() => parseCriterionGradesSheetResponse(incomplete, expected));
   const missingTimestamp = makeSheet(); missingTimestamp.students[0].grades[0].registeredAt = null;
   assert.throws(() => parseCriterionGradesSheetResponse(missingTimestamp, expected));
+});
+
+test('ANULADO (#43) is a valid status: it does not fail the list or the sheet and is never editable', () => {
+  const row = (id, status) => ({ id, academicPeriodId: 30, number: id, name: `Bimestre ${id}`, startDate: '2026-01-01', endDate: '2026-03-01', status });
+  assert.deepEqual(parseBimestersResponse([row(1, 'ABIERTO'), row(2, 'ANULADO'), row(3, 'PLANIFICADO')]).map(b => b.status), ['ABIERTO', 'ANULADO', 'PLANIFICADO']);
+  assert.equal(bimesterStatusLabels.ANULADO, 'Anulado');
+  for (const status of ['BORRADO', 'toString', 'anulado', null]) assert.throws(() => parseBimestersResponse([row(1, 'ABIERTO'), row(2, status)]));
+  const sheet = makeSheet(); sheet.bimester.status = 'ANULADO';
+  const data = adaptCriterionGradesSheet(parseCriterionGradesSheetResponse(sheet, expected));
+  assert.equal(canEnterFirstGrade(sheet.bimester, data.configuration.criteria[1], data.records[0]), false);
+  assert.throws(() => prepareFirstGrades(data, sheet.bimester, { '100:2': '15' }));
 });

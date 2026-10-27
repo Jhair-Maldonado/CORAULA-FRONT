@@ -5,13 +5,14 @@ import { Calendar01Icon, PlusSignIcon } from 'hugeicons-react';
 import { evaluationService, evaluationErrorMessage, bimesterOpeningErrorMessage } from '@/services/admin/evaluationService';
 import { academicPeriodLabel, academicPeriodsService, academicPeriodsLoadErrorMessage } from '@/services/admin/academicPeriodsService';
 import ScheduleDialog from '@/../feature/admin/vistas/(administrativo)/horario/components/ScheduleDialog';
-import type { Bimester, BimesterInput } from '@/types/evaluationApi';
+import { bimesterStatusLabels, type Bimester, type BimesterInput } from '@/types/evaluationApi';
 import type { AcademicPeriod } from '@/types/academicPeriodApi';
 import { isPositiveInteger } from '@/lib/evaluationPreparation';
 
 const button = 'min-h-10 px-4 py-2 rounded-xl text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50';
 const input = 'w-full mt-2 p-3 rounded-xl border border-line bg-neutral/40 text-ink focus-visible:outline-accent';
-const statuses = { PLANIFICADO: 'Planificado', ABIERTO: 'Abierto', EN_REVISION: 'En revisión', CERRADO: 'Cerrado' };
+// Annulled bimesters (#43) keep their row but release their number for reuse.
+const occupiesNumber = (b: Bimester) => b.status !== 'ANULADO';
 type OpeningConfirmation = { bimester: Bimester; periodId: number; generation: number };
 type QueryContext = { periodId: number; generation: number };
 
@@ -129,7 +130,7 @@ export default function VistaBimestres() {
     <header className="bg-white rounded-2xl border border-line p-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
       <div><h1 className="text-xl md:text-2xl font-bold text-ink flex items-center gap-3"><Calendar01Icon className="text-accent" aria-hidden="true" />Bimestres</h1><p className="text-xs text-muted mt-2">Configuración del calendario de evaluación.</p></div>
       <div className="flex flex-wrap gap-2"><button type="button" disabled={!valid || busy || loading} onClick={refreshList} className={`${button} bg-white border border-line hover:bg-neutral`}>Actualizar</button>
-      <button disabled={!valid || busy || loading || !!result?.error || !!form || !!opening || refreshRequired} onClick={() => { if (lock.current || !currentContext() || loading || result?.key !== key || result.error || refreshRequired) return; setActionError(null); setNotice(null); setForm({ periodId, values: { number: (result?.data?.reduce((max, b) => Math.max(max, b.number), 0) ?? 0) + 1, name: '', startDate: '', endDate: '' } }); }} className={`${button} bg-accent text-white flex items-center gap-2 hover:bg-accent/90`}><PlusSignIcon size={16} aria-hidden="true" />Crear bimestre</button></div>
+      <button disabled={!valid || busy || loading || !!result?.error || !!form || !!opening || refreshRequired} onClick={() => { if (lock.current || !currentContext() || loading || result?.key !== key || result.error || refreshRequired) return; setActionError(null); setNotice(null); setForm({ periodId, values: { number: (result?.data?.filter(occupiesNumber).reduce((max, b) => Math.max(max, b.number), 0) ?? 0) + 1, name: '', startDate: '', endDate: '' } }); }} className={`${button} bg-accent text-white flex items-center gap-2 hover:bg-accent/90`}><PlusSignIcon size={16} aria-hidden="true" />Crear bimestre</button></div>
     </header>
     <section className="bg-white rounded-2xl border border-line p-6 shadow-sm">
       <form aria-label="Consulta de bimestres" noValidate onSubmit={e => { e.preventDefault(); confirmPeriod(); }} className="flex flex-wrap items-end gap-3">
@@ -149,7 +150,7 @@ export default function VistaBimestres() {
         : loading ? <p role="status" className="p-6 text-xs text-muted">Cargando bimestres...</p>
         : result?.error ? <div role="alert" className="p-6 text-xs text-rose-700"><p>{result.error}</p><button className={`${button} bg-accent text-white mt-3`} disabled={busy} onClick={refreshList}>Reintentar</button></div>
         : <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-neutral/40 text-muted uppercase text-[10px] tracking-wider"><tr>{['Nombre', 'Fechas', 'Estado', 'Acciones'].map(title => <th scope="col" key={title} className="p-4 border-b border-line">{title}</th>)}</tr></thead><tbody className="divide-y divide-line">
-          {result?.data?.map(b => <tr key={b.id}><th scope="row" className="p-4 font-bold text-ink">{b.name}</th><td className="p-4 whitespace-nowrap"><time dateTime={b.startDate}>{b.startDate.split('-').reverse().join('/')}</time> — <time dateTime={b.endDate}>{b.endDate.split('-').reverse().join('/')}</time></td><td className="p-4"><span className={`px-3 py-1 rounded-full border font-bold ${b.status === 'ABIERTO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-neutral text-muted border-line'}`}>{statuses[b.status]}</span></td><td className="p-4"><div className="flex gap-2 whitespace-nowrap">{b.status === 'PLANIFICADO' && <><button className={`${button} bg-white border border-line hover:bg-neutral`} disabled={busy || !!form || !!opening || refreshRequired} onClick={() => { if (lock.current || !currentContext() || loading || refreshRequired) return; setActionError(null); setForm({ periodId, original: b, values: { number: b.number, name: b.name, startDate: b.startDate, endDate: b.endDate } }); }}>Editar</button><button type="button" className={`${button} bg-accent text-white`} disabled={busy || loading || !!form || !!opening || refreshRequired} onClick={() => requestOpening(b)}>Abrir bimestre</button></>}</div></td></tr>)}
+          {result?.data?.map(b => <tr key={b.id}><th scope="row" className="p-4 font-bold text-ink">{b.name}</th><td className="p-4 whitespace-nowrap"><time dateTime={b.startDate}>{b.startDate.split('-').reverse().join('/')}</time> — <time dateTime={b.endDate}>{b.endDate.split('-').reverse().join('/')}</time></td><td className="p-4"><span className={`px-3 py-1 rounded-full border font-bold ${b.status === 'ABIERTO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : b.status === 'ANULADO' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-neutral text-muted border-line'}`}>{bimesterStatusLabels[b.status]}</span></td><td className="p-4"><div className="flex gap-2 whitespace-nowrap">{b.status === 'PLANIFICADO' && <><button className={`${button} bg-white border border-line hover:bg-neutral`} disabled={busy || !!form || !!opening || refreshRequired} onClick={() => { if (lock.current || !currentContext() || loading || refreshRequired) return; setActionError(null); setForm({ periodId, original: b, values: { number: b.number, name: b.name, startDate: b.startDate, endDate: b.endDate } }); }}>Editar</button><button type="button" className={`${button} bg-accent text-white`} disabled={busy || loading || !!form || !!opening || refreshRequired} onClick={() => requestOpening(b)}>Abrir bimestre</button></>}</div></td></tr>)}
           {result?.data?.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted">No hay bimestres registrados.</td></tr>}
         </tbody></table></div>}
     </section>
@@ -171,7 +172,7 @@ export default function VistaBimestres() {
         if (form.original && result.data?.find(b => b.id === form.original?.id)?.status !== 'PLANIFICADO') { setActionError('Este bimestre ya no está PLANIFICADO. Cancela la edición y actualiza la lista.'); return; }
         if (!form.values.name.trim()) { setActionError('Ingresa el nombre del bimestre.'); return; }
         if (!isPositiveInteger(form.values.number)) { setActionError('El número debe ser un entero positivo.'); return; }
-        if (!form.original && result?.data?.some(b => b.number === form.values.number)) { setActionError('Ya existe un bimestre con ese número en este periodo.'); return; }
+        if (!form.original && result?.data?.some(b => occupiesNumber(b) && b.number === form.values.number)) { setActionError('Ya existe un bimestre con ese número en este periodo.'); return; }
         if (form.values.endDate < form.values.startDate) { setActionError('La fecha de fin debe ser igual o posterior a la fecha de inicio.'); return; }
         lock.current = true;
         setBusy(true); setActionError(null); setNotice(null);

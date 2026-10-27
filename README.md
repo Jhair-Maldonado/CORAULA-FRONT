@@ -13,7 +13,7 @@ CORAULA es el Sistema de Control y Registro Académico de Aula. Este frontend pr
 - **Manejo JWT:** jwt-decode
 
 ## Requisitos Previos
-- Node.js (v18+)
+- Node.js 22
 - npm (v9+)
 - El servidor Backend (Spring Boot) ejecutándose y accesible en la red.
 

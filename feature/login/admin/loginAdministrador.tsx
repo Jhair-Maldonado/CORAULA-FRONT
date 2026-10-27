@@ -20,6 +20,7 @@ import { GlobalLoader } from '@/components/GlobalLoader';
 
 import { authService } from '@/services/authService';
 import { AuthContext } from '@/contexts/AuthContext';
+import { postLoginPath } from '@/utils/authRoutes';
 import { isAxiosError } from 'axios';
 
 export default function LoginAdministrador() {
@@ -54,11 +55,9 @@ export default function LoginAdministrador() {
       }
       
       if (authContext) {
-        authContext.login(response.token, response.role);
-        if (response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO') {
-          router.push('/administrador');
-        } else if (response.role === 'DOCENTE') {
-          router.push('/docente');
+        authContext.login(response.token, response.role, response.passwordChangeRequired);
+        if (response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO' || response.role === 'DOCENTE') {
+          router.push(postLoginPath(response.role, response.passwordChangeRequired === true));
         }
       }
     } catch (error) {

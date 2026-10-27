@@ -21,6 +21,7 @@ import { GlobalLoader } from '@/components/GlobalLoader';
 
 import { authService } from '@/services/authService';
 import { AuthContext } from '@/contexts/AuthContext';
+import { postLoginPath } from '@/utils/authRoutes';
 import { isAxiosError } from 'axios';
 
 export default function StudentLoginPage() {
@@ -55,11 +56,9 @@ export default function StudentLoginPage() {
       }
       
       if (authContext) {
-        authContext.login(response.token, response.role);
-        if (response.role === 'ESTUDIANTE') {
-          router.push('/alumno');
-        } else if (response.role === 'APODERADO') {
-          router.push('/padre');
+        authContext.login(response.token, response.role, response.passwordChangeRequired);
+        if (response.role === 'ESTUDIANTE' || response.role === 'APODERADO') {
+          router.push(postLoginPath(response.role, response.passwordChangeRequired === true));
         }
       }
     } catch (error) {

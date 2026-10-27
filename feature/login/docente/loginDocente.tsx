@@ -15,6 +15,7 @@ import {
 import { GraduationCap } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { AuthContext } from '@/contexts/AuthContext';
+import { CHANGE_PASSWORD_ROUTE, postLoginPath } from '@/utils/authRoutes';
 import { isAxiosError } from 'axios';
 
 export default function LoginDocente() {
@@ -38,15 +39,9 @@ export default function LoginDocente() {
       // 1. Intento de autenticación real contra el backend
       const response = await authService.login(email, password);
 
-      if (response.role === 'DOCENTE') {
-        authContext.login(response.token, response.role);
-        router.push('/docente');
-        return;
-      }
-
-      if (response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO') {
-        if (authContext) authContext.login(response.token, response.role);
-        router.push('/administrador');
+      if (response.role === 'DOCENTE' || response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO') {
+        authContext.login(response.token, response.role, response.passwordChangeRequired);
+        router.push(postLoginPath(response.role, response.passwordChangeRequired === true));
         return;
       }
 
@@ -70,7 +65,7 @@ export default function LoginDocente() {
   React.useEffect(() => {
     // Si ya está autenticado específicamente como DOCENTE, enviarlo al dashboard
     if (authContext?.status === 'authenticated' && authContext?.role === 'DOCENTE') {
-      router.replace('/docente');
+      router.replace(authContext.passwordChangeRequired ? CHANGE_PASSWORD_ROUTE : '/docente');
     }
   }, [authContext, router]);
 

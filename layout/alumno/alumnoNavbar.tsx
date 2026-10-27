@@ -2,8 +2,10 @@
 'use client';
 
 import React from 'react';
-import { LogOut } from 'lucide-react';
-import { useAlumnoSession, DEFAULT_ALUMNO_SESSION } from '@/components/alumno/AlumnoSessionContext';
+import Link from 'next/link';
+import { KeyRound, LogOut } from 'lucide-react';
+import { useAlumnoSession, useHasRealStudentSession, DEFAULT_ALUMNO_SESSION } from '@/components/alumno/AlumnoSessionContext';
+import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
 
 interface AlumnoNavbarProps {
   className?: string;
@@ -11,6 +13,7 @@ interface AlumnoNavbarProps {
 
 export const AlumnoNavbar: React.FC<AlumnoNavbarProps> = ({ className = '' }) => {
   const { session, logout } = useAlumnoSession();
+  const realSession = useHasRealStudentSession();
 
   // Si aún no ha cargado la sesión, usar fallback con Ana Torres
   const alumno = session || DEFAULT_ALUMNO_SESSION;
@@ -43,6 +46,18 @@ export const AlumnoNavbar: React.FC<AlumnoNavbarProps> = ({ className = '' }) =>
           </span>
         </div>
       </div>
+
+      {realSession && (
+        <Link
+          href={CHANGE_PASSWORD_ROUTE}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-[#6B7280] hover:text-[#111827] hover:bg-slate-50 border border-[#E5E7EB] transition-all focus:outline-none focus:ring-2 focus:ring-[#BE123C]/20"
+          title="Cambiar contraseña"
+          aria-label="Cambiar contraseña"
+        >
+          <KeyRound className="w-3.5 h-3.5 shrink-0" />
+          <span className="hidden sm:inline">Cambiar contraseña</span>
+        </Link>
+      )}
 
       {/* Botón Cerrar Sesión */}
       <button

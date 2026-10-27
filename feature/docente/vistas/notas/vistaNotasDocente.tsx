@@ -12,7 +12,7 @@ import {
   Download,
 } from 'lucide-react';
 import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
-import type { EvaluationStudentRow } from '@/types/evaluationApi';
+import { bimesterStatusLabels, type EvaluationStudentRow } from '@/types/evaluationApi';
 import type { TeacherCourseSummaryResponse } from '@/types/teacherCoursesApi';
 import { MANUAL_GRADES_CONTRACT_VERIFIED } from '@/types/teacherGradesApi';
 import { useTeacherGrades } from '@/hooks/useTeacherGrades';
@@ -180,12 +180,13 @@ function NotasDelCurso({ course, selectCourse }: { course?: TeacherCourseSummary
             </span>
             <select aria-label="Bimestre" aria-busy={bimestersLoading} disabled={grades.saving || bimestersLoading || !!bimestersError || bimesters.length === 0} value={bimester?.id ?? ''} onChange={e => grades.selectBimester(e.target.value)} className="w-full text-xs font-bold text-[#111827] bg-transparent border-none p-0 focus-visible:outline-[#BE123C] cursor-pointer disabled:opacity-50">
               <option value="">{bimestersLoading ? 'Cargando bimestres...' : bimesters.length ? 'Selecciona un bimestre' : 'Sin bimestres disponibles'}</option>
-              {bimesters.map(b => <option key={b.id} value={b.id}>{b.name} ({b.status})</option>)}
+              {bimesters.map(b => <option key={b.id} value={b.id} disabled={b.status === 'ANULADO'}>{b.name} ({bimesterStatusLabels[b.status]})</option>)}
             </select>
           </div>
         </div>
       </div>
 
+      {grades.annulledNotice && <p role="alert" className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs">{grades.annulledNotice}</p>}
       {bimestersError && <ErrorState title="No pudimos cargar los bimestres" message={bimestersError} onRetry={onRetryBimesters} />}
       {course && !bimestersLoading && !bimestersError && bimesters.length === 0 && <p role="status" className="p-3 bg-white border border-[#E5E7EB] text-[#64748B] rounded-xl text-xs">No hay bimestres disponibles para este curso-sección.</p>}
       {grades.saveError && <ErrorState title="No se completó el registro" message={grades.saveError} onRetry={grades.refreshSheet} />}

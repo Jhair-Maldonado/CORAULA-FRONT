@@ -1,4 +1,4 @@
-import type { Bimester } from '../types/evaluationApi';
+import { bimesterStatusLabels, type Bimester } from '../types/evaluationApi';
 import type { CriterionGradesSheetResponse, CriterionGradeResponse } from '../types/teacherGradesApi';
 
 // Boundary validation for the documented backend DTOs. No default response is synthesized.
@@ -23,7 +23,8 @@ function unique(ids: number[]) { if (new Set(ids).size !== ids.length) invalid()
 
 export function parseBimesterResponse(value: unknown): Bimester {
   const b = object(value);
-  if (!['PLANIFICADO', 'ABIERTO', 'EN_REVISION', 'CERRADO'].includes(String(b.status))) return invalid();
+  // ANULADO (#43) is a valid terminal status: an annulled row must not fail the whole list.
+  if (!Object.keys(bimesterStatusLabels).includes(String(b.status))) return invalid();
   return { id: id(b.id), academicPeriodId: id(b.academicPeriodId), number: id(b.number), name: text(b.name), startDate: text(b.startDate), endDate: text(b.endDate), status: b.status as Bimester['status'] };
 }
 

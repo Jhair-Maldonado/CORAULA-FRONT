@@ -317,3 +317,43 @@ test('bimester change invalidates captured edit submit before render, and late e
     await act(async () => { pending.resolve(activity()); }); assert.equal(h.renderer.root.findAllByProps({ 'aria-label': 'Editar actividad académica' }).length, 0);
   });
 });
+
+test('ANULADO (#43) is selectable to consult, but creation, materials and edits are blocked', async () => {
+  let posts = 0, patches = 0;
+  await view({ getActivities: async c => [activity(1, c)], createActivity: async () => { posts++; return activity(); }, updateActivity: async () => { patches++; return activity(); } }, async h => {
+    const options = h.renderer.root.findByProps({ 'aria-label': 'Bimestre de actividades' }).findAllByType('option');
+    assert.equal(options.find(o => o.props.value === 2)?.props.disabled, undefined);
+    assert.match(text(options.find(o => o.props.value === 2)!), /Anulado/);
+    await h.select('2');
+    assert.match(text(h.renderer.root), /Este bimestre está anulado/);
+    assert.match(text(h.renderer.root), /Práctica de álgebra/, 'activities remain visible');
+    await h.change('Título de actividad', 'Título válido');
+    assert.equal(h.button('Crear actividad')?.props.disabled, true);
+    assert.ok(h.renderer.root.findAllByType('fieldset').every(f => f.props.disabled === true));
+    await h.submit();
+    assert.equal(h.button('Editar #1')?.props.disabled, true);
+    await act(async () => { h.button('Editar #1')!.props.onClick(); });
+    assert.equal(h.button('Guardar cambios'), undefined);
+    await h.click('Subir material');
+    assert.equal(h.button('Enviar solicitud')?.props.disabled, true);
+    assert.equal(posts, 0); assert.equal(patches, 0);
+  }, async () => [bimester(1), { ...bimester(2), status: 'ANULADO' }]);
+});
+
+test('default selection prefers ABIERTO and never lands on ANULADO', async () => {
+  const original = teacherGradesService.getBimesters, originalList = teacherActivitiesService.getActivities;
+  teacherActivitiesService.getActivities = async () => [];
+  try {
+    for (const [rows, expected] of [
+      [[{ ...bimester(1), status: 'ANULADO' }, bimester(2), { ...bimester(3), status: 'ABIERTO' }], '3'],
+      [[{ ...bimester(1), status: 'ANULADO' }, bimester(2)], '2'],
+      [[{ ...bimester(1), status: 'ANULADO' }], ''],
+    ] as [Bimester[], string][]) {
+      teacherGradesService.getBimesters = async () => rows;
+      let renderer!: ReactTestRenderer;
+      await act(async () => { renderer = create(<ActividadesDocente sectionCourseId={10} autoSelectCurrent />); });
+      try { assert.equal(renderer.root.findByProps({ 'aria-label': 'Bimestre de actividades' }).props.value, expected); }
+      finally { await act(async () => { renderer.unmount(); }); }
+    }
+  } finally { teacherGradesService.getBimesters = original; teacherActivitiesService.getActivities = originalList; }
+});

@@ -225,3 +225,56 @@ test('service preserves the global authenticated 401 event and sanitizes 403 mes
     else Reflect.deleteProperty(globalThis, 'localStorage');
   }
 });
+
+const annulled = (id: number) => ({ ...sheet(id).bimester, status: 'ANULADO' as const });
+
+test('an ANULADO bimester (#43) is listed but cannot be selected', async () => {
+  let reads = 0;
+  await withService({ getBimesters: async () => [sheet(40).bimester, annulled(41)], getSheet: async c => { reads++; return sheet(c.bimesterId); } }, async () => {
+    const h = await harness();
+    try {
+      assert.deepEqual(h.current.bimesters.map(b => b.status), ['ABIERTO', 'ANULADO']);
+      await h.select('41');
+      assert.equal(h.current.selectedBimesterId, ''); assert.equal(reads, 0);
+      await h.select('40');
+      assert.equal(h.current.selectedBimesterId, '40'); assert.equal(reads, 1);
+    } finally { await h.unmount(); }
+  });
+});
+
+test('a sheet reload that finds the selected bimester ANULADO clears selection and drafts with a notice', async () => {
+  let status: 'ABIERTO' | 'ANULADO' = 'ABIERTO';
+  await withService({ getSheet: async c => ({ ...sheet(c.bimesterId), bimester: { ...sheet(c.bimesterId).bimester, status: c.bimesterId === 40 ? status : 'ABIERTO' } }) }, async () => {
+    const h = await harness();
+    try {
+      await h.select(); await h.draft('15');
+      assert.equal(h.current.drafts['100:1'], '15'); assert.ok(h.current.evaluation);
+      status = 'ANULADO';
+      await act(async () => { h.current.refreshSheet(); });
+      assert.equal(h.current.selectedBimesterId, '');
+      assert.deepEqual(h.current.drafts, {});
+      assert.equal(h.current.evaluation, undefined);
+      assert.match(h.current.annulledNotice ?? '', /Prueba fue anulado/);
+      assert.equal(h.current.bimesters.find(b => b.id === 40)?.status, 'ANULADO', 'list marks it so the selector disables it');
+      await h.select('40');
+      assert.equal(h.current.selectedBimesterId, '');
+      await h.select('41');
+      assert.equal(h.current.selectedBimesterId, '41'); assert.equal(h.current.annulledNotice, null);
+    } finally { await h.unmount(); }
+  });
+});
+
+test('a post-save reload that finds the bimester ANULADO never confirms grades and clears the context', async () => {
+  let reads = 0;
+  await withService({ getSheet: async c => { reads++; return reads === 1 ? sheet(c.bimesterId) : { ...sheet(c.bimesterId), bimester: annulled(c.bimesterId) }; } }, async () => {
+    const h = await harness();
+    try {
+      await h.select(); await h.draft('15');
+      await act(async () => { await h.current.save(); });
+      assert.equal(h.current.saving, false); assert.equal(h.current.saveMessage, null);
+      assert.match(h.current.saveError ?? '', /no se revierten/);
+      assert.equal(h.current.selectedBimesterId, ''); assert.deepEqual(h.current.drafts, {});
+      assert.match(h.current.annulledNotice ?? '', /anulado/);
+    } finally { await h.unmount(); }
+  });
+});

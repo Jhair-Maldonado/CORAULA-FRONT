@@ -23,6 +23,7 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [refreshRequired, setRefreshRequired] = useState(false);
   const [contextVersion, setContextVersion] = useState(0);
+  const [annulledNotice, setAnnulledNotice] = useState<string | null>(null);
   const mutation = useRef(false);
   const mounted = useRef(true);
   const selectionGeneration = useRef(0);
@@ -35,6 +36,16 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
   const evaluationLoading = !!selected && sheetResult?.key !== sheetKey;
   const current = selected && sheetResult?.key === sheetKey ? sheetResult.data : undefined;
   const evaluationError = selected && !evaluationLoading ? sheetResult?.error : undefined;
+
+  // A reload revealed the selected bimester was annulled: drop selection and drafts,
+  // and mark it ANULADO in the loaded list so the selector disables it.
+  function discardAnnulled(annulled: Bimester, saveFailure: string | null = null) {
+    selectionGeneration.current++;
+    setContextVersion(selectionGeneration.current);
+    setSelectedBimesterId(''); setDrafts({}); setSaveMessage(null); setSaveError(saveFailure); setRefreshRequired(false);
+    setBimesterResult(prev => prev?.data ? { ...prev, data: prev.data.map(b => b.id === annulled.id ? annulled : b) } : prev);
+    setAnnulledNotice(`${annulled.name} fue anulado. Se limpió la selección y se descartaron los borradores no guardados.`);
+  }
 
   useEffect(() => {
     mounted.current = true;
@@ -56,18 +67,20 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
     const abort = new AbortController();
     teacherGradesService.getSheet({ sectionCourseId, courseId, bimesterId: selectedId, academicPeriodId: periodId }, abort.signal)
       .then(sheet => {
-        if (!abort.signal.aborted) { setSheetResult({ key: sheetKey, data: { evaluation: adaptCriterionGradesSheet(sheet), bimester: sheet.bimester } }); setRefreshRequired(false); }
+        if (abort.signal.aborted) return;
+        if (sheet.bimester.status === 'ANULADO') { discardAnnulled(sheet.bimester); return; }
+        setSheetResult({ key: sheetKey, data: { evaluation: adaptCriterionGradesSheet(sheet), bimester: sheet.bimester } }); setRefreshRequired(false);
       })
       .catch(error => { if (!abort.signal.aborted) setSheetResult({ key: sheetKey, error: teacherGradesErrorMessage(error) }); });
     return () => abort.abort();
   }, [sectionCourseId, courseId, selectedId, periodId, sheetKey]);
 
   function selectBimester(id: string) {
-    if (mutation.current) return;
+    if (mutation.current || bimesters.find(b => String(b.id) === id)?.status === 'ANULADO') return;
     selectionGeneration.current++;
     setContextVersion(selectionGeneration.current);
     setSelectedBimesterId(id); setSheetRevision(n => n + 1);
-    setDrafts({}); setSaveMessage(null); setSaveError(null); setRefreshRequired(false);
+    setDrafts({}); setSaveMessage(null); setSaveError(null); setRefreshRequired(false); setAnnulledNotice(null);
   }
 
   function refreshSheet() { if (!mutation.current) { selectionGeneration.current++; setContextVersion(selectionGeneration.current); setSaveMessage(null); setDrafts({}); setSheetRevision(n => n + 1); } }
@@ -88,6 +101,7 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
     setSaving(true); setSaveError(null); setSaveMessage(null); setRefreshRequired(true);
     const stillCurrent = () => mounted.current && generation === selectionGeneration.current;
     const accepted: CreateManualCriterionGradeRequest[] = [];
+    let annulled: Bimester | null = null, failure: string | null = null;
     try {
       const count = await registerFirstGrades(commands, async command => {
         if (!stillCurrent()) throw new Error('El contexto cambió; no se enviarán más notas.');
@@ -96,6 +110,10 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
         return response;
       }, async () => {
         const sheet = await teacherGradesService.getSheet({ sectionCourseId, courseId, bimesterId: current.bimester.id, academicPeriodId: current.bimester.academicPeriodId });
+        if (sheet.bimester.status === 'ANULADO') {
+          annulled = sheet.bimester;
+          throw new Error('El bimestre fue anulado; no se confirmaron las notas.');
+        }
         const evaluation = adaptCriterionGradesSheet(sheet);
         const confirmed = accepted.every(c => {
           const row = evaluation.records.find(r => r.enrollmentId === c.enrollmentId);
@@ -106,14 +124,19 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
       });
       if (stillCurrent()) setSaveMessage(`Se registraron ${count} notas y se volvió a consultar la planilla.`);
     } catch (error) {
-      if (stillCurrent()) setSaveError(`${teacherGradesErrorMessage(error)} El envío es individual; las notas ya registradas no se revierten.`);
-    } finally { mutation.current = false; if (stillCurrent()) setSaving(false); }
+      failure = `${teacherGradesErrorMessage(error)} El envío es individual; las notas ya registradas no se revierten.`;
+      if (stillCurrent()) setSaveError(failure);
+    } finally {
+      mutation.current = false;
+      // Discard only after saving ends: it bumps the generation that stillCurrent() checks.
+      if (stillCurrent()) { setSaving(false); if (annulled) discardAnnulled(annulled, failure); }
+    }
   }
 
   return {
     bimesters, bimestersLoading, bimestersError, selectedBimesterId, selectBimester,
     evaluation: current?.evaluation, bimester: current?.bimester ?? selected,
-    evaluationLoading, evaluationError, refreshSheet,
+    evaluationLoading, evaluationError, refreshSheet, annulledNotice,
     refreshBimesters: () => { if (!mutation.current) { selectionGeneration.current++; setContextVersion(selectionGeneration.current); setDrafts({}); setSelectedBimesterId(''); setBimesterRevision(n => n + 1); setSheetRevision(n => n + 1); } },
     drafts, changeDraft, saving, save, saveError, saveMessage, refreshRequired,
   };

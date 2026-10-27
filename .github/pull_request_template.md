@@ -8,7 +8,7 @@ Closes #<!-- n.º --> <!-- o «Refs #n» si es un avance parcial -->
 - [ ] Docente (`feature/docente/`)
 - [ ] Apoderado (`feature/padre/`)
 - [ ] Alumno (`feature/alumno/`)
-- [ ] Admin / compartido (`feature/admin/`, auth, `httpClient`, `src/lib/`, `src/types/`, `src/adapters/`, configuración). Avisado en el issue: <!-- sí / no aplica -->
+- [ ] Admin y compartido (`feature/admin/`, auth, `httpClient`, `src/lib/`, `src/types/`, `src/adapters/`, configuración, matriz de permisos). Avisado en el issue: <!-- sí / no aplica -->
 
 ## Capturas o GIF
 <!-- Obligatorio si cambia la UI. Solo datos ficticios. -->

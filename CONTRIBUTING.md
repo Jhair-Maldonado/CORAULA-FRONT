@@ -41,18 +41,17 @@ CI (`.github/workflows/ci.yml`) ejecuta `npm test`, `npm run lint` y `npm run bu
 5. Abre el PR **hacia `dev`** usando la plantilla. En la descripción incluye `Closes #n` (cierra el issue) o `Refs #n` (avance parcial).
 6. `main` solo recibe PRs desde `dev`, y los abre Coordinación.
 
-## Zonas de responsabilidad
-
-| Persona | Zona |
-| --- | --- |
-| Jhony | `feature/docente/` (módulo Docente) |
-| Isabel | `feature/padre/` (módulo Apoderado) |
-| Nayely | `feature/alumno/` (módulo Alumno) |
-| Jhair (Coordinación, con Codex y Claude Code) | `feature/admin/`, autenticación, `src/services/httpClient.ts`, `src/lib/`, `src/types/` compartidos, adaptadores compartidos (`src/adapters/`) y configuración |
+## Cómo se toman las tareas
+- Los issues ya asignados se mantienen con su responsable.
+- Los issues sin asignar son libres: para tomar uno, asígnatelo y comenta «lo tomo» en el issue.
+- Busca trabajo libre filtrando por la etiqueta `listo`.
+- Un issue en curso por persona. Si llevas 3 días sin avance, suéltalo: quita tu asignación y comenta por qué.
+- No tomes issues con la etiqueta `bloqueado` (su comentario indica de cuál dependen) ni con `requiere-CAB`. Los de `coordinación` los lleva Coordinación técnica.
+- **Zonas compartidas**, siempre con aviso previo en el issue y esperando respuesta de Coordinación: seguridad y autenticación, `src/services/httpClient.ts`, `src/lib/`, `src/types/` y `src/adapters/` compartidos, configuración y matriz de permisos.
+- Ningún integrante fusiona su propio PR: Coordinación revisa y fusiona.
+- Si una vista aún no tiene backend, debe mostrar el aviso de módulo en construcción (patrón del nodo #74) y no simular éxitos sin indicarlo.
 
 Cada módulo incluye también sus piezas asociadas: la ruta en `src/app/<rol>/`, sus servicios en `src/services/<área>/` y sus componentes en `src/components/<rol>/`.
-
-**Zona compartida o ajena:** si necesitas tocarla, avisa en el issue **antes de empezar** y espera respuesta de Coordinación.
 
 ## Datos y seguridad
 - No versiones `.env`, `.env.local` ni ningún secreto (tokens, contraseñas, claves). Solo `.env.example` está versionado.
@@ -86,7 +85,7 @@ Tipos: `feat`, `fix`, `docs`, `test`, `refactor`. Ejemplos del historial:
 
 ## Revisión
 Coordinación revisa cada PR antes del merge y comprueba que:
-- el cambio se ajuste al alcance del issue enlazado y a la zona de quien lo abre;
+- el cambio se ajuste al alcance del issue enlazado y, si toca zonas compartidas, que se haya avisado en el issue;
 - CI esté en verde (test, lint y build);
 - no haya `.env`, secretos ni datos reales;
 - se hayan agregado o actualizado las pruebas que correspondan;

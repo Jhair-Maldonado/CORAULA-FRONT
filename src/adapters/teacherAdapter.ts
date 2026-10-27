@@ -1,5 +1,5 @@
 import type { AdminTeacher, AdminTeacherDetail, TeacherFormValues } from '@/types/adminTeacher';
-import type { CreateTeacherRequest, TeacherDetailResponse, TeacherResponse, UpdateTeacherRequest } from '@/types/teacherApi';
+import type { CreateTeacherRequest, TeacherAccountStatusResponse, TeacherDetailResponse, TeacherResponse, UpdateTeacherRequest } from '@/types/teacherApi';
 
 export function toAdminTeacher(teacher: TeacherResponse): AdminTeacher {
   return {
@@ -9,8 +9,19 @@ export function toAdminTeacher(teacher: TeacherResponse): AdminTeacher {
   };
 }
 
+// The contract always sends `account` (null when unlinked) with exactly these three fields.
+function toAccountStatus(account: unknown): TeacherAccountStatusResponse | null {
+  if (account === null) return null;
+  if (!account || typeof account !== 'object' || Object.keys(account).length !== 3) throw new Error('Estado de cuenta docente inesperado');
+  const { userId, email, active } = account as Record<string, unknown>;
+  if (typeof userId !== 'number' || !Number.isInteger(userId) || typeof email !== 'string' || !email.trim() || typeof active !== 'boolean') {
+    throw new Error('Estado de cuenta docente inesperado');
+  }
+  return { userId, email, active };
+}
+
 export function toAdminTeacherDetail(teacher: TeacherDetailResponse): AdminTeacherDetail {
-  return { ...toAdminTeacher(teacher), assignments: teacher.assignments };
+  return { ...toAdminTeacher(teacher), assignments: teacher.assignments, account: toAccountStatus(teacher.account) };
 }
 
 export function toTeacherForm(teacher: AdminTeacher): TeacherFormValues {

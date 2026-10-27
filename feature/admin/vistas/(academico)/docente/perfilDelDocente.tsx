@@ -46,13 +46,14 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
   const [notice, setNotice] = useState('');
   const [accountOpen, setAccountOpen] = useState(false);
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
-  // Session-only: the backend does not expose existing accounts yet (BACK #66).
-  const [account, setAccount] = useState<TeacherAccountResponse | null>(null);
+  const [accountRefreshError, setAccountRefreshError] = useState('');
   const mutationRef = useRef(false);
   const auth = useContext(AuthContext);
   const canManageAccount = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
   const loading = result?.revision !== revision;
   const teacher = loading ? undefined : result?.teacher;
+  const account = teacher?.account ?? null;
+  const canCreateAccount = canManageAccount && !!teacher && account === null;
   const accountBlocked = !!teacher && (!teacher.active || !teacher.dni?.trim());
 
   const [initialValues, setInitialValues] = useState<TeacherFormValues>({
@@ -132,7 +133,7 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
       const updated = await teachersService.update(teacher.id, patch);
       setResult(previous => ({
         revision,
-        teacher: { ...toAdminTeacher(updated), assignments: teacher.assignments },
+        teacher: { ...toAdminTeacher(updated), assignments: teacher.assignments, account: teacher.account },
         assignmentsError: previous?.assignmentsError,
       }));
       setEditing(false);
@@ -160,7 +161,7 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
     try {
       const updated = await teachersService.update(teacher.id, { active: !teacher.active });
       setResult({
-        revision, teacher: { ...toAdminTeacher(updated), assignments: teacher.assignments }, assignmentsLoading: true,
+        revision, teacher: { ...toAdminTeacher(updated), assignments: teacher.assignments, account: teacher.account }, assignmentsLoading: true,
       });
       setNotice(updated.active
         ? 'Docente reactivado. Las asignaciones anteriores no se reactivan.'
@@ -177,6 +178,31 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
       mutationRef.current = false;
       setBusy(false);
     }
+  }
+
+  // The POST response lacks the account state, so the persisted detail is read again.
+  async function refreshAccount() {
+    if (mutationRef.current) return;
+    mutationRef.current = true;
+    setBusy(true);
+    setAccountRefreshError('');
+    try {
+      const detail = toAdminTeacherDetail(await teachersService.getById(teacherId));
+      setResult(previous => ({ revision, teacher: detail, assignmentsError: previous?.assignmentsError }));
+    } catch (error) {
+      setAccountRefreshError(teacherErrorMessage(error));
+    } finally {
+      mutationRef.current = false;
+      setBusy(false);
+    }
+  }
+
+  function handleAccountCreated(created: TeacherAccountResponse) {
+    setAccountOpen(false);
+    setNotice(created.created
+      ? `Cuenta de acceso creada para ${created.email}. La contraseña inicial es el DNI del docente; pídele que la cambie.`
+      : `El docente ya tenía una cuenta con ${created.email}. No se modificó su contraseña.`);
+    void refreshAccount();
   }
 
   return (
@@ -199,11 +225,20 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
                 <button type="button" disabled={busy} onClick={cancelEditing} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Cancelar edición</button>
               )}
               <button disabled={busy} onClick={requestToggleActive} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">{busy ? 'Guardando...' : teacher.active ? 'Desactivar docente' : 'Reactivar docente'}</button>
-              {canManageAccount && !account && <button disabled={busy || accountBlocked} onClick={() => { setNotice(''); setActionError(''); setAccountOpen(true); }} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Crear cuenta de acceso</button>}
+              {canCreateAccount && <button disabled={busy || accountBlocked} onClick={() => { setNotice(''); setActionError(''); setAccountRefreshError(''); setAccountOpen(true); }} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Crear cuenta de acceso</button>}
             </div>
           </header>
-          {canManageAccount && !account && accountBlocked && <p className="text-xs text-muted">Para crear la cuenta de acceso, el docente debe estar activo y tener DNI registrado.</p>}
-          {account && <p className="p-3 rounded-xl border border-line bg-neutral/40 text-sm text-ink break-words">El docente ya tiene cuenta de acceso: <strong>{account.email}</strong></p>}
+          {canCreateAccount && accountBlocked && <p className="text-xs text-muted">Para crear la cuenta de acceso, el docente debe estar activo y tener DNI registrado.</p>}
+          <p className="p-3 rounded-xl border border-line bg-neutral/40 text-sm text-ink break-words">
+            {account === null ? 'El docente no tiene cuenta de acceso.' : <>
+              Cuenta de acceso: <strong>{account.email}</strong>{' · '}
+              <span className={`font-bold ${account.active ? 'text-emerald-700' : 'text-muted'}`}>{account.active ? 'Cuenta activa' : 'Cuenta deshabilitada'}</span>
+            </>}
+          </p>
+          {accountRefreshError && <div role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm break-words">
+            <p>No se pudo actualizar el estado de la cuenta. {accountRefreshError}</p>
+            <button disabled={busy} onClick={() => void refreshAccount()} className="font-bold mt-2 min-h-10 px-3 py-2 rounded-lg bg-white border border-line hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Actualizar estado</button>
+          </div>}
           {notice && <p role="status" className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm">{notice}</p>}
           {actionError && <p role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm break-words">{actionError} Puedes volver a intentar la acción.</p>}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -460,13 +495,7 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
             <TeacherAccountModal
               teacherId={teacher.id}
               onCancel={() => setAccountOpen(false)}
-              onCreated={created => {
-                setAccount(created);
-                setAccountOpen(false);
-                setNotice(created.created
-                  ? `Cuenta de acceso creada para ${created.email}. La contraseña inicial es el DNI del docente; pídele que la cambie.`
-                  : `El docente ya tenía una cuenta con ${created.email}. No se modificó su contraseña.`);
-              }}
+              onCreated={handleAccountCreated}
             />
           )}
           {confirmingDeactivate && <DeactivateTeacherDialog

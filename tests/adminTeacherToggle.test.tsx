@@ -15,7 +15,7 @@ const teacher = (overrides: Partial<TeacherResponse> = {}): TeacherResponse => (
   id: 7, dni: '00000007', firstNames: 'Docente', paternalLastName: 'Sintético', maternalLastName: null, fullName: 'Docente Sintético',
   phone: null, specialty: null, active: true, ...overrides,
 });
-const detail = (overrides: Partial<TeacherDetailResponse> = {}): TeacherDetailResponse => ({ ...teacher(), assignments: [], ...overrides });
+const detail = (overrides: Partial<TeacherDetailResponse> = {}): TeacherDetailResponse => ({ ...teacher(), assignments: [], account: null, ...overrides });
 const page = (content: TeacherResponse[]): PagedTeachersResponse => ({ content, page: 0, size: 20, totalElements: content.length, totalPages: 1 });
 const httpError = (status: number) => new AxiosError('PRIVATE DETAIL', 'ERR_TEST', undefined, undefined,
   { status, data: { message: 'PRIVATE DETAIL' } } as AxiosResponse);

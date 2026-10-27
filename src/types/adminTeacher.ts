@@ -1,4 +1,4 @@
-import type { TeacherAssignmentResponse, TeacherResponse } from './teacherApi';
+import type { TeacherAccountStatusResponse, TeacherAssignmentResponse, TeacherResponse } from './teacherApi';
 
 export interface AdminTeacher extends Omit<TeacherResponse, 'id'> {
   id: string;
@@ -9,6 +9,7 @@ export interface AdminTeacher extends Omit<TeacherResponse, 'id'> {
 
 export interface AdminTeacherDetail extends AdminTeacher {
   assignments: TeacherAssignmentResponse[];
+  account: TeacherAccountStatusResponse | null;
 }
 
 export interface TeacherFormValues {

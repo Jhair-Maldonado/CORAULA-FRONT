@@ -8,6 +8,8 @@ import { toAdminTeacher } from '@/adapters/teacherAdapter';
 import type { AdminTeacher } from '@/types/adminTeacher';
 import type { PagedTeachersResponse, TeacherListParams, TeacherResponse } from '@/types/teacherApi';
 import TeacherForm from './TeacherForm';
+import DeactivateTeacherDialog from './DeactivateTeacherDialog';
+import { Failure } from '../secciones/sectionUi';
 
 type ListResult = { key: string; data?: PagedTeachersResponse; error?: string };
 
@@ -20,6 +22,8 @@ export default function VistaTodosLosDocentes() {
   const [created, setCreated] = useState<TeacherResponse | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [toggleNotice, setToggleNotice] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<AdminTeacher | null>(null);
   const key = JSON.stringify([query, revision]);
   const loading = result?.key !== key;
   const data = loading ? undefined : result?.data;
@@ -33,14 +37,18 @@ export default function VistaTodosLosDocentes() {
     return () => { current = false; };
   }, [query, revision, key]);
 
+  function requestToggleStatus(teacher: AdminTeacher) {
+    if (togglingId) return;
+    if (teacher.active) setConfirming(teacher);
+    else void handleToggleStatus(teacher);
+  }
+
   async function handleToggleStatus(teacher: AdminTeacher) {
     if (togglingId) return;
     const nextActive = !teacher.active;
-    if (teacher.active && !window.confirm(`¿Deseas desactivar al docente ${teacher.nombreCompleto}? También se desactivarán sus asignaciones activas.`)) {
-      return;
-    }
     setTogglingId(teacher.id);
     setToggleNotice(null);
+    setToggleError(null);
     try {
       await teachersService.update(teacher.id, { active: nextActive });
       setResult(prev => {
@@ -57,7 +65,7 @@ export default function VistaTodosLosDocentes() {
       });
       setToggleNotice(`Docente "${teacher.nombreCompleto}" ${nextActive ? 'activado' : 'desactivado'} con éxito.`);
     } catch (err) {
-      alert(teacherErrorMessage(err));
+      setToggleError(teacherErrorMessage(err));
     } finally {
       setTogglingId(null);
     }
@@ -82,6 +90,7 @@ export default function VistaTodosLosDocentes() {
           <button onClick={() => setToggleNotice(null)} className="text-xs font-bold underline ml-2">Cerrar</button>
         </div>
       )}
+      {toggleError && <div className="max-w-7xl mx-auto w-full"><Failure message={toggleError} /></div>}
       <div className="max-w-7xl mx-auto w-full bg-white border border-line rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-sm text-xs">
         <form className="flex gap-2 flex-1 min-w-0 w-full sm:min-w-64 max-w-md" onSubmit={event => {
           event.preventDefault();
@@ -122,7 +131,7 @@ export default function VistaTodosLosDocentes() {
                         role="switch"
                         aria-checked={teacher.active}
                         disabled={togglingId === teacher.id}
-                        onClick={() => handleToggleStatus(teacher)}
+                        onClick={() => requestToggleStatus(teacher)}
                         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 ${
                           teacher.active ? 'bg-emerald-500' : 'bg-neutral-300'
                         }`}
@@ -166,6 +175,11 @@ export default function VistaTodosLosDocentes() {
           }} />
         </div>
       </div>}
+      {confirming && <DeactivateTeacherDialog
+        message={`¿Deseas desactivar al docente ${confirming.nombreCompleto}? También se desactivarán sus asignaciones activas.`}
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => { const teacher = confirming; setConfirming(null); void handleToggleStatus(teacher); }}
+      />}
     </div>
   );
 }

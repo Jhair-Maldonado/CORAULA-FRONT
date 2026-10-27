@@ -11,6 +11,7 @@ import type { AdminTeacherDetail, TeacherFormValues } from '@/types/adminTeacher
 import type { TeacherAccountResponse } from '@/types/teacherApi';
 import { AuthContext } from '@/contexts/AuthContext';
 import TeacherAccountModal from './TeacherAccountModal';
+import DeactivateTeacherDialog from './DeactivateTeacherDialog';
 
 type DetailResult = {
   revision: number;
@@ -44,6 +45,7 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
   const [editError, setEditError] = useState('');
   const [notice, setNotice] = useState('');
   const [accountOpen, setAccountOpen] = useState(false);
+  const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
   // Session-only: the backend does not expose existing accounts yet (BACK #66).
   const [account, setAccount] = useState<TeacherAccountResponse | null>(null);
   const mutationRef = useRef(false);
@@ -143,9 +145,14 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
     }
   }
 
+  function requestToggleActive() {
+    if (!teacher || mutationRef.current) return;
+    if (teacher.active) setConfirmingDeactivate(true);
+    else void toggleActive();
+  }
+
   async function toggleActive() {
     if (!teacher || mutationRef.current) return;
-    if (teacher.active && !window.confirm('Al desactivar al docente también se desactivarán sus asignaciones activas. ¿Deseas continuar?')) return;
     mutationRef.current = true;
     setBusy(true);
     setActionError('');
@@ -191,7 +198,7 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
               ) : (
                 <button type="button" disabled={busy} onClick={cancelEditing} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Cancelar edición</button>
               )}
-              <button disabled={busy} onClick={toggleActive} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">{busy ? 'Guardando...' : teacher.active ? 'Desactivar docente' : 'Reactivar docente'}</button>
+              <button disabled={busy} onClick={requestToggleActive} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">{busy ? 'Guardando...' : teacher.active ? 'Desactivar docente' : 'Reactivar docente'}</button>
               {canManageAccount && !account && <button disabled={busy || accountBlocked} onClick={() => { setNotice(''); setActionError(''); setAccountOpen(true); }} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Crear cuenta de acceso</button>}
             </div>
           </header>
@@ -210,7 +217,7 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={toggleActive}
+                      onClick={requestToggleActive}
                       title={teacher.active ? 'Docente activo (clic para desactivar)' : 'Docente inactivo (clic para activar)'}
                       className={`px-2.5 py-0.5 rounded-full text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer border shadow-xs ${
                         teacher.active
@@ -462,6 +469,11 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
               }}
             />
           )}
+          {confirmingDeactivate && <DeactivateTeacherDialog
+            message="Al desactivar al docente también se desactivarán sus asignaciones activas. ¿Deseas continuar?"
+            onCancel={() => setConfirmingDeactivate(false)}
+            onConfirm={() => { setConfirmingDeactivate(false); void toggleActive(); }}
+          />}
         </>}
       </div>
     </div>

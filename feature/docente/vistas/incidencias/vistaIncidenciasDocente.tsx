@@ -6,42 +6,33 @@ import {
   AlertTriangle,
   CheckCircle2,
   Calendar,
-  Clock,
-  User,
   MapPin,
-  FileText,
   Search,
-  Filter,
-  Users,
   PlusCircle,
   Loader2,
-  ChevronRight,
-  BookOpen,
-  X,
-  Check
+  X
 } from 'lucide-react';
 import { useDocenteSession } from '@/app/docente/components/DocenteSessionContext';
 import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
+import {
+  teacherIncidentsService,
+  teacherIncidentsErrorMessage,
+  isUncertainIncidentRegistration,
+  incidentLocationError,
+  incidentDescriptionError,
+  incidentActionsError,
+  limaDateTimeToIso,
+  nowLimaDateTimeLocal,
+  formatLimaDateTime,
+  UNCERTAIN_INCIDENT_MESSAGE
+} from '@/services/teacher/teacherIncidentsService';
 import type { TeacherCourseStudentResponse } from '@/types/teacherCoursesApi';
-import type { GravedadIncidencia, RegistrarIncidenciaRequest, IncidenciaResponse } from '@/types/incidenciasApi';
-import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
+import { INCIDENT_LOCATION_MAX, INCIDENT_TEXT_MAX } from '@/types/incidenciasApi';
+import type { GravedadIncidencia, IncidenciaResponse, IncidenciasPage } from '@/types/incidenciasApi';
 
 export type { GravedadIncidencia };
 
-export interface IncidenciaRegistro {
-  id: string;
-  studentId: number;
-  studentName: string;
-  courseName: string;
-  gradeSection: string;
-  teacherName: string;
-  dateTime: string;
-  lugar: string;
-  gravedad: GravedadIncidencia;
-  descripcion: string;
-  accionesTomadas: string;
-  createdAt: string;
-}
+const PAGE_SIZE = 10;
 
 const GRAVEDADES: {
   value: GravedadIncidencia;
@@ -73,7 +64,8 @@ const GRAVEDADES: {
   }
 ];
 
-const LUGARES = [
+// Sugerencias: el backend acepta texto libre (1–120 caracteres).
+export const LUGARES_SUGERIDOS = [
   'Aula de clases',
   'Patio / Recreo',
   'Chat / Canal virtual',
@@ -82,19 +74,8 @@ const LUGARES = [
   'Entrada / Salida escolar'
 ];
 
-function getNowDateTimeLocal(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const yyyy = now.getFullYear();
-  const mm = pad(now.getMonth() + 1);
-  const dd = pad(now.getDate());
-  const hh = pad(now.getHours());
-  const min = pad(now.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
-}
-
 export default function VistaIncidenciasDocente() {
-  const { cursos, docenteNombre, isLoading: sessionLoading } = useDocenteSession();
+  const { cursos, docenteNombre } = useDocenteSession();
 
   // Estados del Formulario
   const [selectedCourseId, setSelectedCourseId] = useState<number | ''>('');
@@ -108,8 +89,8 @@ export default function VistaIncidenciasDocente() {
   const [isStudentSearchOpen, setIsStudentSearchOpen] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  const [dateTime, setDateTime] = useState(getNowDateTimeLocal);
-  const [lugar, setLugar] = useState(LUGARES[0]);
+  const [dateTime, setDateTime] = useState(() => nowLimaDateTimeLocal());
+  const [lugar, setLugar] = useState(LUGARES_SUGERIDOS[0]);
   const [gravedad, setGravedad] = useState<GravedadIncidencia>('MODERADA');
   const [descripcion, setDescripcion] = useState('');
   const [accionesTomadas, setAccionesTomadas] = useState('');
@@ -117,28 +98,62 @@ export default function VistaIncidenciasDocente() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+  const [formUncertain, setFormUncertain] = useState(false);
 
-  // Historial de Incidencias registradas
-  const [incidencias, setIncidencias] = useState<IncidenciaRegistro[]>([
-    {
-      id: 'inc-101',
-      studentId: 1,
-      studentName: 'Flores Quispe, Mateo Sebastián',
-      courseName: 'Matemática',
-      gradeSection: 'Secundaria · 3° grado · Sección A',
-      teacherName: docenteNombre || 'Prof. Juan Docente',
-      dateTime: '2026-10-26T10:15',
-      lugar: 'Aula de clases',
-      gravedad: 'MODERADA',
-      descripcion: 'Interrupción reiterada de la sesión y negativa a entregar la práctica asignada.',
-      accionesTomadas: 'Llamado de atención verbal y acuerdo de entrega postergada bajo compromiso.',
-      createdAt: '2026-10-26T10:20:00Z'
-    }
-  ]);
+  // Historial paginado del docente autenticado (GET /v1/teacher/incidents)
+  const [historyPage, setHistoryPage] = useState<IncidenciasPage | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState('');
+  const [historyRevision, setHistoryRevision] = useState(0);
 
-  // Filtros de Historial
+  // Filtros de Historial (aplicados en el backend)
   const [filterGravedad, setFilterGravedad] = useState<'TODAS' | GravedadIncidencia>('TODAS');
-  const [searchHistory, setSearchHistory] = useState('');
+  const [filterSectionId, setFilterSectionId] = useState<number | ''>('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [page, setPage] = useState(0);
+
+  // Secciones únicas a partir de los cursos asignados
+  const secciones = Array.from(
+    new Map(cursos.map(c => [c.sectionId, `${c.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'} ${c.grade}° ${c.sectionName}`])).entries()
+  );
+
+  useEffect(() => {
+    if (filterDateFrom && filterDateTo && filterDateFrom > filterDateTo) {
+      setHistoryLoading(false);
+      setHistoryError('La fecha inicial no puede ser posterior a la fecha final.');
+      return;
+    }
+    const controller = new AbortController();
+    setHistoryLoading(true);
+    setHistoryError('');
+    teacherIncidentsService
+      .getIncidents({
+        severity: filterGravedad === 'TODAS' ? undefined : filterGravedad,
+        sectionId: filterSectionId === '' ? undefined : filterSectionId,
+        dateFrom: filterDateFrom || undefined,
+        dateTo: filterDateTo || undefined,
+        page,
+        size: PAGE_SIZE
+      }, controller.signal)
+      .then(data => {
+        if (!controller.signal.aborted) setHistoryPage(data);
+      })
+      .catch(err => {
+        if (controller.signal.aborted) return;
+        setHistoryPage(null);
+        setHistoryError(teacherIncidentsErrorMessage(err));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setHistoryLoading(false);
+      });
+    return () => controller.abort();
+  }, [filterGravedad, filterSectionId, filterDateFrom, filterDateTo, page, historyRevision]);
+
+  const changeFilter = <T,>(setter: (value: T) => void) => (value: T) => {
+    setter(value);
+    setPage(0);
+  };
 
   // Cerrar el dropdown al hacer clic fuera
   useEffect(() => {
@@ -205,79 +220,61 @@ export default function VistaIncidenciasDocente() {
     return matchName || matchCode;
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setFormError('');
     setFormSuccess('');
+    setFormUncertain(false);
 
     if (!selectedStudent || !selectedCourse) {
       setFormError('Debes seleccionar un estudiante implicado mediante la búsqueda en vivo.');
       return;
     }
-    if (!descripcion.trim()) {
-      setFormError('La descripción de lo ocurrido es obligatoria.');
+    const textError = incidentLocationError(lugar) ?? incidentDescriptionError(descripcion) ?? incidentActionsError(accionesTomadas);
+    if (textError) {
+      setFormError(textError);
       return;
     }
 
     setSubmitting(true);
-
-    const gradeSectionText = `${selectedCourse.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'} · ${selectedCourse.grade}° grado · Sección ${selectedCourse.sectionName}`;
-
-    // Payload tipado con RegistrarIncidenciaRequest
-    const payload: RegistrarIncidenciaRequest = {
-      sectionCourseId: selectedCourse.sectionCourseId,
-      enrollmentId: selectedStudent.enrollmentId,
-      dateTime: `${dateTime}:00-05:00`,
-      lugar,
-      gravedad,
-      descripcion: descripcion.trim(),
-      accionesTomadas: accionesTomadas.trim() ? accionesTomadas.trim() : null
-    };
-
-    const generatedId = `inc-${incidencias.length + 1}`;
-
-    const nuevaIncidencia: IncidenciaRegistro = {
-      id: generatedId,
-      studentId: selectedStudent.enrollmentId,
-      studentName: selectedStudent.fullName,
-      courseName: selectedCourse.name,
-      gradeSection: gradeSectionText,
-      teacherName: docenteNombre || 'Docente asignado',
-      dateTime,
-      lugar: payload.lugar,
-      gravedad: payload.gravedad,
-      descripcion: payload.descripcion,
-      accionesTomadas: payload.accionesTomadas || '',
-      createdAt: `${dateTime}:00Z`
-    };
-
-    setTimeout(() => {
-      setIncidencias(prev => [nuevaIncidencia, ...prev]);
-      setFormSuccess('Simulación: la incidencia no se guardó (módulo en construcción).');
+    try {
+      const saved = await teacherIncidentsService.registerIncident({
+        sectionCourseId: selectedCourse.sectionCourseId,
+        enrollmentId: selectedStudent.enrollmentId,
+        occurredAt: limaDateTimeToIso(dateTime),
+        location: lugar,
+        severity: gravedad,
+        description: descripcion,
+        actionsTaken: accionesTomadas.trim() || null
+      });
+      setFormSuccess(`Incidencia registrada para ${saved.studentName}.`);
       setDescripcion('');
       setAccionesTomadas('');
       setGravedad('MODERADA');
       setSelectedEnrollmentId('');
       setStudentSearchQuery('');
+      setPage(0);
+      setHistoryRevision(n => n + 1);
+    } catch (err) {
+      if (isUncertainIncidentRegistration(err)) {
+        // Sin respuesta confirmada: no se reintenta; se refresca el historial para que el docente verifique.
+        setFormUncertain(true);
+        setHistoryRevision(n => n + 1);
+      } else {
+        setFormError(teacherIncidentsErrorMessage(err));
+      }
+    } finally {
       setSubmitting(false);
-
-      setTimeout(() => {
-        setFormSuccess('');
-      }, 3500);
-    }, 400);
+    }
   };
 
-  // Filtrado de historial
-  const incidenciasFiltradas = incidencias.filter(inc => {
-    const matchGravedad = filterGravedad === 'TODAS' || inc.gravedad === filterGravedad;
-    const matchNombre = inc.studentName.toLowerCase().includes(searchHistory.toLowerCase())
-      || inc.courseName.toLowerCase().includes(searchHistory.toLowerCase());
-    return matchGravedad && matchNombre;
-  });
+  const incidencias = historyPage?.content ?? [];
+  const totalPages = historyPage?.totalPages ?? 0;
+  const hasFilters = filterGravedad !== 'TODAS' || filterSectionId !== '' || !!filterDateFrom || !!filterDateTo;
 
   return (
     <div className="flex flex-col gap-6">
-      <AvisoModuloSimulado activo={true} className="mb-0" detalle="el registro de incidencias aún no está conectado; los registros son de demostración y no se guardan." />
       {/* Cabecera del Módulo */}
       <header className="bg-white p-5 sm:p-6 rounded-xl border border-line shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -312,9 +309,15 @@ export default function VistaIncidenciasDocente() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-xs font-bold text-muted">
             {/* Feedback Banners */}
             {formSuccess && (
-              <div role="status" className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold flex items-center gap-2">
-                <AlertTriangle size={16} className="shrink-0 text-amber-600" />
+              <div role="status" className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
                 <span>{formSuccess}</span>
+              </div>
+            )}
+            {formUncertain && (
+              <div role="alert" className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold flex items-center gap-2">
+                <AlertTriangle size={16} className="shrink-0 text-amber-600" />
+                <span>{UNCERTAIN_INCIDENT_MESSAGE}</span>
               </div>
             )}
             {formError && (
@@ -463,24 +466,30 @@ export default function VistaIncidenciasDocente() {
                   type="datetime-local"
                   required
                   value={dateTime}
+                  max={nowLimaDateTimeLocal()}
                   onChange={e => setDateTime(e.target.value)}
                   className="w-full mt-1.5 p-2.5 rounded-lg border border-line bg-neutral/30 text-ink text-xs font-semibold focus-visible:outline-accent"
                 />
+                <span className="text-[10px] font-normal text-muted block mt-0.5">Hora de Lima</span>
               </label>
 
               <label className="block">
-                Lugar / Contexto
-                <select
+                Lugar / Contexto <span className="text-rose-600">*</span>
+                <input
+                  type="text"
+                  required
+                  list="incidencia-lugares"
+                  maxLength={INCIDENT_LOCATION_MAX}
                   value={lugar}
                   onChange={e => setLugar(e.target.value)}
+                  placeholder="Ej. Aula de clases"
                   className="w-full mt-1.5 p-2.5 rounded-lg border border-line bg-neutral/30 text-ink text-xs font-semibold focus-visible:outline-accent"
-                >
-                  {LUGARES.map(l => (
-                    <option key={l} value={l}>
-                      {l}
-                    </option>
+                />
+                <datalist id="incidencia-lugares">
+                  {LUGARES_SUGERIDOS.map(l => (
+                    <option key={l} value={l} />
                   ))}
-                </select>
+                </datalist>
               </label>
             </div>
 
@@ -516,13 +525,14 @@ export default function VistaIncidenciasDocente() {
               <textarea
                 required
                 rows={4}
+                maxLength={INCIDENT_TEXT_MAX}
                 value={descripcion}
                 onChange={e => setDescripcion(e.target.value)}
                 placeholder="Detalla de forma objetiva los hechos ocurridos, palabras expresadas o transgresión al reglamento..."
                 className="w-full mt-1.5 p-3 rounded-xl border border-line bg-white text-xs font-normal text-ink placeholder:text-muted focus-visible:outline-accent resize-none"
               />
               <span className="text-[10px] font-normal text-muted block text-right mt-0.5">
-                {descripcion.length} caracteres
+                {descripcion.length}/{INCIDENT_TEXT_MAX} caracteres
               </span>
             </label>
 
@@ -531,6 +541,7 @@ export default function VistaIncidenciasDocente() {
               Acciones tomadas / Compromiso (Opcional)
               <input
                 type="text"
+                maxLength={INCIDENT_TEXT_MAX}
                 value={accionesTomadas}
                 onChange={e => setAccionesTomadas(e.target.value)}
                 placeholder="Ej. Diálogo reflexivo, compromiso escrito, aviso a tutoría..."
@@ -556,35 +567,61 @@ export default function VistaIncidenciasDocente() {
           </form>
         </section>
 
-        {/* Columna Derecha: Historial y Búsqueda por Alumno (7 columnas) */}
+        {/* Columna Derecha: Historial paginado con filtros del backend (7 columnas) */}
         <section
           className="lg:col-span-7 bg-white p-5 sm:p-6 rounded-xl border border-line shadow-xs min-w-0"
           aria-labelledby="historial-incidencia-title"
         >
           <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-line">
             <h2 id="historial-incidencia-title" className="text-sm font-bold text-ink">
-              Historial de Incidencias ({incidenciasFiltradas.length})
+              Historial de Incidencias ({historyPage?.totalElements ?? 0})
             </h2>
           </div>
 
-          {/* Filtros: Búsqueda y Gravedad */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 my-4">
-            <div className="relative flex-1">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                type="text"
-                placeholder="Buscar por alumno o curso..."
-                value={searchHistory}
-                onChange={e => setSearchHistory(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-neutral/20 border border-line rounded-lg text-xs text-ink placeholder:text-muted focus-visible:outline-accent"
-              />
+          {/* Filtros: Sección, Fechas y Gravedad */}
+          <div className="flex flex-col gap-3 my-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold text-muted">
+              <label className="block">
+                Sección
+                <select
+                  aria-label="Filtrar por sección"
+                  value={filterSectionId}
+                  onChange={e => changeFilter(setFilterSectionId)(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full mt-1 p-2 rounded-lg border border-line bg-neutral/20 text-ink text-xs font-semibold focus-visible:outline-accent"
+                >
+                  <option value="">Todas las secciones</option>
+                  {secciones.map(([id, label]) => (
+                    <option key={id} value={id}>{label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                Desde
+                <input
+                  type="date"
+                  aria-label="Fecha desde"
+                  value={filterDateFrom}
+                  onChange={e => changeFilter(setFilterDateFrom)(e.target.value)}
+                  className="w-full mt-1 p-2 rounded-lg border border-line bg-neutral/20 text-ink text-xs font-semibold focus-visible:outline-accent"
+                />
+              </label>
+              <label className="block">
+                Hasta
+                <input
+                  type="date"
+                  aria-label="Fecha hasta"
+                  value={filterDateTo}
+                  onChange={e => changeFilter(setFilterDateTo)(e.target.value)}
+                  className="w-full mt-1 p-2 rounded-lg border border-line bg-neutral/20 text-ink text-xs font-semibold focus-visible:outline-accent"
+                />
+              </label>
             </div>
 
             {/* Filtros por Píldoras de Gravedad */}
             <div className="flex items-center gap-1 shrink-0 overflow-x-auto pb-1 sm:pb-0">
               <button
                 type="button"
-                onClick={() => setFilterGravedad('TODAS')}
+                onClick={() => changeFilter(setFilterGravedad)('TODAS')}
                 className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
                   filterGravedad === 'TODAS'
                     ? 'bg-accent text-white shadow-xs'
@@ -597,7 +634,7 @@ export default function VistaIncidenciasDocente() {
                 <button
                   key={g.value}
                   type="button"
-                  onClick={() => setFilterGravedad(g.value)}
+                  onClick={() => changeFilter(setFilterGravedad)(g.value)}
                   className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
                     filterGravedad === g.value
                       ? `${g.badgeClass} ring-2 shadow-xs font-black`
@@ -611,20 +648,40 @@ export default function VistaIncidenciasDocente() {
           </div>
 
           {/* Listado de Tarjetas de Incidencias */}
-          {incidenciasFiltradas.length === 0 ? (
+          {historyLoading ? (
+            <p className="p-6 text-center text-xs text-muted flex items-center justify-center gap-2">
+              <Loader2 size={15} className="animate-spin" />
+              <span>Cargando historial...</span>
+            </p>
+          ) : historyError ? (
+            <div role="alert" className="p-4 my-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium flex flex-wrap items-center justify-between gap-2">
+              <span className="flex items-center gap-2">
+                <AlertTriangle size={16} className="shrink-0" />
+                <span>{historyError}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setHistoryRevision(n => n + 1)}
+                className="px-3 py-1 rounded-lg border border-rose-300 bg-white text-rose-800 font-bold hover:bg-rose-100"
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : incidencias.length === 0 ? (
             <div className="p-8 text-center text-xs text-muted border border-dashed border-line rounded-xl my-4">
               <ShieldAlert size={28} className="mx-auto text-muted/60 mb-2" />
               <p className="font-semibold text-ink">No se encontraron incidencias registradas</p>
               <p className="mt-1 text-[11px]">
-                {incidencias.length === 0
-                  ? 'Usa el formulario para registrar la primera incidencia del aula.'
-                  : 'Prueba cambiando los filtros de búsqueda o gravedad.'}
+                {hasFilters
+                  ? 'Prueba cambiando los filtros de sección, fecha o gravedad.'
+                  : 'Usa el formulario para registrar la primera incidencia del aula.'}
               </p>
             </div>
           ) : (
             <div className="space-y-3 mt-4">
-              {incidenciasFiltradas.map(inc => {
-                const gravedadInfo = GRAVEDADES.find(g => g.value === inc.gravedad) || GRAVEDADES[1];
+              {incidencias.map((inc: IncidenciaResponse) => {
+                const gravedadInfo = GRAVEDADES.find(g => g.value === inc.severity) || GRAVEDADES[1];
+                const curso = cursos.find(c => c.sectionCourseId === inc.sectionCourseId);
 
                 return (
                   <article
@@ -635,9 +692,12 @@ export default function VistaIncidenciasDocente() {
                       <div className="min-w-0">
                         <h3 className="text-sm font-bold text-ink truncate">
                           {inc.studentName}
+                          {inc.studentCode && <span className="ml-1.5 text-[10px] font-mono text-muted">{inc.studentCode}</span>}
                         </h3>
                         <p className="text-[11px] text-muted mt-0.5">
-                          {inc.courseName} &bull; {inc.gradeSection}
+                          {curso
+                            ? `${curso.name} • ${curso.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'} · ${curso.grade}° grado · Sección ${curso.sectionName}`
+                            : 'Curso sin asignación vigente'}
                         </p>
                       </div>
 
@@ -648,28 +708,28 @@ export default function VistaIncidenciasDocente() {
                     </div>
 
                     {/* Descripción de lo ocurrido */}
-                    <div className="p-3 bg-neutral/20 border border-line/60 rounded-lg text-xs text-ink leading-relaxed font-normal">
-                      <p>{inc.descripcion}</p>
+                    <div className="p-3 bg-neutral/20 border border-line/60 rounded-lg text-xs text-ink leading-relaxed font-normal whitespace-pre-wrap break-words">
+                      <p>{inc.description}</p>
                     </div>
 
                     {/* Acciones tomadas si existen */}
-                    {inc.accionesTomadas && (
-                      <p className="text-[11px] text-muted font-medium">
-                        <strong className="text-ink">Acción tomada:</strong> {inc.accionesTomadas}
+                    {inc.actionsTaken && (
+                      <p className="text-[11px] text-muted font-medium break-words">
+                        <strong className="text-ink">Acción tomada:</strong> {inc.actionsTaken}
                       </p>
                     )}
 
                     {/* Meta Info: Lugar, Fecha/Hora, Autor */}
                     <div className="pt-2 border-t border-line/50 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[11px] text-muted">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1">
-                          <MapPin size={12} className="text-accent" />
-                          <span>{inc.lugar}</span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="flex items-center gap-1 min-w-0">
+                          <MapPin size={12} className="text-accent shrink-0" />
+                          <span className="truncate">{inc.location}</span>
                         </span>
                         <span>&bull;</span>
                         <span className="flex items-center gap-1">
                           <Calendar size={12} className="text-muted" />
-                          <span>{inc.dateTime.replace('T', ' ')}</span>
+                          <span>{formatLimaDateTime(inc.occurredAt)}</span>
                         </span>
                       </div>
 
@@ -681,6 +741,29 @@ export default function VistaIncidenciasDocente() {
                 );
               })}
             </div>
+          )}
+
+          {/* Paginación */}
+          {!historyLoading && !historyError && totalPages > 1 && (
+            <nav aria-label="Paginación del historial" className="mt-4 flex items-center justify-between gap-2 text-xs">
+              <button
+                type="button"
+                disabled={page === 0}
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                className="px-3 py-1.5 rounded-lg border border-line bg-white font-bold text-muted hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              <span className="text-muted">Página {page + 1} de {totalPages}</span>
+              <button
+                type="button"
+                disabled={page + 1 >= totalPages}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 rounded-lg border border-line bg-white font-bold text-muted hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
+            </nav>
           )}
         </section>
       </div>

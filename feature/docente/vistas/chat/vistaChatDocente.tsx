@@ -18,7 +18,8 @@ import { getDocenteChats, enviarMensajeDocenteChat } from '@/lib/api';
 import { ChatContactoDocente, MensajeDocenteItem } from '@/types/docentes';
 import { CardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
-import ModalReportarIncidencia, { GravedadIncidencia } from './ModalReportarIncidencia';
+import ModalReportarIncidencia from './ModalReportarIncidencia';
+import type { IncidenciaResponse } from '@/types/incidenciasApi';
 
 export default function VistaChatDocente() {
   const [activeTab, setActiveTab] = useState<'alumnos' | 'padres'>('alumnos');
@@ -105,15 +106,10 @@ export default function VistaChatDocente() {
     setIsReportModalOpen(true);
   };
 
-  const handleConfirmReport = async (data: {
-    gravedad: GravedadIncidencia;
-    descripcion: string;
-    mensajeId: string;
-    mensajeTexto: string;
-  }) => {
-    // Marcar el mensaje como reportado
-    setReportedMessageIds((prev) => new Set([...prev, data.mensajeId]));
-    setReportFeedback('Simulación: la incidencia no se registró (módulo en construcción).');
+  const handleReported = (incident: IncidenciaResponse, mensajeId: string) => {
+    // La incidencia quedó registrada en el backend; el mensaje del chat sigue siendo simulado.
+    setReportedMessageIds((prev) => new Set([...prev, mensajeId]));
+    setReportFeedback(`Incidencia registrada para ${incident.studentName}.`);
     setTimeout(() => {
       setReportFeedback(null);
     }, 4000);
@@ -428,7 +424,7 @@ export default function VistaChatDocente() {
         studentName={selectedContacto?.nombre || ''}
         studentSubtitle={selectedContacto?.subtitulo}
         mensaje={messageToReport}
-        onSubmitReport={handleConfirmReport}
+        onReported={handleReported}
       />
     </div>
   );

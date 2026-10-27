@@ -1,63 +1,60 @@
 /**
  * Trazabilidad: RF-21 (DOC-INCIDENCIAS-UI #53 / DOC-INCIDENCIAS #54)
  * Módulo: Docente — Registro y Listado de Incidencias Disciplinarias
+ * Contrato: docs/teacher-incidents.md del backend — /api/v1/teacher/incidents (rol DOCENTE)
  */
 
 export type GravedadIncidencia = 'LEVE' | 'MODERADA' | 'GRAVE';
 
-export type LugarIncidencia =
-  | 'AULA'
-  | 'PATIO'
-  | 'CHAT'
-  | 'LABORATORIO'
-  | 'PASILLOS'
-  | 'ENTRADA_SALIDA';
+export const GRAVEDADES_INCIDENCIA: readonly GravedadIncidencia[] = ['LEVE', 'MODERADA', 'GRAVE'];
 
-/**
- * Payload para el registro de incidencia disciplinaria
- * Propuesta, pendiente de contrato en BACK #54: POST /v1/teacher/incidents
- */
+export const INCIDENT_LOCATION_MAX = 120;
+export const INCIDENT_TEXT_MAX = 1000;
+
+/** POST /v1/teacher/incidents. El estudiante y la sección se derivan de la matrícula. */
 export interface RegistrarIncidenciaRequest {
   sectionCourseId: number;
   enrollmentId: number;
-  studentId?: number;
-  dateTime: string; // ISO-8601 con zona horaria de Lima (ej. 2026-10-26T10:15:00-05:00)
-  lugar: string;
-  gravedad: GravedadIncidencia;
-  descripcion: string; // Obligatorio, longitud 1..1000 caracteres
-  accionesTomadas?: string | null;
-  evidenceMessageId?: string | null; // ID del mensaje si se origina en /docente/chat
+  occurredAt: string; // ISO-8601 con offset obligatorio (ej. 2026-10-05T09:30:00-05:00)
+  location: string; // Texto libre, 1..120 caracteres
+  severity: GravedadIncidencia;
+  description: string; // 1..1000 caracteres
+  actionsTaken: string | null; // Opcional, hasta 1000 caracteres
 }
 
-/**
- * Respuesta del servidor tras registrar o consultar una incidencia
- */
+/** IncidentView. Fechas en UTC ISO-8601 (`Z`). */
 export interface IncidenciaResponse {
   id: number;
   sectionCourseId: number;
+  sectionId: number;
   enrollmentId: number;
+  studentId: number;
   studentName: string;
-  studentCode?: string;
+  studentCode: string | null;
   teacherId: number;
   teacherName: string;
-  dateTime: string;
-  lugar: string;
-  gravedad: GravedadIncidencia;
-  descripcion: string;
-  accionesTomadas?: string | null;
-  evidenceMessageId?: string | null;
+  occurredAt: string;
+  location: string;
+  severity: GravedadIncidencia;
+  description: string;
+  actionsTaken: string | null;
   createdAt: string;
-  updatedAt?: string;
 }
 
-/**
- * Filtros para el listado o historial por alumno/sección
- * Propuesta, pendiente de contrato en BACK #54: GET /v1/teacher/incidents?sectionCourseId=:id&enrollmentId=:id&gravedad=:gravedad
- */
+/** GET /v1/teacher/incidents. Fechas YYYY-MM-DD inclusivas en America/Lima; page base 0; size 1..100. */
 export interface IncidenciasFilterQuery {
-  sectionCourseId?: number;
-  enrollmentId?: number;
-  gravedad?: GravedadIncidencia;
-  fechaInicio?: string;
-  fechaFin?: string;
+  severity?: GravedadIncidencia;
+  sectionId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface IncidenciasPage {
+  content: IncidenciaResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }

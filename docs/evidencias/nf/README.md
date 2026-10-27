@@ -20,7 +20,7 @@ Herramientas instaladas fuera del repositorio; `package.json` y el lock no cambi
 
 ### Archivos
 - `2026-10-26/npm-audit-prod.json` (`npm audit --omit=dev --json`) y `2026-10-26/npm-audit-full.json` (`npm audit --json`).
-- `2026-10-26/lighthouse/<ruta>.<mobile|desktop>.{html,json}`.
+- Reportes completos de Lighthouse (`<ruta>.<mobile|desktop>.{html,json}`): en Drive, <enlace de Drive>. No se versionan en el repositorio.
 - `2026-10-26/axe/<ruta>.json`.
 - `2026-10-26/summary.json`: resumen tras las correcciones. `2026-10-26/summary-antes.json`: resumen previo a las correcciones (sus informes completos se sustituyeron por los de la medición final).
 
@@ -60,30 +60,25 @@ axe automatizado cubre solo parte de WCAG; no sustituye la revisión manual (tec
 1. `src/app/login/page.tsx`: etiqueta «Alumnos» del encabezado, `text-muted` → `text-ink/80` (contraste 4.47:1 → >4.5:1).
 2. `feature/alumno/vistas/login/vistaLoginAlumno.tsx`: pie «Colegio San Marcos · Sistema CORAULA 2026», `#6B7280` → `#4B5563` (contraste 4.39:1 → >4.5:1).
 3. `src/app/alumno/layout.tsx`: el contenedor de la pantalla de login pasa de `<div>` a `<main>` (landmark principal; resuelve `landmark-one-main` y `region`).
+4. `target-size` (rama `fix/37-pendientes`): el botón «Mostrar contraseña» de `/login`, `/login/security/administrador` y `/docente/login` mide al menos 24×24 px (`min-w-6 min-h-6 p-1`), con el icono en la misma posición.
+5. Mensajes de error de `/login`, `/login/security/administrador`, `/docente/login` y `/alumno/login` con `role="alert"` y `aria-live="assertive"`, para que el lector de pantalla los anuncie.
 
 ### npm audit
+#### Resultado vigente (tras el PR #89)
+Medido el 2026-10-27 sobre `dev@2da77e1` (incluye el merge del PR #89, `a825163`); npm 11.9.0, Node 24.14.0, registro público.
+
 | Alcance | Crítica | Alta | Moderada | Baja | Total |
 | --- | --- | --- | --- | --- | --- |
-| Producción (`--omit=dev`) | 2 | 5 | 0 | 0 | 7 |
-| Completo | 2 | 8 | 0 | 0 | 10 |
+| Producción (`--omit=dev`) | 0 | 0 | 0 | 0 | **0** |
+| Completo | 0 | 3 | 0 | 0 | 3 |
 
-| Paquete | Severidad | Directa | Alcance | Origen | Corrección | Decisión propuesta |
-| --- | --- | --- | --- | --- | --- | --- |
-| `next` 16.3.1 | Crítica | Sí | Prod | — | 16.4.3 (fuera del rango fijado `16.3.1`) | Actualizar en un nodo propio con regresión completa. Incluye RCE en servidores Windows y en Image Optimization |
-| `dompurify` ≤3.4.16 | Crítica | No | Prod | `jspdf` 4.2.1 | `npm audit fix` | Actualizar en el nodo de dependencias; el código no usa `jspdf.html()` |
-| `axios` 1.19.0 | Alta | Sí | Prod | — | `npm audit fix` | Actualizar (parche dentro del rango) |
-| `follow-redirects` 1.16.0 | Alta | No | Prod | `axios` | `npm audit fix` | Se resuelve con `axios` |
-| `sharp` 0.35.3 | Alta | No | Prod | `next` | `npm audit fix` | Actualizar |
-| `source-map-js` 1.2.1 | Alta | No | Prod | `postcss`, `@tailwindcss/postcss` | `npm audit fix` | Actualizar (impacto solo en build) |
-| `xlsx` 0.18.5 | Alta | Sí | Prod | — | Sin corrección en npm | **Ningún archivo lo importa**: proponer retirarlo de `dependencies` |
-| `brace-expansion` | Alta | No | Dev | herramientas de lint | `npm audit fix` | Actualizar; no llega al bundle |
-| `js-yaml` 4.x | Alta | No | Dev | herramientas de lint | `npm audit fix` | Actualizar; no llega al bundle |
-| `zod` 4.4.3 | Alta | No | Dev | `eslint-plugin-react-hooks` | `npm audit fix` | Actualizar; no llega al bundle |
+El PR #89 (`fix(deps)`) actualizó `next` a 16.4.3 y las dependencias transitivas de producción, y retiró `xlsx`. Quedan tres avisos altos solo de desarrollo (`brace-expansion`, `js-yaml`, `zod`, vía herramientas de lint), con corrección por `npm audit fix`; no llegan al bundle.
 
-No se ejecutó `npm audit fix` ni `--force` en este nodo.
+#### Medición inicial (2026-10-26, previa al PR #89)
+Producción: 2 críticas y 5 altas (7). Completo: 2 críticas y 8 altas (10). Detalle por paquete en `2026-10-26/npm-audit-prod.json` y `2026-10-26/npm-audit-full.json`; incluía `next` 16.3.1 (crítica), `dompurify` vía `jspdf` (crítica), y `axios`, `follow-redirects`, `sharp`, `source-map-js` y `xlsx` (altas).
 
 ### Pendiente
-- `target-size` (Lighthouse): el botón «Mostrar contraseña» de `/login`, `/login/security/administrador` y `/docente/login` mide menos de 24×24 px. Requiere ajustar su tamaño o padding; fuera de las correcciones triviales.
-- Actualización de dependencias según la tabla de npm audit (nodo aparte).
+- Repetir Lighthouse en `/login`, `/login/security/administrador` y `/docente/login` para confirmar que `target-size` desaparece tras la corrección 4.
+- Avisos de npm audit solo de desarrollo (`brace-expansion`, `js-yaml`, `zod`).
 - Medición de las vistas autenticadas (Administrador y demás portales) sobre el despliegue con una cuenta de validación (#33).
 - Sustituir las secciones 8.2 y 14.3 del documento APF3 con estas evidencias (Coordinación).

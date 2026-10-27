@@ -68,7 +68,7 @@ export default function VistaLoginAlumno() {
 
           {/* Mensaje de Error */}
           {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
+            <div role="alert" aria-live="assertive" className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
               {errorMsg}
             </div>
           )}

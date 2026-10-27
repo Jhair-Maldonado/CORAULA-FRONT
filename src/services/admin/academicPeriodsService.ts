@@ -67,10 +67,14 @@ export function academicPeriodChanges(original: AcademicPeriod, values: CreateAc
   return changes;
 }
 
-// Backend texts are never shown; the three 409 causes only differ by message text.
+// Backend texts are never shown; only the overlap 409 is told apart by its code (#43).
 export function academicPeriodErrorMessage(error: unknown): string {
   if (!isAxiosError(error)) return 'No se pudo completar la solicitud. Intenta nuevamente.';
   if (!error.response) return 'No se pudo conectar con el servidor. Revisa tu conexión e intenta nuevamente.';
+  const body: unknown = error.response.data;
+  if (error.response.status === 409 && body && typeof body === 'object' && 'code' in body && body.code === 'ACADEMIC_PERIOD_OVERLAP') {
+    return 'Las fechas se solapan con otro periodo académico activo. Las fechas son inclusivas: compartir el primer o el último día también es solapamiento, así que el periodo debe empezar al día siguiente del fin del otro.';
+  }
   switch (error.response.status) {
     case 400: return 'Revisa los datos: nombre de 1 a 100 caracteres y fecha de fin posterior a la de inicio.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ShieldAlert,
   AlertTriangle,
@@ -16,13 +16,16 @@ import {
   PlusCircle,
   Loader2,
   ChevronRight,
-  BookOpen
+  BookOpen,
+  X,
+  Check
 } from 'lucide-react';
 import { useDocenteSession } from '@/app/docente/components/DocenteSessionContext';
 import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
 import type { TeacherCourseStudentResponse } from '@/types/teacherCoursesApi';
+import type { GravedadIncidencia, RegistrarIncidenciaRequest, IncidenciaResponse } from '@/types/incidenciasApi';
 
-export type GravedadIncidencia = 'LEVE' | 'MODERADA' | 'GRAVE';
+export type { GravedadIncidencia };
 
 export interface IncidenciaRegistro {
   id: string;
@@ -98,7 +101,12 @@ export default function VistaIncidenciasDocente() {
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentsError, setStudentsError] = useState('');
 
+  // Búsqueda en vivo de estudiante
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | ''>('');
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [isStudentSearchOpen, setIsStudentSearchOpen] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   const [dateTime, setDateTime] = useState(getNowDateTimeLocal);
   const [lugar, setLugar] = useState(LUGARES[0]);
   const [gravedad, setGravedad] = useState<GravedadIncidencia>('MODERADA');
@@ -129,7 +137,20 @@ export default function VistaIncidenciasDocente() {
 
   // Filtros de Historial
   const [filterGravedad, setFilterGravedad] = useState<'TODAS' | GravedadIncidencia>('TODAS');
-  const [searchStudent, setSearchStudent] = useState('');
+  const [searchHistory, setSearchHistory] = useState('');
+
+  // Cerrar el dropdown al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsStudentSearchOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Auto-seleccionar primer curso cuando esté disponible
   useEffect(() => {
@@ -143,23 +164,21 @@ export default function VistaIncidenciasDocente() {
     if (!selectedCourseId || typeof selectedCourseId !== 'number') {
       setStudents([]);
       setSelectedEnrollmentId('');
+      setStudentSearchQuery('');
       return;
     }
 
     let active = true;
     setStudentsLoading(true);
     setStudentsError('');
+    setSelectedEnrollmentId('');
+    setStudentSearchQuery('');
 
     teacherCoursesService
       .getStudents(selectedCourseId)
       .then(data => {
         if (!active) return;
         setStudents(data);
-        if (data.length > 0) {
-          setSelectedEnrollmentId(data[0].enrollmentId);
-        } else {
-          setSelectedEnrollmentId('');
-        }
       })
       .catch(err => {
         if (active) setStudentsError(teacherCoursesErrorMessage(err));
@@ -176,13 +195,22 @@ export default function VistaIncidenciasDocente() {
   const selectedCourse = cursos.find(c => c.sectionCourseId === selectedCourseId);
   const selectedStudent = students.find(s => s.enrollmentId === selectedEnrollmentId);
 
+  // Filtro en vivo de estudiantes según lo escrito por el docente
+  const filteredStudents = students.filter(s => {
+    const q = studentSearchQuery.toLowerCase().trim();
+    if (!q) return true;
+    const matchName = s.fullName.toLowerCase().includes(q);
+    const matchCode = s.studentCode ? s.studentCode.toLowerCase().includes(q) : false;
+    return matchName || matchCode;
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
     setFormSuccess('');
 
     if (!selectedStudent || !selectedCourse) {
-      setFormError('Debes seleccionar un curso y un estudiante válido.');
+      setFormError('Debes seleccionar un estudiante implicado mediante la búsqueda en vivo.');
       return;
     }
     if (!descripcion.trim()) {
@@ -194,6 +222,17 @@ export default function VistaIncidenciasDocente() {
 
     const gradeSectionText = `${selectedCourse.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'} · ${selectedCourse.grade}° grado · Sección ${selectedCourse.sectionName}`;
 
+    // Payload tipado con RegistrarIncidenciaRequest
+    const payload: RegistrarIncidenciaRequest = {
+      sectionCourseId: selectedCourse.sectionCourseId,
+      enrollmentId: selectedStudent.enrollmentId,
+      dateTime: `${dateTime}:00-05:00`,
+      lugar,
+      gravedad,
+      descripcion: descripcion.trim(),
+      accionesTomadas: accionesTomadas.trim() ? accionesTomadas.trim() : null
+    };
+
     const nuevaIncidencia: IncidenciaRegistro = {
       id: `inc-${Date.now()}`,
       studentId: selectedStudent.enrollmentId,
@@ -202,10 +241,10 @@ export default function VistaIncidenciasDocente() {
       gradeSection: gradeSectionText,
       teacherName: docenteNombre || 'Docente asignado',
       dateTime,
-      lugar,
-      gravedad,
-      descripcion: descripcion.trim(),
-      accionesTomadas: accionesTomadas.trim(),
+      lugar: payload.lugar,
+      gravedad: payload.gravedad,
+      descripcion: payload.descripcion,
+      accionesTomadas: payload.accionesTomadas || '',
       createdAt: new Date().toISOString()
     };
 
@@ -215,6 +254,8 @@ export default function VistaIncidenciasDocente() {
       setDescripcion('');
       setAccionesTomadas('');
       setGravedad('MODERADA');
+      setSelectedEnrollmentId('');
+      setStudentSearchQuery('');
       setSubmitting(false);
 
       setTimeout(() => {
@@ -223,11 +264,11 @@ export default function VistaIncidenciasDocente() {
     }, 400);
   };
 
-  // Filtrado de incidencias
+  // Filtrado de historial
   const incidenciasFiltradas = incidencias.filter(inc => {
     const matchGravedad = filterGravedad === 'TODAS' || inc.gravedad === filterGravedad;
-    const matchNombre = inc.studentName.toLowerCase().includes(searchStudent.toLowerCase())
-      || inc.courseName.toLowerCase().includes(searchStudent.toLowerCase());
+    const matchNombre = inc.studentName.toLowerCase().includes(searchHistory.toLowerCase())
+      || inc.courseName.toLowerCase().includes(searchHistory.toLowerCase());
     return matchGravedad && matchNombre;
   });
 
@@ -300,30 +341,104 @@ export default function VistaIncidenciasDocente() {
               </select>
             </label>
 
-            {/* 2. Selector de Alumno */}
-            <label className="block">
-              Estudiante implicado <span className="text-rose-600">*</span>
+            {/* 2. Búsqueda en Vivo de Estudiante Implicado */}
+            <div ref={searchContainerRef} className="block relative">
+              <span className="block text-muted">
+                Estudiante implicado <span className="text-rose-600">*</span>
+              </span>
+
               {studentsLoading ? (
                 <p className="py-2 text-[11px] text-muted font-normal">Cargando lista de alumnos...</p>
               ) : studentsError ? (
                 <p className="py-1 text-[11px] text-rose-600 font-normal">{studentsError}</p>
-              ) : students.length === 0 ? (
-                <p className="py-2 text-[11px] text-muted font-normal">No hay alumnos en esta sección.</p>
+              ) : selectedStudent ? (
+                /* Tarjeta de Estudiante Seleccionado */
+                <div className="mt-1.5 p-3 rounded-xl border-2 border-emerald-300 bg-emerald-50/60 flex items-center justify-between gap-3 animate-in fade-in">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                      {selectedStudent.fullName.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-xs text-ink truncate">{selectedStudent.fullName}</p>
+                      <p className="text-[10px] text-emerald-800 font-mono">
+                        {selectedStudent.studentCode || 'Sin código institucional'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedEnrollmentId('');
+                      setStudentSearchQuery('');
+                      setIsStudentSearchOpen(true);
+                    }}
+                    className="px-2.5 py-1 text-[11px] font-bold text-emerald-900 bg-white border border-emerald-300 hover:bg-emerald-100 rounded-lg transition-colors shrink-0 shadow-2xs"
+                  >
+                    Cambiar
+                  </button>
+                </div>
               ) : (
-                <select
-                  required
-                  value={selectedEnrollmentId}
-                  onChange={e => setSelectedEnrollmentId(Number(e.target.value))}
-                  className="w-full mt-1.5 p-2.5 rounded-lg border border-line bg-neutral/30 text-ink text-xs font-semibold focus-visible:outline-accent"
-                >
-                  {students.map((s, idx) => (
-                    <option key={s.enrollmentId} value={s.enrollmentId}>
-                      {idx + 1}. {s.fullName}
-                    </option>
-                  ))}
-                </select>
+                /* Entrada de Búsqueda en Vivo */
+                <div className="relative mt-1.5">
+                  <div className="relative">
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                    <input
+                      type="text"
+                      placeholder="Escribe para buscar por nombre o código..."
+                      value={studentSearchQuery}
+                      onChange={e => {
+                        setStudentSearchQuery(e.target.value);
+                        setIsStudentSearchOpen(true);
+                      }}
+                      onFocus={() => setIsStudentSearchOpen(true)}
+                      className="w-full pl-9 pr-8 py-2.5 rounded-lg border border-line bg-neutral/30 text-ink text-xs font-semibold focus-visible:outline-accent"
+                    />
+                    {studentSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setStudentSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink p-1"
+                        aria-label="Borrar texto"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown flotante con resultados filtrados */}
+                  {isStudentSearchOpen && (
+                    <div className="absolute top-full left-0 right-0 z-30 mt-1 max-h-56 overflow-y-auto bg-white border border-line rounded-xl shadow-lg divide-y divide-line/60 custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
+                      {filteredStudents.length === 0 ? (
+                        <div className="p-3 text-center text-xs text-muted font-normal">
+                          {students.length === 0
+                            ? 'No hay estudiantes matriculados en esta sección.'
+                            : `No se encontraron coincidencias para "${studentSearchQuery}".`}
+                        </div>
+                      ) : (
+                        filteredStudents.map(s => (
+                          <button
+                            key={s.enrollmentId}
+                            type="button"
+                            onClick={() => {
+                              setSelectedEnrollmentId(s.enrollmentId);
+                              setStudentSearchQuery('');
+                              setIsStudentSearchOpen(false);
+                            }}
+                            className="w-full px-3 py-2 text-left hover:bg-neutral/30 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+                          >
+                            <div className="min-w-0">
+                              <p className="font-bold text-xs text-ink truncate">{s.fullName}</p>
+                              <p className="text-[10px] text-muted font-mono">{s.studentCode || 'Sin código'}</p>
+                            </div>
+                            <span className="text-[11px] font-bold text-accent shrink-0">Elegir</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
-            </label>
+            </div>
 
             {/* 3. Docente que reporta (Automático / Trazabilidad) */}
             <div>
@@ -378,9 +493,9 @@ export default function VistaIncidenciasDocente() {
                       key={g.value}
                       type="button"
                       onClick={() => setGravedad(g.value)}
-                      className={`p-2.5 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                      className={`p-2.5 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
                         isSelected
-                          ? `${g.badgeClass} ring-2 ring-accent/30 shadow-xs font-extrabold`
+                          ? `${g.badgeClass} ring-2 ring-accent/30 shadow-xs font-black`
                           : 'border-line bg-white hover:bg-neutral/20 text-muted font-bold'
                       }`}
                     >
@@ -422,7 +537,7 @@ export default function VistaIncidenciasDocente() {
             {/* Botón de Guardado */}
             <button
               type="submit"
-              disabled={submitting || !descripcion.trim() || students.length === 0}
+              disabled={submitting || !descripcion.trim() || !selectedEnrollmentId}
               className="mt-2 min-h-10 px-4 py-2.5 rounded-lg bg-accent text-white text-xs font-bold hover:bg-accent/90 transition-all flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {submitting ? (
@@ -455,8 +570,8 @@ export default function VistaIncidenciasDocente() {
               <input
                 type="text"
                 placeholder="Buscar por alumno o curso..."
-                value={searchStudent}
-                onChange={e => setSearchStudent(e.target.value)}
+                value={searchHistory}
+                onChange={e => setSearchHistory(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 bg-neutral/20 border border-line rounded-lg text-xs text-ink placeholder:text-muted focus-visible:outline-accent"
               />
             </div>

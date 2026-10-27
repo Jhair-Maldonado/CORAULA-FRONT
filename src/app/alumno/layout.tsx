@@ -26,9 +26,9 @@ function AlumnoLayoutContent({ children }: { children: React.ReactNode }) {
   // Si estamos en la página de login (/alumno/login), no mostrar sidebar ni topbar del dashboard
   if (isLoginPage) {
     return (
-      <div className="min-h-screen bg-[#F3F4F6] text-[#111827] antialiased flex flex-col justify-center">
+      <main className="min-h-screen bg-[#F3F4F6] text-[#111827] antialiased flex flex-col justify-center">
         {children}
-      </div>
+      </main>
     );
   }
 

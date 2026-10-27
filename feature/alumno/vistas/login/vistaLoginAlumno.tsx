@@ -157,7 +157,7 @@ export default function VistaLoginAlumno() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[11px] text-[#6B7280] mt-4">
+        <p className="text-center text-[11px] text-[#4B5563] mt-4">
           Colegio San Marcos · Sistema CORAULA 2026
         </p>
       </div>

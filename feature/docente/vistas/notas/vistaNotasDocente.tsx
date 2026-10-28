@@ -1,7 +1,7 @@
 // feature/docente/vistas/notas/vistaNotasDocente.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -20,6 +20,8 @@ import { canEnterFirstGrade, gradeInputError, manualSheetColumns } from '@/lib/m
 import { evaluationColumns, participationGrade } from '@/lib/evaluationPreparation';
 import { CardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
+import ResultadosBimestre from '@/components/evaluation/ResultadosBimestre';
+import { teacherGradesService } from '@/services/teacher/teacherGradesService';
 import { useDocenteSession } from '@/app/docente/components/DocenteSessionContext';
 
 export default function VistaNotasDocente() {
@@ -58,7 +60,13 @@ function NotasDelCurso({ course, selectCourse }: { course?: TeacherCourseSummary
     }).catch(error => { if (current) setResult({ key, error: teacherCoursesErrorMessage(error) }); });
     return () => { current = false; };
   }, [selectedCursoId, key]);
-  const hasDrafts = Object.values(grades.drafts).some(value => value !== '');
+  const resultsSectionCourseId = course?.sectionCourseId, resultsBimesterId = bimester?.id;
+  const loadResults = useCallback((signal: AbortSignal) => {
+    if (!resultsSectionCourseId || !resultsBimesterId) return Promise.reject(new Error('Selecciona un curso y bimestre.'));
+    return teacherGradesService.getResults(resultsSectionCourseId, resultsBimesterId, signal);
+  }, [resultsSectionCourseId, resultsBimesterId]);
+  const criterionName = (criterionId: number) => criteria.find(c => c.id === criterionId)?.name;
+  const hasDrafts =Object.values(grades.drafts).some(value => value !== '');
   const invalidDrafts = Object.values(grades.drafts).some(value => value !== '' && gradeInputError(value));
 
   if (loading && cursos.length === 0) {
@@ -222,6 +230,8 @@ function NotasDelCurso({ course, selectCourse }: { course?: TeacherCourseSummary
           </tbody></table>
         </div></div>
       </>}
+
+      {course && scopedEvaluation && bimester && bimester.status !== 'ANULADO' && <ResultadosBimestre load={loadResults} reloadKey={grades.resultsRevision} criterionName={criterionName} />}
     </div>
   );
 }

@@ -54,7 +54,7 @@ test('history GET accepts empty and complete entries, rejects wrong grade IDs an
 
 async function view(overrides: Partial<typeof adminGradesService>, run: (h: { renderer: ReactTestRenderer; click: (name: string) => Promise<void>; button: (name: string) => ReactTestInstance | undefined; change: (label: string, value: string) => Promise<void>; submit: () => Promise<void> }) => Promise<void>, role: 'ADMINISTRADOR' | 'DIRECTIVO' = 'ADMINISTRADOR') {
   const original = { ...adminGradesService }, oldSections = sectionsService.list, oldCourses = sectionCoursesService.list, oldBimesters = evaluationService.getBimesters;
-  Object.assign(adminGradesService, { getSheet: async (c: typeof context) => ({ ...sheet(), ...c, bimester: { ...sheet().bimester, id: c.bimesterId } }), correctGrade: async () => saved(), getHistory: async () => [history] }, overrides);
+  Object.assign(adminGradesService, { getSheet: async (c: typeof context) => ({ ...sheet(), ...c, bimester: { ...sheet().bimester, id: c.bimesterId } }), correctGrade: async () => saved(), getHistory: async () => [history], getResults: async (sectionCourseId: number, bimesterId: number) => ({ sectionCourseId, bimesterId, areaId: 2, students: [{ enrollmentId: 50, studentId: 60, fullName: 'Estudiante', pa: 13.5, criteriaIndicator: 14, courseGrade: 14, courseApproved: true, areaGrade: 14, areaApproved: true, reasons: [] }] }) }, overrides);
   sectionsService.list = async () => [1, 2].map(id => ({ id, academicPeriodId: 30, level: 'PRIMARY', grade: 1, name: `Sección ${id}`, maxCapacity: 30, enrollmentOpen: false, active: true }));
   sectionCoursesService.list = async id => [10, 11].map(courseId => ({ id: courseId, sectionId: Number(id), courseId: 20, courseCode: 'MAT', courseName: `Matemática ${courseId}`, active: true, teacherId: null, teacherName: null }));
   evaluationService.getBimesters = async () => [1, 2].map(id => ({ ...sheet().bimester, id }));
@@ -188,9 +188,31 @@ test('manual columns are dynamic beyond five and stale history cannot appear in 
     }
     return s;
   } }, async h => {
-    assert.equal(h.renderer.root.findByType('thead').findAllByType('th').length, 10);
+    assert.equal(h.renderer.root.findAllByType('thead')[0].findAllByType('th').length, 10);
     await h.click('Historial #70'); await h.change('Bimestre', '2');
     await act(async () => { pending.resolve([{ ...history, reason: 'OBSOLETE HISTORY' }]); });
     assert.doesNotMatch(text(h.renderer.root), /OBSOLETE HISTORY/);
   });
+});
+
+test('ADMINISTRADOR and DIRECTIVO see #45 results read-only, reloaded after an accepted correction', async () => {
+  for (const role of ['ADMINISTRADOR', 'DIRECTIVO'] as const) {
+    const calls: number[][] = [];
+    await view({ getResults: async (sectionCourseId: number, bimesterId: number) => { calls.push([sectionCourseId, bimesterId]); return { sectionCourseId, bimesterId, areaId: 2, students: [] }; } }, async h => {
+      assert.match(text(h.renderer.root), /Resultados del bimestre/);
+      assert.match(text(h.renderer.root), /Calculado, aún no publicado/);
+      assert.deepEqual(calls, [[10, 1]]);
+      await h.click('Actualizar resultados'); assert.equal(calls.length, 2);
+      if (role === 'ADMINISTRADOR') {
+        await h.click('Corregir Estudiante · Criterio manual');
+        await h.change('Nueva nota', '15'); await h.change('Motivo', 'Corrección documentada');
+        await h.submit();
+        assert.equal(calls.length, 3);
+      }
+    }, role);
+  }
+  await view({ getResults: async () => { throw new AxiosError('x', 'ERR', undefined, undefined, { status: 403, data: {} } as AxiosResponse); } }, async h => {
+    assert.match(text(h.renderer.root), /No tienes permiso para consultar los resultados/);
+    assert.ok(h.button('Reintentar resultados'));
+  }, 'DIRECTIVO');
 });

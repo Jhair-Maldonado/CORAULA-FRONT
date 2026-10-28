@@ -278,3 +278,18 @@ test('a post-save reload that finds the bimester ANULADO never confirms grades a
     } finally { await h.unmount(); }
   });
 });
+
+test('resultsRevision (#45) advances on sheet reads and after a save with accepted grades', async () => {
+  await withService({ getSheet: async () => sheet() }, async () => {
+    const h = await harness();
+    try {
+      const initial = h.current.resultsRevision;
+      await h.select();
+      const afterRead = h.current.resultsRevision;
+      assert.ok(afterRead > initial);
+      await h.draft('15');
+      await act(async () => { await h.current.save(); });
+      assert.equal(h.current.resultsRevision, afterRead + 1, 'accepted grade bumps results even when the reload does not confirm it');
+    } finally { await h.unmount(); }
+  });
+});

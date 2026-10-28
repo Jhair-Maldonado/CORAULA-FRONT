@@ -1,4 +1,4 @@
-import { isAxiosError } from 'axios';
+import { contractErrorCode } from '@/services/admin/contractErrors';
 
 // BACKEND #75 and #41 (docs/student-enrollment-error-contract.md): code → the only HTTP statuses it may travel with.
 // Only the student/guardian/enrollment writes and the state changes send it; GETs and 401/403 never do.
@@ -76,12 +76,7 @@ export const studentErrorCodeMessages: Record<Exclude<StudentErrorCode, GenericS
 
 // A known string code whose HTTP status matches the contract; anything else is ignored (behaviour stays HTTP-based).
 export function studentErrorCode(error: unknown): StudentErrorCode | null {
-  if (!isAxiosError(error) || !error.response) return null;
-  const { status, data } = error.response;
-  const code: unknown = data && typeof data === 'object' ? (data as Record<string, unknown>).code : undefined;
-  if (typeof code !== 'string' || !Object.prototype.hasOwnProperty.call(contractStatuses, code)) return null;
-  const statuses: readonly number[] = contractStatuses[code as StudentErrorCode];
-  return statuses.includes(status) ? code as StudentErrorCode : null;
+  return contractErrorCode<StudentErrorCode>(error, contractStatuses);
 }
 
 // Specific text for a recognized code; null for generic, unknown or mismatched codes.

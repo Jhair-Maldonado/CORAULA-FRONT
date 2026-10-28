@@ -6,12 +6,26 @@ import { evaluationResultReasonLabel, evaluationResultsErrorMessage } from '@/li
 
 type Load = (signal: AbortSignal) => Promise<EvaluationResultsResponse>;
 type Result = { load: Load; key: string; data?: EvaluationResultsResponse; error?: string };
+/** #51-A publication mark; omitted when the caller cannot read it (teacher views until FRONT #106). */
+export type ResultsPublication = { publishedAt: string | null; revision: number };
+
+const publishedFormat = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' });
+export function publishedAtLabel(publishedAt: string): string {
+  const date = new Date(publishedAt);
+  return Number.isFinite(date.getTime()) ? publishedFormat.format(date) : publishedAt;
+}
+// Only publishedAt means published: a CERRADO bimester without it is not.
+function PublicationNote({ publication }: { publication?: ResultsPublication }) {
+  if (!publication) return <p role="note" className="p-3 bg-neutral/40 border border-line text-muted rounded-lg text-xs font-bold">Calculado desde las notas actuales.</p>;
+  if (publication.publishedAt === null) return <p role="note" className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs font-bold">Calculado, aún no publicado. La publicación de resultados es un paso posterior.</p>;
+  return <p role="note" className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-bold">Publicado el <time dateTime={publication.publishedAt}>{publishedAtLabel(publication.publishedAt)}</time> · revisión {publication.revision}. Las correcciones posteriores quedan auditadas.</p>;
+}
 
 const button = 'min-h-10 px-3 py-2 rounded-lg border border-line bg-white text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50';
 
 // Read-only #45 results. `load` must be memoized per context; `reloadKey` changes
 // after a grade mutation so the table is read again from the backend sources.
-export default function ResultadosBimestre({ load, reloadKey = '', criterionName }: { load: Load; reloadKey?: string | number; criterionName?: (criterionId: number) => string | undefined }) {
+export default function ResultadosBimestre({ load, reloadKey = '', criterionName, publication }: { load: Load; reloadKey?: string | number; criterionName?: (criterionId: number) => string | undefined; publication?: ResultsPublication }) {
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
   const key = JSON.stringify([reloadKey, revision]);
@@ -36,7 +50,7 @@ export default function ResultadosBimestre({ load, reloadKey = '', criterionName
         </div>
         <button type="button" className={button} disabled={loading} onClick={() => setRevision(n => n + 1)}>Actualizar resultados</button>
       </div>
-      <p role="note" className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs font-bold">Calculado, aún no publicado. La publicación de resultados es un paso posterior.</p>
+      <PublicationNote publication={publication} />
       {loading ? <p role="status" className="text-sm text-muted">Cargando resultados...</p>
         : error ? <div role="alert" className="text-sm text-rose-700"><p>{error}</p><button type="button" className={`${button} mt-3`} onClick={() => setRevision(n => n + 1)}>Reintentar resultados</button></div>
         : data && (data.students.length === 0 ? <p className="text-sm text-muted">No hay estudiantes con matrícula activa.</p> : (

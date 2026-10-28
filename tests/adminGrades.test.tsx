@@ -10,6 +10,7 @@ import { sectionsService } from '../src/services/admin/sectionsService';
 import { sectionCoursesService } from '../src/services/admin/sectionCoursesService';
 import { evaluationService } from '../src/services/admin/evaluationService';
 import httpClient from '../src/services/httpClient';
+import { bimesterPublicationService } from '../src/services/admin/bimesterPublicationService';
 import type { CriterionGradesSheetResponse } from '../src/types/teacherGradesApi';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -269,4 +270,30 @@ test('coded PATCH errors show the catalog text only with their contract status; 
       assert.doesNotMatch(shown, /secret detail|Corrección confirmada/);
     });
   }
+});
+
+test('#111: the publication mark is read only for CERRADO and drives the results note; re-read after an accepted correction', async () => {
+  const original = bimesterPublicationService.getPublication;
+  const calls: number[] = [];
+  let answer: () => Promise<unknown> = async () => ({ bimesterId: 1, status: 'CERRADO', publishedAt: '2026-04-30T18:00:00Z', revision: 3, preparationRevision: null, courses: [], details: [] });
+  bimesterPublicationService.getPublication = (async (bimesterId: number) => { calls.push(bimesterId); return answer(); }) as typeof original;
+  try {
+    for (const status of ['ABIERTO', 'EN_REVISION'] as const) {
+      await view({ getSheet: async () => sheet(0, status) }, async h => { assert.match(text(h.renderer.root), /Calculado, aún no publicado/); });
+    }
+    assert.deepEqual(calls, []);
+    let reads = 0;
+    await view({ getSheet: async () => sheet(++reads === 1 ? 0 : 15, 'CERRADO') }, async h => {
+      assert.match(text(h.renderer.root), /Publicado el .* · revisión 3\./);
+      assert.doesNotMatch(text(h.renderer.root), /no publicado/);
+      assert.equal(calls.length, 1);
+      await h.click('Corregir Estudiante · Criterio manual'); await h.change('Nueva nota', '15'); await h.change('Motivo', 'Corrección publicada'); await h.submit();
+      assert.equal(calls.length, 2);
+    });
+    // CERRADO without a mark is not published; an unreadable mark falls back to the neutral note.
+    answer = async () => ({ bimesterId: 1, status: 'CERRADO', publishedAt: null, revision: 0, preparationRevision: 'abc', courses: [], details: [] });
+    await view({ getSheet: async () => sheet(0, 'CERRADO') }, async h => { assert.match(text(h.renderer.root), /Calculado, aún no publicado/); });
+    answer = async () => { throw httpError(); };
+    await view({ getSheet: async () => sheet(0, 'CERRADO') }, async h => { assert.match(text(h.renderer.root), /Calculado desde las notas actuales/); });
+  } finally { bimesterPublicationService.getPublication = original; }
 });

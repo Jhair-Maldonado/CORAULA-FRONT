@@ -25,13 +25,14 @@ const contract: Record<string, number[]> = {
   ENROLLMENT_CLOSED: [409], SECTION_FULL: [409], ACTIVE_ENROLLMENT_EXISTS: [409], ENROLLMENT_DATE_REQUIRED: [400],
   ENROLLMENT_DATE_OUT_OF_PERIOD: [400], ENROLLMENT_NOT_FOUND: [404], ENROLLMENT_NOT_OF_STUDENT: [409],
   ENROLLMENT_STATUS_CONFLICT: [409], WITHDRAWAL_DATE_REQUIRED: [400], WITHDRAWAL_DATE_BEFORE_ENROLLMENT: [400],
+  STUDENT_STATUS_CONFLICT: [409], STUDENT_HAS_ACTIVE_ENROLLMENT: [409],
 };
 
-test('catalog holds the 29 contract codes; every specific code has a Spanish text', () => {
-  assert.equal(STUDENT_ERROR_CODES.length, 29);
+test('catalog holds the 31 contract codes (#75 + #41); every specific code has a Spanish text', () => {
+  assert.equal(STUDENT_ERROR_CODES.length, 31);
   assert.deepEqual([...STUDENT_ERROR_CODES].sort(), Object.keys(contract).sort());
   assert.deepEqual(Object.keys(studentErrorCodeMessages).sort(), Object.keys(contract).filter(code => !generic.includes(code)).sort());
-  for (const code of ['STUDENT_STATUS_CONFLICT', 'STUDENT_HAS_ACTIVE_ENROLLMENT']) assert.equal(studentErrorCode(coded(409, code)), null);
+  assert.match(studentErrorCodeMessage(coded(409, 'STUDENT_HAS_ACTIVE_ENROLLMENT'))!, /Retírala con «Retirar matrícula»/);
 });
 
 test('a code is accepted only as a known string with the contract HTTP status', () => {

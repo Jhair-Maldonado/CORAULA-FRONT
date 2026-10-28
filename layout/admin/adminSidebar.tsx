@@ -24,8 +24,10 @@ import {
   Menu01Icon,
   BookOpen01Icon,
   Logout01Icon,
-  FingerPrintIcon
+  FingerPrintIcon,
+  SquareLockPasswordIcon
 } from 'hugeicons-react';
+import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
 
 type SubItem = {
   name: string;
@@ -253,16 +255,34 @@ export const AdminSidebar = () => {
               </div>
             </div>
 
-            <button
-              onClick={handleLogout}
-              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors shrink-0 cursor-pointer"
-              title="Cerrar sesión"
-            >
-              <Logout01Icon size={16} />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Link
+                href={CHANGE_PASSWORD_ROUTE}
+                className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-neutral transition-colors shrink-0"
+                title="Cambiar contraseña"
+                aria-label="Cambiar contraseña"
+              >
+                <SquareLockPasswordIcon size={16} />
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors shrink-0 cursor-pointer"
+                title="Cerrar sesión"
+              >
+                <Logout01Icon size={16} />
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="relative group flex justify-center">
+          <div className="relative group flex flex-col items-center gap-2">
+            <Link
+              href={CHANGE_PASSWORD_ROUTE}
+              title="Cambiar contraseña"
+              aria-label="Cambiar contraseña"
+              className="w-8 h-8 rounded-xl bg-white border border-line text-muted flex items-center justify-center hover:text-ink hover:bg-neutral transition-colors"
+            >
+              <SquareLockPasswordIcon size={16} />
+            </Link>
             <button
               onClick={handleLogout}
               title="Cerrar sesión"

@@ -3,13 +3,21 @@ import httpClient from '@/services/httpClient';
 import { parseCriterionGradesSheetResponse, parseCriterionGradeResponse } from '@/lib/manualGradesContract';
 import { gradeInputError } from '@/lib/manualGrades';
 import { parseEvaluationResultsResponse } from '@/lib/evaluationResultsContract';
+import { gradeCorrectionErrorCodeMessage } from '@/services/admin/gradeCorrectionErrors';
+import type { Bimester } from '@/types/evaluationApi';
 
 export type AdminGradeContext = { sectionCourseId: number; courseId: number; academicPeriodId: number; bimesterId: number };
 export type GradeCorrection = { grade: number; reason: string; expectedGrade: number };
 export type GradeHistory = { id: number; criterionGradeId: number; previousValue: number; newValue: number; reason: string; changedByUserId: number; occurredAt: string };
 function id(value: number) { if (!Number.isSafeInteger(value) || value <= 0) throw new Error('Identificador inválido.'); return value; }
+export const maxCorrectionReasonLength = 1000;
+// BACK #51-A: the Director corrects MANUAL grades only in EN_REVISION or CERRADO; while ABIERTO the teacher does.
+export const correctableBimesterStatuses: readonly Bimester['status'][] = ['EN_REVISION', 'CERRADO'];
 export function correctionError(grade: string, reason: string, expectedGrade: number): string | null {
-  return gradeInputError(grade) ?? (!reason.trim() ? 'Indica el motivo de la corrección.' : Number(grade) === expectedGrade ? 'La nueva nota debe ser distinta de la actual.' : null);
+  const motive = reason.trim();
+  return gradeInputError(grade) ?? (!motive ? 'Indica el motivo de la corrección.'
+    : motive.length > maxCorrectionReasonLength ? `El motivo no puede superar los ${maxCorrectionReasonLength} caracteres.`
+    : Number(grade) === expectedGrade ? 'La nueva nota debe ser distinta de la actual.' : null);
 }
 export const adminGradesService = {
   async getSheet(context: AdminGradeContext, signal?: AbortSignal) {
@@ -55,4 +63,9 @@ export function adminGradesErrorMessage(error: unknown): string {
     case 409: return 'Conflicto: la nota o el contexto cambiaron. Se consultará nuevamente la planilla; no se sobrescribirá el cambio.';
     default: return 'La operación no pudo confirmarse. Actualiza la planilla antes de otra corrección.';
   }
+}
+// PATCH outcome: a recognized code with its contract status first; otherwise the HTTP text. Uncertain results
+// (no response, 5xx, inconsistent body) keep the generic text and are never retried.
+export function adminGradeCorrectionErrorMessage(error: unknown): string {
+  return gradeCorrectionErrorCodeMessage(error) ?? adminGradesErrorMessage(error);
 }

@@ -88,11 +88,27 @@ async function render(load: (signal: AbortSignal) => Promise<EvaluationResultsRe
   } finally { if (renderer) await act(async () => { renderer.unmount(); }); }
 }
 
-test('table shows PA with one decimal, integer grade, threshold status and the not-published notice', async () => {
+test('publication note: neutral without data, not published without publishedAt, published with date and revision', async () => {
+  const data = parseEvaluationResultsResponse(body(row()), expected);
+  const notes: string[] = [];
+  for (const publication of [undefined, { publishedAt: null, revision: 0 }, { publishedAt: '2026-04-30T18:00:00Z', revision: 2 }]) {
+    let renderer!: ReactTestRenderer;
+    await act(async () => { renderer = create(<ResultadosBimestre load={async () => data} publication={publication} />); });
+    notes.push(text(renderer.root.findByProps({ role: 'note' })));
+    await act(async () => { renderer.unmount(); });
+  }
+  assert.equal(notes[0], 'Calculado desde las notas actuales.');
+  assert.match(notes[1], /Calculado, aún no publicado/);
+  assert.match(notes[2], /^Publicado el 30 abr\. 2026.* · revisión 2\./);
+  assert.doesNotMatch(notes[0] + notes[2], /no publicado/);
+});
+
+test('table shows PA with one decimal, integer grade, threshold status and the neutral notice for teacher views', async () => {
   const data = parseEvaluationResultsResponse(body(row(), row({ enrollmentId: 102, fullName: 'Alumno Diez', pa: 10, courseGrade: 10, courseApproved: false, areaGrade: 10, areaApproved: false }), row({ enrollmentId: 103, fullName: 'Alumno Cero', pa: 0, criteriaIndicator: 0, courseGrade: 0, courseApproved: false, areaGrade: 0, areaApproved: false })), expected);
   await render(async () => data, async r => {
     const all = text(r.root);
-    assert.match(all, /Calculado, aún no publicado/);
+    assert.match(all, /Calculado desde las notas actuales\./);
+    assert.doesNotMatch(all, /no publicado/);
     const rows = r.root.findAllByType('tr').slice(1).map(text);
     assert.match(rows[0], /Alumno Ejemplo12\.912\.4012Aprobado/);
     assert.match(rows[1], /Alumno Diez10\.0.*10Desaprobado/);

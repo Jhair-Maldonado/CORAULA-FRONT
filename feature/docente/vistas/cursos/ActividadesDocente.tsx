@@ -19,11 +19,14 @@ import {
   activityTitleError,
   activityChanges,
   activityMatchesChanges,
+  annulmentReasonError,
   isAmbiguousActivityCreation,
+  isUncertainActivityResult,
   teacherActivitiesErrorMessage,
   teacherActivitiesService
 } from '@/services/teacher/teacherActivitiesService';
-import { ACADEMIC_ACTIVITY_TYPES } from '@/types/teacherActivitiesApi';
+import NotasActividadDocente from './NotasActividadDocente';
+import { ACADEMIC_ACTIVITY_TYPES, academicActivityStatusLabels } from '@/types/teacherActivitiesApi';
 import type { AcademicActivity, ActivityContext, CreateAcademicActivityRequest } from '@/types/teacherActivitiesApi';
 import { bimesterStatusLabels, type Bimester } from '@/types/evaluationApi';
 
@@ -169,7 +172,8 @@ function CourseActivities({
             Actividades académicas y materiales
           </h2>
           <p className="text-xs text-muted mt-0.5">
-            Prepara actividades para este curso y sección. Cuenta para PA es una configuración futura; no calcula calificaciones.
+            Prepara, publica y califica actividades de este curso y sección. Las notas de actividades publicadas que cuentan para PA
+            forman el promedio de actividades (PA), calculado por el servidor y de solo lectura.
           </p>
         </div>
 
@@ -272,6 +276,8 @@ function ActivitySheet({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
   const [detail, setDetail] = useState<Result<AcademicActivity> | null>(null);
+  const [confirming, setConfirming] = useState<{ kind: 'publish' | 'annul'; activity: AcademicActivity } | null>(null);
+  const [annulReason, setAnnulReason] = useState('');
 
   // Estados para formulario dual y fechas
   const [creationMode, setCreationMode] = useState<'actividad' | 'material'>('actividad');
@@ -466,7 +472,10 @@ function ActivitySheet({
     try {
       const original = await teacherActivitiesService.getActivity(context, activityId);
       if (!mounted.current || generationRef.current !== epoch) return;
-      if (original.status !== 'PLANIFICADA') throw new Error('Estado no editable.');
+      if (original.status !== 'PLANIFICADA') {
+        setError(`La actividad ya está ${academicActivityStatusLabels[original.status].toLowerCase()} y no admite esta edición. Actualiza la lista.`);
+        return;
+      }
       editRef.current = original;
       setEditing({
         original,
@@ -558,8 +567,57 @@ function ActivitySheet({
     }
   }
 
+  // Publish/annul require an open bimester; the server re-checks state and window.
+  const windowOpen = bimester.status === 'ABIERTO';
+
+  async function transition() {
+    if (!mounted.current || generationRef.current !== epoch || lockRef.current || disabled || !windowOpen || !confirming) return;
+    const { kind, activity } = confirming;
+    if (kind === 'annul' && annulmentReasonError(annulReason)) return;
+    const expected = kind === 'publish' ? 'PUBLICADA' : 'ANULADA';
+    lockRef.current = true;
+    setBusy(true);
+    setParentBusy(true);
+    setConfirming(null);
+    setNotice(null);
+    setError(null);
+    let failure: unknown = null;
+    try {
+      try {
+        if (kind === 'publish') await teacherActivitiesService.publishActivity(context, activity.id);
+        else await teacherActivitiesService.annulActivity(context, activity.id, annulReason);
+      } catch (err) {
+        failure = err;
+      }
+      // Always reload: the state shown comes from the server, never from the request.
+      const [fresh, collection] = await Promise.allSettled([
+        teacherActivitiesService.getActivity(context, activity.id),
+        teacherActivitiesService.getActivities(context)
+      ]);
+      if (!mounted.current || generationRef.current !== epoch) return;
+      if (collection.status === 'fulfilled') setList({ key, data: collection.value });
+      if (fresh.status === 'fulfilled') setDetail({ key: JSON.stringify([activity.id, detailRevision]), data: fresh.value });
+      const row = collection.status === 'fulfilled' ? collection.value.find(a => a.id === activity.id) : undefined;
+      const confirmed = fresh.status === 'fulfilled' && fresh.value.status === expected && row?.status === expected;
+      setRefreshRequired(fresh.status !== 'fulfilled' || collection.status !== 'fulfilled');
+      if (!failure && confirmed) {
+        setAnnulReason('');
+        setNotice(kind === 'publish' ? `Actividad «${activity.title}» publicada y confirmada en el listado.` : `Actividad «${activity.title}» anulada y confirmada en el listado. Sus notas se conservan.`);
+      } else if (failure && isUncertainActivityResult(failure)) {
+        setError(`No se pudo confirmar la ${kind === 'publish' ? 'publicación' : 'anulación'}. Se volvió a consultar el estado: ${confirmed ? 'la operación sí se aplicó' : 'revísalo antes de reintentar'}.`);
+      } else {
+        setError(failure ? teacherActivitiesErrorMessage(failure) : 'La operación no se corroboró en el listado recargado. Actualiza antes de continuar.');
+      }
+    } finally {
+      lockRef.current = false;
+      setParentBusy(false);
+      if (mounted.current) setBusy(false);
+    }
+  }
+
   function refresh() {
     if (!lockRef.current) {
+      setConfirming(null);
       cancelEdit();
       setSelectedId(null);
       setNotice(null);
@@ -838,7 +896,7 @@ function ActivitySheet({
                       </label>
 
                       <p className="font-normal text-[11px] text-muted">
-                        La actividad se crea PLANIFICADA. Esta pantalla no publica ni recibe entregas ni calcula calificaciones.
+                        La actividad se crea PLANIFICADA. Publícala desde su detalle para registrar notas; no recibe entregas de estudiantes.
                       </p>
                     </>
                   ) : (
@@ -1085,6 +1143,18 @@ function ActivitySheet({
                             Cuenta para PA
                           </span>
                         )}
+
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                            a.status === 'PUBLICADA'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : a.status === 'ANULADA'
+                                ? 'bg-neutral text-muted border-line line-through'
+                                : 'bg-white text-ink border-line'
+                          }`}
+                        >
+                          Estado: {academicActivityStatusLabels[a.status]}
+                        </span>
                       </div>
                     </div>
 
@@ -1094,7 +1164,10 @@ function ActivitySheet({
                         type="button"
                         disabled={busy || !!editing}
                         className="p-2.5 rounded-xl border border-line bg-white hover:bg-neutral text-muted hover:text-accent transition-all shadow-xs group focus-visible:outline-2 focus-visible:outline-accent"
-                        onClick={() => setSelectedId(a.id)}
+                        onClick={() => {
+                          setConfirming(null);
+                          setSelectedId(a.id);
+                        }}
                         title="Ingresar a la actividad"
                         aria-label={`Ver detalle #${a.id}`}
                       >
@@ -1125,7 +1198,15 @@ function ActivitySheet({
             <section className="p-4 border border-line rounded-xl bg-white shadow-sm mt-2" aria-label="Detalle de actividad">
               <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-line">
                 <h4 className="font-bold text-sm text-ink">Detalle de actividad</h4>
-                <button type="button" className={`${button} bg-white`} onClick={() => setSelectedId(null)}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  className={`${button} bg-white`}
+                  onClick={() => {
+                    setConfirming(null);
+                    setSelectedId(null);
+                  }}
+                >
                   Cerrar detalle
                 </button>
               </div>
@@ -1141,25 +1222,118 @@ function ActivitySheet({
                   </button>
                 </div>
               ) : detail.data ? (
-                <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs break-words">
-                  {Object.entries({
-                    Actividad: `#${detail.data.id} · ${detail.data.title}`,
-                    Descripción: detail.data.description ?? 'Sin descripción',
-                    Tipo: detail.data.type,
-                    Estado: detail.data.status,
-                    'Cuenta para PA': detail.data.cuentaParaPa ? 'Sí' : 'No',
-                    'Curso-sección': detail.data.sectionCourseId,
-                    Bimestre: detail.data.bimesterId,
-                    'ID docente creador': detail.data.createdByTeacherId,
-                    Creación: detail.data.createdAt,
-                    Actualización: detail.data.updatedAt ?? 'Sin actualización'
-                  }).map(([lbl, val]) => (
-                    <div key={lbl} className="p-2.5 bg-neutral/30 border border-line/60 rounded-lg">
-                      <dt className="font-bold text-muted text-[10px] uppercase tracking-wider">{lbl}</dt>
-                      <dd className="text-ink whitespace-pre-wrap mt-0.5">{val}</dd>
+                <>
+                  <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs break-words">
+                    {Object.entries({
+                      Actividad: `#${detail.data.id} · ${detail.data.title}`,
+                      Descripción: detail.data.description ?? 'Sin descripción',
+                      Tipo: detail.data.type,
+                      Estado: academicActivityStatusLabels[detail.data.status],
+                      'Cuenta para PA': detail.data.cuentaParaPa ? 'Sí' : 'No',
+                      'Curso-sección': detail.data.sectionCourseId,
+                      Bimestre: detail.data.bimesterId,
+                      'ID docente creador': detail.data.createdByTeacherId,
+                      Creación: detail.data.createdAt,
+                      Actualización: detail.data.updatedAt ?? 'Sin actualización',
+                      Publicación: detail.data.publishedAt ?? 'Sin publicar',
+                      ...(detail.data.status === 'ANULADA'
+                        ? { Anulación: detail.data.annulledAt, 'Motivo de anulación': detail.data.annulmentReason }
+                        : {})
+                    }).map(([lbl, val]) => (
+                      <div key={lbl} className="p-2.5 bg-neutral/30 border border-line/60 rounded-lg">
+                        <dt className="font-bold text-muted text-[10px] uppercase tracking-wider">{lbl}</dt>
+                        <dd className="text-ink whitespace-pre-wrap mt-0.5">{val}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  {detail.data.status !== 'ANULADA' && (
+                    <div className="mt-3 flex flex-col gap-2">
+                      {windowOpen ? (
+                        confirming?.activity.id === detail.data.id ? (
+                          <div
+                            role="group"
+                            aria-label={confirming.kind === 'publish' ? 'Confirmar publicación' : 'Confirmar anulación'}
+                            className="p-3 border border-amber-200 bg-amber-50 rounded-lg text-xs text-amber-900 flex flex-col gap-2"
+                          >
+                            <p>
+                              {confirming.kind === 'publish'
+                                ? `¿Publicar «${confirming.activity.title}»? Se habilitan sus notas y, si cuenta para PA, entra al cálculo. No se puede despublicar.`
+                                : `¿Anular «${confirming.activity.title}»? Sale del cálculo del PA y conserva sus notas. No se puede reactivar.`}
+                            </p>
+                            {confirming.kind === 'annul' && (
+                              <label className="font-bold">
+                                Motivo de anulación
+                                <textarea
+                                  aria-label="Motivo de anulación"
+                                  rows={2}
+                                  maxLength={1000}
+                                  className={input}
+                                  value={annulReason}
+                                  onChange={e => setAnnulReason(e.target.value)}
+                                />
+                              </label>
+                            )}
+                            {confirming.kind === 'annul' && annulReason && annulmentReasonError(annulReason) && (
+                              <p role="alert" className="text-rose-700">{annulmentReasonError(annulReason)}</p>
+                            )}
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={disabled || (confirming.kind === 'annul' && !!annulmentReasonError(annulReason))}
+                                className={`${button} ${confirming.kind === 'publish' ? 'bg-accent' : 'bg-rose-700'} text-white`}
+                                onClick={() => void transition()}
+                              >
+                                {confirming.kind === 'publish' ? 'Confirmar publicación' : 'Confirmar anulación'}
+                              </button>
+                              <button type="button" disabled={busy} className={`${button} bg-white`} onClick={() => setConfirming(null)}>
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {detail.data.status === 'PLANIFICADA' && (
+                              <button
+                                type="button"
+                                disabled={disabled || !!editing}
+                                className={`${button} bg-accent text-white`}
+                                onClick={() => detail.data && setConfirming({ kind: 'publish', activity: detail.data })}
+                              >
+                                Publicar actividad
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={disabled || !!editing}
+                              className={`${button} bg-white text-rose-700`}
+                              onClick={() => {
+                                setAnnulReason('');
+                                if (detail.data) setConfirming({ kind: 'annul', activity: detail.data });
+                              }}
+                            >
+                              Anular actividad
+                            </button>
+                          </div>
+                        )
+                      ) : (
+                        <p className="text-[11px] text-muted">Publicar o anular requiere el bimestre abierto.</p>
+                      )}
                     </div>
-                  ))}
-                </dl>
+                  )}
+
+                  {detail.data.status === 'PLANIFICADA' ? (
+                    <p className="mt-3 text-[11px] text-muted">Publica la actividad para registrar sus notas.</p>
+                  ) : (
+                    <NotasActividadDocente
+                      key={`${detail.data.id}:${detail.data.status}:${detailKey}`}
+                      context={context}
+                      activityId={detail.data.id}
+                      disabled={disabled}
+                      lockRef={lockRef}
+                    />
+                  )}
+                </>
               ) : null}
             </section>
           )}

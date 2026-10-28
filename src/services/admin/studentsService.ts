@@ -1,5 +1,6 @@
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
+import { studentErrorCode, studentErrorCodeMessage } from '@/services/admin/studentErrors';
 import type { CreateStudentGuardianRequest, CreateStudentRequest, GuardianSummaryResponse, PagedStudentsResponse, StudentDetailResponse, StudentListParams, UpdateStudentRequest } from '@/types/studentApi';
 
 const endpoint = '/v1/management/students';
@@ -49,6 +50,8 @@ export function isUncertainStudentCreate(error: unknown): boolean {
 
 export function studentCreateErrorMessage(error: unknown): string {
   if (isUncertainStudentCreate(error)) return 'No se pudo confirmar el registro. Busca al alumno en el listado antes de intentarlo de nuevo.';
+  const byCode = studentErrorCodeMessage(error);
+  if (byCode) return byCode;
   switch (studentErrorStatus(error)) {
     case 400: return 'Revisa los datos del alumno: DNI de 8 dígitos, nombres, apellido paterno y fecha de nacimiento válidos.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
@@ -63,6 +66,8 @@ export const isUncertainGuardianCreate = isUncertainStudentCreate;
 
 export function guardianCreateErrorMessage(error: unknown): string {
   if (isUncertainGuardianCreate(error)) return 'No se pudo confirmar el alta del apoderado. Revisa la lista de apoderados antes de intentarlo de nuevo.';
+  const byCode = studentErrorCodeMessage(error);
+  if (byCode) return studentErrorCode(error) === 'DNI_ALREADY_EXISTS' ? byCode + ' Si es el apoderado de un hermano, por ahora no se puede vincular desde aquí.' : byCode;
   switch (studentErrorStatus(error)) {
     case 400: return 'Revisa los datos del apoderado: DNI de 8 dígitos, nombres, apellido paterno y relación.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
@@ -91,4 +96,9 @@ export function studentErrorMessage(error: unknown): string {
     case 409: return message || 'El DNI o código ya pertenece a otro registro. Revisa los datos.';
     default: return 'El servidor no pudo completar la solicitud. Intenta nuevamente.';
   }
+}
+
+// Student edit (PATCH): a recognized code wins; otherwise the backend message/HTTP text as before.
+export function studentUpdateErrorMessage(error: unknown): string {
+  return studentErrorCodeMessage(error) ?? studentErrorMessage(error);
 }

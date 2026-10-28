@@ -1,5 +1,6 @@
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
+import { studentErrorCodeMessage } from '@/services/admin/studentErrors';
 import type { CreateEnrollmentRequest, EnrollmentDetailResponse, WithdrawEnrollmentRequest } from '@/types/enrollmentApi';
 import type { AcademicPeriod } from '@/types/academicPeriodApi';
 import type { SectionResponse } from '@/types/sectionApi';
@@ -39,7 +40,8 @@ export function formatWithdrawalReason(reason: string, justification: string): s
   return 'Motivo: ' + reason.trim() + ' | Justificación: ' + justification.trim();
 }
 
-// The backend does not check period activity, period dates or the student's status: the consumer does.
+// The backend also validates period activity, enrollment dates and the student's status (BACKEND #75);
+// checking them here gives immediate feedback before the POST.
 // availableVacancies is null when the vacancies GET could not be read; the backend 409 still guards capacity.
 export function enrollmentCreateValidation(input: {
   studentStatus: StudentStatus; hasActiveEnrollment: boolean; period: AcademicPeriod | undefined;
@@ -91,6 +93,9 @@ export function enrollmentErrorStatus(error: unknown): number | undefined {
 }
 
 export function enrollmentErrorMessage(error: unknown): string {
+  // The profile flow still branches on HTTP: every non-400 failure is re-read, so a 409 says so.
+  const byCode = studentErrorCodeMessage(error);
+  if (byCode) return enrollmentErrorStatus(error) === 409 ? byCode + ' Se consultará su estado actual.' : byCode;
   switch (enrollmentErrorStatus(error)) {
     case 400: return 'No se pudo retirar la matrícula. Revisa la fecha y los datos ingresados.';
     case 401: return 'Tu sesión no permite completar el retiro. Vuelve a iniciar sesión.';
@@ -101,8 +106,10 @@ export function enrollmentErrorMessage(error: unknown): string {
   }
 }
 
-// The backend 409 causes only differ by message text, which is never shown nor interpreted.
+// A recognized code names the cause; without it the 409 causes cannot be told apart and the backend message is never shown.
 export function enrollmentCreateErrorMessage(error: unknown): string {
+  const byCode = studentErrorCodeMessage(error);
+  if (byCode) return byCode;
   switch (enrollmentErrorStatus(error)) {
     case 400: return 'Revisa el periodo, la sección y la fecha de matrícula.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';

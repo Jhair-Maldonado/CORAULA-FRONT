@@ -33,8 +33,8 @@ const detail = (patch: Partial<StudentDetailResponse> = {}): StudentDetailRespon
 const activeEnrollment = { enrollmentId: 10, enrollmentStatus: 'ACTIVE' as const, academicPeriodId: 2, academicPeriodName: 'Periodo 2', sectionId: 5, sectionName: 'A5', grade: 1, level: 'PRIMARY' as const, enrollmentDate: '2020-01-01' };
 const request = (): CreateEnrollmentRequest => ({ academicPeriodId: 2, sectionId: 5, enrollmentDate: localToday(), reason: 'Matrícula individual' });
 const enrolled = (): EnrollmentDetailResponse => ({ enrollmentId: 70, studentId: 1, academicPeriodId: 2, academicPeriodName: 'Periodo 2', sectionId: 5, level: 'PRIMARY', grade: 1, sectionName: 'A5', enrollmentDate: localToday(), status: 'ACTIVE', withdrawalDate: null, withdrawalReason: null });
-const httpError = (status?: number) => new AxiosError('PRIVATE DETAIL', 'ERR_TEST', undefined, undefined,
-  status ? { status, data: { message: 'PRIVATE DETAIL' } } as AxiosResponse : undefined);
+const httpError = (status?: number, code?: unknown) => new AxiosError('PRIVATE DETAIL', 'ERR_TEST', undefined, undefined,
+  status ? { status, data: { message: 'PRIVATE DETAIL', ...(code === undefined ? {} : { code }) } } as AxiosResponse : undefined);
 function text(node: ReactTestInstance): string { return node.children.map(child => typeof child === 'string' ? child : text(child)).join(''); }
 const flush = () => act(async () => { for (let i = 0; i < 5; i++) await new Promise(resolve => setTimeout(resolve, 0)); });
 
@@ -213,5 +213,30 @@ test('without active periods or open sections the action explains why and cannot
     await h.click('Matricular en sección');
     assert.match(h.text(), /No hay secciones activas con matrícula abierta/);
     assert.equal(h.button('Matricular')?.props.disabled, true);
+  });
+});
+
+test('enrollment codes name the cause; without a valid code the grouped 409 text stays', async () => {
+  const grouped = enrollmentCreateErrorMessage(httpError(409));
+  const expected = new Map<string, [number, string]>([
+    ['SECTION_FULL', [409, 'La sección no tiene vacantes.']], ['ACTIVE_ENROLLMENT_EXISTS', [409, 'El alumno ya tiene una matrícula activa.']],
+    ['ENROLLMENT_CLOSED', [409, 'La matrícula de la sección está cerrada.']], ['SECTION_INACTIVE', [409, 'La sección está inactiva.']],
+    ['SECTION_NOT_IN_PERIOD', [409, 'La sección no pertenece al periodo seleccionado.']], ['ACADEMIC_PERIOD_INACTIVE', [409, 'El periodo académico no está activo.']],
+    ['STUDENT_INACTIVE', [409, 'El alumno no está activo; no se puede completar la operación.']],
+    ['ACADEMIC_PERIOD_NOT_FOUND', [404, 'El periodo académico ya no existe. Actualiza los datos.']], ['SECTION_NOT_FOUND', [404, 'La sección ya no existe. Actualiza los datos.']],
+    ['ENROLLMENT_DATE_REQUIRED', [400, 'Ingresa la fecha de matrícula.']], ['ENROLLMENT_DATE_OUT_OF_PERIOD', [400, 'La fecha de matrícula debe estar dentro del periodo seleccionado.']],
+  ]);
+  for (const [code, [status, message]] of expected) assert.equal(enrollmentCreateErrorMessage(httpError(status, code)), message, code);
+  for (const code of [undefined, 'UNKNOWN_CODE', 1, null, 'INTERNAL_ERROR', 'ENROLLMENT_DATE_REQUIRED']) assert.equal(enrollmentCreateErrorMessage(httpError(409, code)), grouped, String(code));
+  for (const code of ['INVALID_PARAMETER', 'INTERNAL_ERROR']) assert.match(enrollmentCreateErrorMessage(httpError(500, code)), /Revisa el perfil del alumno/);
+  assert.match(enrollmentCreateErrorMessage(httpError(401, 'SECTION_FULL')), /sesión expiró/);
+  let enrolls = 0;
+  await view({ enroll: async () => { enrolls++; throw httpError(409, 'ACTIVE_ENROLLMENT_EXISTS'); } }, async h => {
+    await h.click('Matricular en sección');
+    await h.change('Sección', '5'); await h.submit();
+    assert.equal(enrolls, 1);
+    assert.match(h.text(), /El alumno ya tiene una matrícula activa\./);
+    assert.doesNotMatch(h.text(), /PRIVATE DETAIL|No se pudo matricular: la sección está inactiva/);
+    assert.equal(h.renderer.root.findAllByProps({ role: 'dialog' }).length, 1);
   });
 });

@@ -30,8 +30,8 @@ const created = (): StudentDetailResponse => ({
 const period: AcademicPeriod = { id: 2, name: 'Periodo prueba', startDate: '2000-01-01', endDate: '2999-12-31', active: true, current: true };
 const section = (id: number, patch: Partial<SectionResponse> = {}): SectionResponse => ({ id, academicPeriodId: 2, level: 'PRIMARY', grade: 1, name: 'A' + id, maxCapacity: 30, enrollmentOpen: true, active: true, ...patch });
 const enrolled = (): EnrollmentDetailResponse => ({ enrollmentId: 70, studentId: 40, academicPeriodId: 2, academicPeriodName: 'Periodo prueba', sectionId: 5, level: 'PRIMARY', grade: 1, sectionName: 'A5', enrollmentDate: localToday(), status: 'ACTIVE', withdrawalDate: null, withdrawalReason: null });
-const httpError = (status?: number) => new AxiosError('PRIVATE DETAIL', 'ERR_TEST', undefined, undefined,
-  status ? { status, data: { message: 'PRIVATE DETAIL' } } as AxiosResponse : undefined);
+const httpError = (status?: number, code?: unknown) => new AxiosError('PRIVATE DETAIL', 'ERR_TEST', undefined, undefined,
+  status ? { status, data: { message: 'PRIVATE DETAIL', ...(code === undefined ? {} : { code }) } } as AxiosResponse : undefined);
 function text(node: ReactTestInstance): string { return node.children.map(child => typeof child === 'string' ? child : text(child)).join(''); }
 const flush = () => act(async () => { for (let i = 0; i < 5; i++) await new Promise(resolve => setTimeout(resolve, 0)); });
 function deferred<T>() {
@@ -182,5 +182,26 @@ test('uncertain creation shows guidance, refreshes the list and never retries au
     assert.match(h.text(), /No se pudo confirmar el registro. Busca al alumno en el listado/);
     assert.equal(creates, 1); assert.ok(h.lists() > before);
     assert.ok(h.renderer.root.findByProps({ 'aria-label': 'DNI' }), 'stays on the form');
+  });
+});
+
+test('create shows the catalog text for a recognized code and keeps HTTP texts and uncertainty otherwise', async () => {
+  assert.equal(studentCreateErrorMessage(httpError(409, 'STUDENT_CODE_EXHAUSTED')), 'No hay códigos de alumno disponibles. Contacta al administrador del sistema.');
+  assert.equal(studentCreateErrorMessage(httpError(409, 'DNI_ALREADY_EXISTS')), 'El DNI ya está registrado para otra persona.');
+  for (const code of ['STUDENT_PERSON_ALREADY_EXISTS', 'STUDENT_CODE_ALREADY_EXISTS']) assert.doesNotMatch(studentCreateErrorMessage(httpError(409, code)), /DNI/);
+  for (const [status, code] of [[409, undefined], [409, 'UNKNOWN_CODE'], [409, 7], [409, null], [409, ''], [400, 'VALIDATION_ERROR'], [400, 'INVALID_REQUEST_BODY'], [400, 'DNI_ALREADY_EXISTS']] as const) {
+    assert.equal(studentCreateErrorMessage(httpError(status, code)), studentCreateErrorMessage(httpError(status)), String(code));
+  }
+  for (const code of ['INTERNAL_ERROR', 'INVALID_PARAMETER']) {
+    assert.equal(isUncertainStudentCreate(httpError(500, code)), true);
+    assert.match(studentCreateErrorMessage(httpError(500, code)), /Busca al alumno en el listado/);
+  }
+  assert.match(studentCreateErrorMessage(httpError(403, 'DNI_ALREADY_EXISTS')), /Solo el Director/);
+  let creates = 0;
+  await view('ADMINISTRADOR', { create: async () => { creates++; throw httpError(409, 'STUDENT_CODE_EXHAUSTED'); } }, async h => {
+    await h.click('Nuevo alumno'); await h.fill(); await h.submit();
+    assert.equal(creates, 1);
+    assert.match(h.text(), /No hay códigos de alumno disponibles/);
+    assert.doesNotMatch(h.text(), /PRIVATE DETAIL|el DNI ya está registrado para otra persona/);
   });
 });

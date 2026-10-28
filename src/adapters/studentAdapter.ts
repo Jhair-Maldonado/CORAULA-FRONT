@@ -100,7 +100,7 @@ export const emptyGuardianCreateValues: GuardianCreateValues = {
 const isGuardianRelationship = (value: string): value is GuardianRelationship => Object.keys(guardianRelationshipLabels).includes(value);
 export const hasActivePrimaryGuardian = (guardians: GuardianSummaryResponse[]) => guardians.some(guardian => guardian.active && guardian.primary);
 
-// Complete local validation: the backend answers 500 to blank names or a missing relationship (BACKEND #77).
+// Complete local validation for immediate feedback; the backend also rejects blank names or a missing relationship with 400.
 export function guardianCreateValidation(values: GuardianCreateValues, guardians: GuardianSummaryResponse[]): string | null {
   const dni = values.dni.trim();
   if (!/^\d{8}$/.test(dni)) return 'El DNI debe tener exactamente 8 dígitos.';

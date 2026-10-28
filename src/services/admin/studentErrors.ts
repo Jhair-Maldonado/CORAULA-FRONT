@@ -1,9 +1,8 @@
 import { isAxiosError } from 'axios';
 
-// BACKEND #75 (docs/student-enrollment-error-contract.md): code → the only HTTP statuses it may travel with.
-// Only the six student/guardian/enrollment writes send it; GETs and 401/403 never do.
-// To add a code (e.g. STUDENT_STATUS_CONFLICT, STUDENT_HAS_ACTIVE_ENROLLMENT from BACKEND #41), add its status here
-// and its text below; the compiler rejects a specific code without a message.
+// BACKEND #75 and #41 (docs/student-enrollment-error-contract.md): code → the only HTTP statuses it may travel with.
+// Only the student/guardian/enrollment writes and the state changes send it; GETs and 401/403 never do.
+// To add a code, add its status here and its text below; the compiler rejects a specific code without a message.
 const contractStatuses = {
   VALIDATION_ERROR: [400],
   INVALID_REQUEST_BODY: [400],
@@ -35,6 +34,8 @@ const contractStatuses = {
   ENROLLMENT_STATUS_CONFLICT: [409],
   WITHDRAWAL_DATE_REQUIRED: [400],
   WITHDRAWAL_DATE_BEFORE_ENROLLMENT: [400],
+  STUDENT_STATUS_CONFLICT: [409],
+  STUDENT_HAS_ACTIVE_ENROLLMENT: [409],
 } as const satisfies Record<string, readonly number[]>;
 
 export type StudentErrorCode = keyof typeof contractStatuses;
@@ -69,6 +70,8 @@ export const studentErrorCodeMessages: Record<Exclude<StudentErrorCode, GenericS
   ENROLLMENT_STATUS_CONFLICT: 'La matrícula ya no está activa.',
   WITHDRAWAL_DATE_REQUIRED: 'Ingresa la fecha de retiro.',
   WITHDRAWAL_DATE_BEFORE_ENROLLMENT: 'La fecha de retiro no puede ser anterior a la fecha de matrícula.',
+  STUDENT_STATUS_CONFLICT: 'El estado del alumno cambió y esta acción ya no está permitida. Se actualizó el perfil.',
+  STUDENT_HAS_ACTIVE_ENROLLMENT: 'El alumno tiene una matrícula activa. Retírala con «Retirar matrícula» y vuelve a intentar la baja.',
 };
 
 // A known string code whose HTTP status matches the contract; anything else is ignored (behaviour stays HTTP-based).

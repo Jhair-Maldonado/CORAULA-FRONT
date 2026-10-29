@@ -31,3 +31,49 @@ jobs:
 
     - name: Compilar el proyecto (Build Test)
       run: npm run build
+
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout del código
+      uses: actions/checkout@v3
+
+    - name: Configurar Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Instalar dependencias
+      run: npm ci
+
+    - name: Ejecutar pruebas con cobertura (sin umbral)
+      run: npm run test:coverage
+
+    - name: Publicar resumen de cobertura
+      if: always()
+      run: |
+        {
+          echo "## Cobertura del frontend"
+          echo
+          echo "Incluye src/, feature/ y layout/ completos, también los archivos que ninguna prueba carga (excluye src/types y .d.ts)."
+          echo "**La cifra principal es Lines (proyecto completo).** Branches y Functions están infladas: cada archivo sin pruebas cuenta como una sola función y una sola rama."
+          echo
+          echo '```'
+          npx c8 report --reporter=text-summary
+          echo '```'
+          echo
+          echo "Reporte HTML y lcov en el artefacto \`coverage-report\`. No hay umbral obligatorio."
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Subir reporte de cobertura
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: |
+          coverage/lcov.info
+          coverage/lcov-report/
+        retention-days: 14
+        if-no-files-found: warn

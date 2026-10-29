@@ -11,6 +11,7 @@ import { sectionCoursesService } from '../src/services/admin/sectionCoursesServi
 import { evaluationService } from '../src/services/admin/evaluationService';
 import httpClient from '../src/services/httpClient';
 import { bimesterPublicationService } from '../src/services/admin/bimesterPublicationService';
+import { adminActivityGradesService } from '../src/services/admin/adminActivityGradesService';
 import type { CriterionGradesSheetResponse } from '../src/types/teacherGradesApi';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -55,6 +56,9 @@ test('history GET accepts empty and complete entries, rejects wrong grade IDs an
 
 async function view(overrides: Partial<typeof adminGradesService>, run: (h: { renderer: ReactTestRenderer; click: (name: string) => Promise<void>; button: (name: string) => ReactTestInstance | undefined; change: (label: string, value: string) => Promise<void>; submit: () => Promise<void> }) => Promise<void>, role: 'ADMINISTRADOR' | 'DIRECTIVO' = 'ADMINISTRADOR') {
   const original = { ...adminGradesService }, oldSections = sectionsService.list, oldCourses = sectionCoursesService.list, oldBimesters = evaluationService.getBimesters;
+  // MANUAL tests: the activity block (#105 part 2) has no activities; tests/adminActivityGrades covers it.
+  const oldActivities = adminActivityGradesService.listActivities;
+  adminActivityGradesService.listActivities = async () => [];
   Object.assign(adminGradesService, { getSheet: async (c: typeof context) => ({ ...sheet(), ...c, bimester: { ...sheet().bimester, id: c.bimesterId } }), correctGrade: async () => saved(), getHistory: async () => [history], getResults: async (sectionCourseId: number, bimesterId: number) => ({ sectionCourseId, bimesterId, areaId: 2, students: [{ enrollmentId: 50, studentId: 60, fullName: 'Estudiante', pa: 13.5, criteriaIndicator: 14, courseGrade: 14, courseApproved: true, areaGrade: 14, areaApproved: true, reasons: [] }] }) }, overrides);
   sectionsService.list = async () => [1, 2].map(id => ({ id, academicPeriodId: 30, level: 'PRIMARY', grade: 1, name: `Sección ${id}`, maxCapacity: 30, enrollmentOpen: false, active: true }));
   sectionCoursesService.list = async id => [10, 11].map(courseId => ({ id: courseId, sectionId: Number(id), courseId: 20, courseCode: 'MAT', courseName: `Matemática ${courseId}`, active: true, teacherId: null, teacherName: null }));
@@ -71,7 +75,7 @@ async function view(overrides: Partial<typeof adminGradesService>, run: (h: { re
     const change = async (label: string, value: string) => { await act(async () => { renderer.root.findByProps({ 'aria-label': label }).props.onChange({ target: { value } }); }); };
     await change('Sección', '1'); await change('Curso-sección', '10'); await change('Bimestre', '1');
     await run({ renderer, button, change, click: async name => { const node = button(name); assert.ok(node); assert.equal(!!node.props.disabled, false); await act(async () => { node.props.onClick(); }); }, submit: async () => { await act(async () => { renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }); }); } });
-  } finally { if (renderer) await act(async () => { renderer.unmount(); }); Object.assign(adminGradesService, original); sectionsService.list = oldSections; sectionCoursesService.list = oldCourses; evaluationService.getBimesters = oldBimesters; for (const [name, descriptor] of globals) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); } }
+  } finally { if (renderer) await act(async () => { renderer.unmount(); }); Object.assign(adminGradesService, original); adminActivityGradesService.listActivities = oldActivities; sectionsService.list = oldSections; sectionCoursesService.list = oldCourses; evaluationService.getBimesters = oldBimesters; for (const [name, descriptor] of globals) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); } }
 }
 
 test('pending cells cannot correct or view history; persisted zero is correctable and PA readonly once', async () => {

@@ -901,7 +901,8 @@ function ActivitySheet({
                     </>
                   ) : (
                     <>
-                      <AvisoModuloSimulado className="mb-0" detalle="la subida de materiales aún no está conectada; los materiales son de demostración y no se guardan." />
+                      {/* Hasta que FRONT #52 conecte la subida con BACK #53 (#121). */}
+                      <AvisoModuloSimulado activo={true} className="mb-0" detalle="los materiales todavía no se guardan en el servidor; los que envíes aquí son de demostración y se pierden al recargar." />
                       <label>
                         Título del material
                         <input

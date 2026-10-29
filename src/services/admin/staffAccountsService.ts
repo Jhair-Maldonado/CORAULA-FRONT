@@ -34,15 +34,15 @@ export function staffFormValidation(values: StaffFormValues): string | null {
 }
 
 export function toCreateStaffAccount(values: StaffFormValues): CreateStaffAccountRequest {
-  const optional = (value: string) => value.trim() || null;
-  return {
+  const request: CreateStaffAccountRequest = {
     dni: values.dni.trim(),
     firstNames: values.firstNames.trim(),
     paternalLastName: values.paternalLastName.trim(),
-    maternalLastName: optional(values.maternalLastName),
-    phone: optional(values.phone),
     email: normalizeAccountEmail(values.email),
   };
+  if (values.maternalLastName.trim()) request.maternalLastName = values.maternalLastName.trim();
+  if (values.phone.trim()) request.phone = values.phone.trim();
+  return request;
 }
 
 const isSummary = (value: unknown): value is StaffAccountSummary => {
@@ -74,8 +74,8 @@ export const staffAccountsService = {
 // Codes from BACK #105 used to tell the 409 causes apart; anything else falls back to the HTTP status.
 const staffContractStatuses = {
   PERSON_DNI_CONFLICT: [409],
+  EMAIL_ALREADY_EXISTS: [409],
   VALIDATION_ERROR: [400],
-  INVALID_REQUEST_BODY: [400],
 } as const satisfies Record<string, readonly number[]>;
 
 // Without a response, a 5xx or an unexpected body, the account may or may not exist: never retry automatically.
@@ -89,13 +89,15 @@ export function isUncertainStaffCreate(error: unknown): boolean {
 export function staffCreateErrorMessage(error: unknown): string {
   if (!isAxiosError(error)) return 'No se pudo confirmar el alta. Actualiza el listado antes de volver a intentarlo.';
   if (!error.response) return 'No se pudo conectar con el servidor. Actualiza el listado antes de volver a intentarlo.';
-  if (contractErrorCode(error, staffContractStatuses) === 'PERSON_DNI_CONFLICT') {
-    return 'Ya existe una persona registrada con ese DNI. No se puede reutilizar para una cuenta de Secretaría.';
+  switch (contractErrorCode(error, staffContractStatuses)) {
+    case 'PERSON_DNI_CONFLICT': return 'Ya existe una persona registrada con ese DNI. No se puede reutilizar para una cuenta de Secretaría.';
+    case 'EMAIL_ALREADY_EXISTS': return 'El correo ya está en uso por otra cuenta. Usa un correo distinto.';
   }
   switch (error.response.status) {
     case 400: return 'Revisa los datos: DNI de 8 dígitos, nombres, apellido paterno y un correo válido.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
     case 403: return 'Solo el Director puede crear cuentas de Secretaría.';
+    // Fallback for a 409 without a recognized code.
     case 409: return 'El correo ya está en uso por otra cuenta, o el DNI ya está registrado.';
     default: return 'El servidor no pudo completar el alta. Actualiza el listado antes de volver a intentarlo.';
   }

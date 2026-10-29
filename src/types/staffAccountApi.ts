@@ -21,8 +21,9 @@ export interface CreateStaffAccountRequest {
   dni: string;
   firstNames: string;
   paternalLastName: string;
-  maternalLastName: string | null;
-  phone: string | null;
+  // Optional in BACK #105: omitted when empty.
+  maternalLastName?: string;
+  phone?: string;
   email: string;
 }
 

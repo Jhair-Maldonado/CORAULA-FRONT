@@ -12,9 +12,11 @@ import {
   FolderPlus,
   MessageSquare,
   LogOut,
-  Bell
+  Bell,
+  KeyRound
 } from 'lucide-react';
-import { useAlumnoSession, DEFAULT_ALUMNO_SESSION } from '@/components/alumno/AlumnoSessionContext';
+import { useAlumnoSession, useHasRealStudentSession, DEFAULT_ALUMNO_SESSION } from '@/components/alumno/AlumnoSessionContext';
+import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
 
 type MenuItem = {
   name: string;
@@ -35,6 +37,7 @@ const MENU_ITEMS: MenuItem[] = [
 export const AlumnoSidebar: React.FC = () => {
   const pathname = usePathname();
   const { session, logout } = useAlumnoSession();
+  const realSession = useHasRealStudentSession();
   const alumno = session || DEFAULT_ALUMNO_SESSION;
 
   return (
@@ -87,6 +90,16 @@ export const AlumnoSidebar: React.FC = () => {
                 {alumno.nombre.substring(0, 2).toUpperCase()}
               </div>
             </div>
+          )}
+          {realSession && (
+            <Link
+              href={CHANGE_PASSWORD_ROUTE}
+              className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl text-muted hover:bg-neutral hover:text-ink transition-all group"
+              title="Cambiar contraseña"
+            >
+              <KeyRound size={20} className="group-hover:text-ink" />
+              <span className="text-[9px] font-bold text-center tracking-tight leading-tight">Contraseña</span>
+            </Link>
           )}
           <button
             onClick={logout}

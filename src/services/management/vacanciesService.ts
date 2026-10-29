@@ -3,8 +3,9 @@ import httpClient from '@/services/httpClient';
 import type { UpdateVacancySectionRequest, UpdateVacancySectionResponse, VacancyGradeResponse } from '@/types/vacanciesApi';
 
 export const vacanciesService = {
-  async list(): Promise<VacancyGradeResponse[]> {
-    return (await httpClient.get<VacancyGradeResponse[]>('/v1/management/vacancies')).data;
+  async list(academicPeriodId?: number): Promise<VacancyGradeResponse[]> {
+    const config = academicPeriodId === undefined ? undefined : { params: { academicPeriodId } };
+    return (await httpClient.get<VacancyGradeResponse[]>('/v1/management/vacancies', config)).data;
   },
   async updateSection(sectionId: number, request: UpdateVacancySectionRequest): Promise<UpdateVacancySectionResponse> {
     return (await httpClient.patch<UpdateVacancySectionResponse>(`/v1/management/vacancies/sections/${sectionId}`, request)).data;

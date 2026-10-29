@@ -1,7 +1,9 @@
 ﻿'use client';
 
-import { useEffect, useState } from 'react';
-import { Search01Icon, ArrowLeft01Icon, ArrowRight02Icon, UserCircleIcon, AlertCircleIcon, Clock01Icon } from 'hugeicons-react';
+import { useContext, useEffect, useState } from 'react';
+import { Search01Icon, ArrowLeft01Icon, ArrowRight02Icon, UserCircleIcon, AlertCircleIcon, Clock01Icon, UserAdd01Icon } from 'hugeicons-react';
+import { AuthContext } from '@/contexts/AuthContext';
+import CreateStudentDialog from './components/CreateStudentDialog';
 import { studentsService, studentErrorMessage } from '@/services/admin/studentsService';
 import { studentLevelLabels, studentStatusLabels, toAdminStudent } from '@/adapters/studentAdapter';
 import type { PagedStudentsResponse, StudentLevel, StudentListParams, StudentStatus } from '@/types/studentApi';
@@ -14,6 +16,10 @@ export default function VistaTotalAlumnado() {
   const [query, setQuery] = useState<StudentListParams>({ page: 0, size: 20 });
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<ListResult | null>(null);
+  const [creating, setCreating] = useState(false);
+  const auth = useContext(AuthContext);
+  // Individual registration is ADMINISTRADOR only; DIRECTIVO keeps read access to the list.
+  const canCreate = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
   const key = JSON.stringify([query, revision]);
   const loading = result?.key !== key;
   const data = loading ? undefined : result?.data;
@@ -30,10 +36,14 @@ export default function VistaTotalAlumnado() {
   return (
     <div className="w-full h-full p-6 overflow-y-auto bg-canvas font-sans">
       <div className="max-w-6xl mx-auto flex flex-col gap-6">
-        <header>
-          <span className="text-accent text-[11px] font-bold tracking-widest uppercase">Alumnado</span>
-          <h1 className="text-ink text-2xl font-bold tracking-tight mt-1">Listado de Alumnos</h1>
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <span className="text-accent text-[11px] font-bold tracking-widest uppercase">Alumnado</span>
+            <h1 className="text-ink text-2xl font-bold tracking-tight mt-1">Listado de Alumnos</h1>
+          </div>
+          {canCreate && <button onClick={() => setCreating(true)} className="flex items-center gap-2 bg-accent text-white px-4 py-2 min-h-10 rounded-xl text-xs font-bold shadow-sm hover:bg-accent/90 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><UserAdd01Icon size={16} aria-hidden="true" />Nuevo alumno</button>}
         </header>
+        {creating && canCreate && <CreateStudentDialog onClose={() => setCreating(false)} onChanged={() => setRevision(n => n + 1)} />}
         <div className="bg-white border border-line rounded-xl p-3 flex flex-wrap gap-3 items-center shadow-sm text-xs">
           <form className="flex gap-2 flex-1 min-w-0 w-full sm:min-w-64" onSubmit={event => {
             event.preventDefault();

@@ -1,4 +1,4 @@
-import type { StudentDetailResponse, StudentSummaryResponse } from './studentApi';
+import type { GuardianRelationship, StudentDetailResponse, StudentSummaryResponse } from './studentApi';
 
 export interface AdminStudent extends StudentSummaryResponse {
   id: string;
@@ -28,4 +28,24 @@ export interface StudentEditValues {
   birthDate: string;
   phone: string;
   reason: string;
+}
+
+export interface StudentCreateValues {
+  dni: string;
+  firstNames: string;
+  paternalLastName: string;
+  maternalLastName: string;
+  birthDate: string;
+  phone: string;
+}
+
+export interface GuardianCreateValues {
+  dni: string;
+  firstNames: string;
+  paternalLastName: string;
+  maternalLastName: string;
+  phone: string;
+  relationship: GuardianRelationship | '';
+  primary: boolean;
+  authorizedPickup: boolean;
 }

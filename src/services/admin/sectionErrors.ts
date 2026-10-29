@@ -25,3 +25,18 @@ export function sectionErrorMessage(error: unknown, conflict = 'La operación en
   }
   return result;
 }
+
+// Messages for create/edit/status changes: fixed Spanish texts, never the backend's. The UI tells apart the
+// active-enrollments 409 on deactivation by re-reading the section (see deactivateSection); every other 409 is generic.
+export function sectionManagementErrorMessage(error: unknown): string {
+  if (!isAxiosError(error)) return 'No se pudo completar la solicitud. Intenta nuevamente.';
+  if (!error.response) return 'No se pudo conectar con el servidor. Revisa tu conexión e intenta nuevamente.';
+  switch (error.response.status) {
+    case 400: return 'Revisa los datos: nombre de 1 a 10 caracteres, capacidad mayor que 0 y grado válido para el nivel.';
+    case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+    case 403: return 'No tienes autorización para gestionar secciones.';
+    case 404: return 'Sección o periodo académico no encontrado. Actualiza la información.';
+    case 409: return 'No se pudo guardar por un conflicto con el estado actual: sección duplicada en el periodo, capacidad menor que las matrículas activas, periodo inactivo, sección inactiva o con matrículas o cursos asociados. Actualiza la información e intenta nuevamente.';
+    default: return 'El servidor no pudo completar la solicitud. Intenta nuevamente.';
+  }
+}

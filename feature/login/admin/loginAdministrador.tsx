@@ -20,6 +20,7 @@ import { GlobalLoader } from '@/components/GlobalLoader';
 
 import { authService } from '@/services/authService';
 import { AuthContext } from '@/contexts/AuthContext';
+import { postLoginPath } from '@/utils/authRoutes';
 import { isAxiosError } from 'axios';
 
 export default function LoginAdministrador() {
@@ -93,33 +94,12 @@ export default function LoginAdministrador() {
       }
       
       if (authContext) {
-        authContext.login(response.token, response.role);
-        if (response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO') {
-          router.push('/administrador');
-        } else if (response.role === 'DOCENTE') {
-          router.push('/docente');
+        authContext.login(response.token, response.role, response.passwordChangeRequired);
+        if (response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO' || response.role === 'DOCENTE') {
+          router.push(postLoginPath(response.role, response.passwordChangeRequired === true));
         }
       }
     } catch (error) {
-      if (email.trim().toLowerCase() === 'docente.test@coraula.local') {
-        const demoHeader = typeof window !== 'undefined' ? btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })) : '';
-        const demoPayload = typeof window !== 'undefined' ? btoa(JSON.stringify({
-          sub: 'docente.test@coraula.local',
-          role: 'DOCENTE',
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + 86400 * 7,
-        })) : '';
-        const demoToken = `${demoHeader}.${demoPayload}.${btoa('sig')}`;
-        if (authContext) {
-          authContext.login(demoToken, 'DOCENTE');
-        } else {
-          localStorage.setItem('token', demoToken);
-          localStorage.setItem('role', 'DOCENTE');
-        }
-        router.push('/docente');
-        return;
-      }
-
       if (isAxiosError(error) && error.response) {
         const status = error.response.status;
         if (status === 400) setErrorMsg('Revisa los datos ingresados.');
@@ -291,7 +271,7 @@ export default function LoginAdministrador() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted/70 hover:text-ink transition-colors cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-w-6 min-h-6 p-1 text-muted/70 hover:text-ink transition-colors cursor-pointer"
                   >
                     {showPassword ? <ViewOffIcon size={16} /> : <ViewIcon size={16} />}
                   </button>
@@ -310,7 +290,7 @@ export default function LoginAdministrador() {
                 </div>
 
                 {errorMsg && (
-                  <div className="text-center bg-red-50 text-red-600 text-xs py-2 px-3 rounded-xl border border-red-100 font-medium">
+                  <div role="alert" aria-live="assertive" className="text-center bg-red-50 text-red-600 text-xs py-2 px-3 rounded-xl border border-red-100 font-medium">
                     {errorMsg}
                   </div>
                 )}

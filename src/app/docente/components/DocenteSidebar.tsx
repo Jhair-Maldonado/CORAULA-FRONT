@@ -8,11 +8,14 @@ import {
   BookOpen,
   CalendarCheck,
   ClipboardCheck,
+  ShieldAlert,
   MessageSquare,
   LogOut,
-  Settings
+  Settings,
+  KeyRound
 } from 'lucide-react';
 import { AuthContext } from '@/contexts/AuthContext';
+import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
 import { useDocenteSession } from './DocenteSessionContext';
 
 interface DocenteSidebarProps {
@@ -45,6 +48,12 @@ export const DocenteSidebar: React.FC<DocenteSidebarProps> = ({ onMobileClose })
       name: 'Notas',
       path: '/docente/notas',
       icon: ClipboardCheck,
+      matchExact: false
+    },
+    {
+      name: 'Incidencias',
+      path: '/docente/incidencias',
+      icon: ShieldAlert,
       matchExact: false
     },
     {
@@ -134,6 +143,16 @@ export const DocenteSidebar: React.FC<DocenteSidebarProps> = ({ onMobileClose })
             <Settings size={14} />
             <span>Ajustes</span>
           </button>
+
+          <Link
+            href={CHANGE_PASSWORD_ROUTE}
+            onClick={onMobileClose}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-[#64748B] hover:text-[#111827] transition-colors px-2 py-1 rounded-md hover:bg-white"
+            title="Cambiar contraseña"
+          >
+            <KeyRound size={14} />
+            <span>Contraseña</span>
+          </Link>
 
           <button
             type="button"

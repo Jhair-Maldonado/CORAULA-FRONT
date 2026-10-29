@@ -68,7 +68,7 @@ export default function VistaLoginAlumno() {
 
           {/* Mensaje de Error */}
           {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
+            <div role="alert" aria-live="assertive" className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
               {errorMsg}
             </div>
           )}
@@ -157,7 +157,7 @@ export default function VistaLoginAlumno() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[11px] text-[#6B7280] mt-4">
+        <p className="text-center text-[11px] text-[#4B5563] mt-4">
           Colegio San Marcos · Sistema CORAULA 2026
         </p>
       </div>

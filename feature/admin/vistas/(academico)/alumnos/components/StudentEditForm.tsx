@@ -5,7 +5,7 @@ import { AlertCircleIcon } from 'hugeicons-react';
 import type { AdminStudentDetail, StudentEditValues } from '@/types/adminStudent';
 import type { UpdateStudentRequest } from '@/types/studentApi';
 import { studentEditValidation, toStudentEditValues, toUpdateStudent } from '@/adapters/studentAdapter';
-import { studentErrorMessage } from '@/services/admin/studentsService';
+import { studentUpdateErrorMessage } from '@/services/admin/studentsService';
 
 const fields: { key: Exclude<keyof StudentEditValues, 'reason'>; label: string; maxLength?: number; required?: boolean; type?: string }[] = [
   { key: 'studentCode', label: 'Código estudiante', maxLength: 50 },
@@ -31,15 +31,15 @@ export default function StudentEditForm({ student, onSave, onCancel }: {
     <form className="flex flex-col gap-4" onSubmit={async event => {
       event.preventDefault();
       if (savingRef.current) return;
+      const patch = toUpdateStudent(values, student);
+      if (!patch) { onCancel(); return; }
       const validation = studentEditValidation(values, student);
       if (validation) { setError(validation); return; }
-      const patch = toUpdateStudent(values, student);
-      if (Object.keys(patch).length === 0) { onCancel(); return; }
       savingRef.current = true;
       setSaving(true);
       setError('');
       try { await onSave(patch); }
-      catch (failure) { setError(studentErrorMessage(failure)); }
+      catch (failure) { setError(studentUpdateErrorMessage(failure)); }
       finally { savingRef.current = false; setSaving(false); }
     }}>
       <fieldset disabled={saving} className="grid grid-cols-1 sm:grid-cols-2 gap-3 disabled:opacity-70">
@@ -56,8 +56,8 @@ export default function StudentEditForm({ student, onSave, onCancel }: {
             />
           </label>
         ))}
-        <label className="sm:col-span-2 text-[10px] font-bold uppercase tracking-wider text-muted">Motivo de actualización (opcional)
-          <textarea rows={2} value={values.reason} onChange={event => setValues(previous => ({ ...previous, reason: event.target.value }))} className="w-full min-w-0 mt-1.5 px-3 py-2 min-h-10 bg-neutral/50 text-xs font-medium text-ink normal-case tracking-normal border border-line rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" />
+        <label className="sm:col-span-2 text-[10px] font-bold uppercase tracking-wider text-muted">Motivo de actualización *
+          <textarea rows={2} aria-required="true" value={values.reason} onChange={event => setValues(previous => ({ ...previous, reason: event.target.value }))} className="w-full min-w-0 mt-1.5 px-3 py-2 min-h-10 bg-neutral/50 text-xs font-medium text-ink normal-case tracking-normal border border-line rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" />
         </label>
       </fieldset>
       <p className="text-xs text-muted">Puedes limpiar DNI, apellido materno o teléfono. Un código o fecha de nacimiento existentes no se pueden borrar.</p>

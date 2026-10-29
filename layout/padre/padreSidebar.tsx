@@ -10,9 +10,11 @@ import {
   Comment01Icon,
   Logout01Icon,
   AlertCircleIcon,
+  SquareLockPasswordIcon,
 } from 'hugeicons-react';
-import { usePadre } from '@/components/padres/PadreContext'; 
+import { usePadre } from '@/components/padres/PadreContext';
 import { AuthContext } from '@/contexts/AuthContext';
+import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
 
 type MenuItem = {
   name: string;
@@ -89,6 +91,14 @@ export const PadreSidebar: React.FC = () => {
               </div>
             </div>
           )}
+          <Link
+            href={CHANGE_PASSWORD_ROUTE}
+            className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl text-muted hover:bg-neutral hover:text-ink transition-all group"
+            title="Cambiar contraseña"
+          >
+            <SquareLockPasswordIcon size={20} className="group-hover:text-ink" />
+            <span className="text-[9px] font-bold text-center tracking-tight leading-tight">Contraseña</span>
+          </Link>
           <button
             onClick={handleLogout}
             className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl text-muted hover:bg-accent-soft hover:text-accent transition-all group"

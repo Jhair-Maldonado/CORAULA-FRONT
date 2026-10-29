@@ -1,6 +1,7 @@
 import React from 'react';
 import { PadreProvider } from '@/components/padres/PadreContext';
 import { AuthGuard } from '@/components/AuthGuard';
+import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
 import { PadreWorkspace } from '../../../layout/padre/padreWorkspace'; 
 
 export const metadata = {
@@ -17,6 +18,10 @@ export default function PadreLayout({
     <AuthGuard allowedRoles={['APODERADO']}>
       <PadreProvider>
         <PadreWorkspace>
+          <AvisoModuloSimulado
+            activo={true}
+            detalle="la información que ves es de demostración y no corresponde a tus hijos vinculados."
+          />
           {children}
         </PadreWorkspace>
       </PadreProvider>

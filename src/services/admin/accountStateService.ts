@@ -1,5 +1,6 @@
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
+import { contractErrorCode } from '@/services/admin/contractErrors';
 import type { AccountStateAction, AccountStateChangeResponse, AccountStateReasonCode, ChangeAccountStateRequest } from '@/types/staffAccountApi';
 
 // BACK #105: generic login-account state for DOCENTE and DIRECTIVO accounts, independent of teacher.active.
@@ -74,9 +75,20 @@ export function accountStateChangeReloads(error: unknown): boolean {
   return isUncertainAccountStateChange(error) || status === 404 || status === 409;
 }
 
+// Codes from BACK #105; the reload behaviour above stays HTTP-based. A missing target, one of another role
+// or an ADMINISTRADOR all answer the same 404 ACCOUNT_NOT_FOUND.
+const accountStateContractStatuses = {
+  ACCOUNT_NOT_FOUND: [404],
+  ACCOUNT_STATE_CONFLICT: [409],
+} as const satisfies Record<string, readonly number[]>;
+
 // Backend texts are never shown.
 export function accountStateErrorMessage(error: unknown): string {
   if (isUncertainAccountStateChange(error)) return 'No se pudo confirmar el cambio de estado de la cuenta. Se volvieron a consultar los datos sin repetir la solicitud; revisa el estado actual.';
+  switch (contractErrorCode(error, accountStateContractStatuses)) {
+    case 'ACCOUNT_NOT_FOUND': return 'La cuenta no existe o no se puede gestionar desde aquí. Se actualizaron los datos.';
+    case 'ACCOUNT_STATE_CONFLICT': return 'La cuenta ya tenía ese estado; no se aplicó ningún cambio. Se actualizaron los datos.';
+  }
   switch (isAxiosError(error) ? error.response?.status : undefined) {
     case 400: return 'Revisa el motivo y la justificación (obligatoria, hasta 1000 caracteres).';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';

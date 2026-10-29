@@ -8,7 +8,7 @@ import VistaPersonal from '../feature/admin/vistas/(sistema)/personal/vistaPerso
 import PerfilDelDocente from '../feature/admin/vistas/(academico)/docente/perfilDelDocente';
 import { AdminSidebar } from '../layout/admin/adminSidebar';
 import { AuthContext } from '../src/contexts/AuthContext';
-import httpClient from '../src/services/httpClient';
+import httpClient, { PASSWORD_CHANGE_REQUIRED_EVENT } from '../src/services/httpClient';
 import { staffAccountsService, staffCreateErrorMessage, staffFormValidation, staffLoadErrorMessage, toCreateStaffAccount, emptyStaffForm } from '../src/services/admin/staffAccountsService';
 import {
   accountStateChangeReloads, accountStateErrorMessage, accountStateReasons, accountStateService, accountStateValidation, isUncertainAccountStateChange, toChangeAccountState,
@@ -106,7 +106,9 @@ test('list reads the staff endpoint with trimmed filters and rejects malformed r
 
 test('create posts only the contract fields and rejects mismatched responses', async () => {
   const payload = toCreateStaffAccount({ dni: ' 00000040 ', firstNames: ' Nueva ', paternalLastName: 'Sintética', maternalLastName: ' ', phone: '', email: ' Nueva@Example.COM ' });
-  assert.deepEqual(payload, { dni: '00000040', firstNames: 'Nueva', paternalLastName: 'Sintética', maternalLastName: null, phone: null, email: 'nueva@example.com' });
+  assert.deepEqual(payload, { dni: '00000040', firstNames: 'Nueva', paternalLastName: 'Sintética', email: 'nueva@example.com' });
+  assert.deepEqual(toCreateStaffAccount({ ...emptyStaffForm, dni: '00000040', firstNames: 'Nueva', paternalLastName: 'Sintética', maternalLastName: ' Prueba ', phone: ' 999 ', email: 'nueva@example.com' }),
+    { dni: '00000040', firstNames: 'Nueva', paternalLastName: 'Sintética', email: 'nueva@example.com', maternalLastName: 'Prueba', phone: '999' });
   let reply: { status: number; data: unknown } = { status: 201, data: createdStaff() };
   await withAdapter(() => reply, async calls => {
     assert.deepEqual(await staffAccountsService.create(payload), createdStaff());
@@ -170,16 +172,48 @@ test('error messages are fixed texts and classify uncertain outcomes', () => {
     assert.doesNotMatch(staffCreateErrorMessage(httpError(status)), /PRIVATE DETAIL/);
     assert.doesNotMatch(staffLoadErrorMessage(httpError(status)), /PRIVATE DETAIL/);
   }
-  assert.match(staffCreateErrorMessage(httpError(409, 'PERSON_DNI_CONFLICT')), /DNI/);
-  assert.match(staffCreateErrorMessage(httpError(409)), /correo ya está en uso/);
+  assert.match(staffCreateErrorMessage(httpError(409, 'PERSON_DNI_CONFLICT')), /Ya existe una persona registrada con ese DNI/);
+  assert.match(staffCreateErrorMessage(httpError(409, 'EMAIL_ALREADY_EXISTS')), /^El correo ya está en uso por otra cuenta\. Usa un correo distinto\.$/);
+  // The generic text is only the fallback for a 409 without a recognized code.
+  const generic = /correo ya está en uso por otra cuenta, o el DNI/;
+  assert.match(staffCreateErrorMessage(httpError(409)), generic);
+  assert.match(staffCreateErrorMessage(httpError(409, 'SOMETHING_ELSE')), generic);
+  assert.doesNotMatch(staffCreateErrorMessage(httpError(409, 'EMAIL_ALREADY_EXISTS')), generic);
+  assert.doesNotMatch(staffCreateErrorMessage(httpError(409, 'PERSON_DNI_CONFLICT')), generic);
   assert.match(staffCreateErrorMessage(httpError(400, 'PERSON_DNI_CONFLICT')), /Revisa los datos/);
+  assert.match(staffCreateErrorMessage(httpError(400, 'EMAIL_ALREADY_EXISTS')), /Revisa los datos/);
   assert.match(accountStateErrorMessage(httpError(403)), /Solo el Director/);
+  assert.match(accountStateErrorMessage(httpError(404, 'ACCOUNT_NOT_FOUND')), /no existe o no se puede gestionar desde aquí/);
+  assert.match(accountStateErrorMessage(httpError(404)), /ya no existe o no se puede gestionar/);
+  assert.match(accountStateErrorMessage(httpError(409, 'ACCOUNT_STATE_CONFLICT')), /ya tenía ese estado/);
+  assert.match(accountStateErrorMessage(httpError(409)), /El estado de la cuenta cambió/);
+  assert.match(accountStateErrorMessage(httpError(409, 'ACCOUNT_NOT_FOUND')), /El estado de la cuenta cambió/);
+  for (const error of [httpError(404, 'ACCOUNT_NOT_FOUND'), httpError(409, 'ACCOUNT_STATE_CONFLICT')]) assert.equal(accountStateChangeReloads(error), true);
   for (const error of [httpError(), httpError(500), new Error('x')]) {
     assert.equal(isUncertainAccountStateChange(error), true);
     assert.equal(accountStateChangeReloads(error), true);
   }
   for (const status of [404, 409]) assert.equal(accountStateChangeReloads(httpError(status)), true);
   for (const status of [400, 401, 403]) assert.equal(accountStateChangeReloads(httpError(status)), false);
+});
+
+test('403 PASSWORD_CHANGE_REQUIRED on staff and account endpoints raises the global event, as on any other route', async () => {
+  const globals = ['window', 'localStorage'].map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const);
+  const events: string[] = [];
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { dispatchEvent: (event: Event) => { events.push(event.type); return true; } } });
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: () => 'synthetic' } });
+  const original = httpClient.defaults.adapter;
+  httpClient.defaults.adapter = async config => { throw new AxiosError('PRIVATE DETAIL', 'ERR_TEST', config, undefined,
+    { status: 403, statusText: 'Forbidden', headers: {}, config, data: { error: 'Forbidden', message: 'PRIVATE DETAIL', code: 'PASSWORD_CHANGE_REQUIRED' } } as AxiosResponse); };
+  try {
+    await assert.rejects(staffAccountsService.list());
+    await assert.rejects(staffAccountsService.create(toCreateStaffAccount({ ...emptyStaffForm, dni: '00000040', firstNames: 'Nueva', paternalLastName: 'Sintética', email: 'nueva@example.com' })));
+    await assert.rejects(accountStateService.change(30, 'DEACTIVATE', { reasonCode: 'OTHER', justification: 'Caso documentado' }));
+    assert.deepEqual(events, Array(3).fill(PASSWORD_CHANGE_REQUIRED_EVENT));
+  } finally {
+    httpClient.defaults.adapter = original;
+    for (const [name, descriptor] of globals) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); }
+  }
 });
 
 // ---- Personal view ----
@@ -328,7 +362,7 @@ test('registering staff validates, asks for confirmation, sends the payload and 
       assert.match(text(h.dialog()!), /nueva@example\.com/);
       assert.equal(calls.create.length, 0);
       await h.click('Confirmar alta', h.dialog());
-      assert.deepEqual(calls.create, [{ dni: '00000040', firstNames: 'Nueva', paternalLastName: 'Sintética', maternalLastName: null, phone: null, email: 'nueva@example.com' }]);
+      assert.deepEqual(calls.create, [{ dni: '00000040', firstNames: 'Nueva', paternalLastName: 'Sintética', email: 'nueva@example.com' }]);
       assert.equal(h.dialog(), undefined);
       assert.match(h.text(), /Cuenta de Secretaría creada para nueva@example\.com/);
       assert.equal(calls.list.length, 2);
@@ -345,6 +379,17 @@ test('a DNI conflict keeps the form; an uncertain outcome closes it and reloads'
       await h.click('Confirmar alta', h.dialog());
       assert.ok(h.dialog());
       assert.match(text(h.dialog()!), /Ya existe una persona registrada con ese DNI/);
+      assert.equal(calls.list.length, 1);
+    });
+  });
+  await withStaffMocks({ create: async () => { throw httpError(409, 'EMAIL_ALREADY_EXISTS'); } }, async calls => {
+    await mount(<VistaPersonal />, 'ADMINISTRADOR', async h => {
+      await h.click('Registrar personal');
+      await fillStaffForm(h);
+      await h.submitDialog();
+      await h.click('Confirmar alta', h.dialog());
+      assert.ok(h.dialog());
+      assert.match(text(h.dialog()!), /El correo ya está en uso por otra cuenta\. Usa un correo distinto\./);
       assert.equal(calls.list.length, 1);
     });
   });

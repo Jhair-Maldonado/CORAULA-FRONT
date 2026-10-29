@@ -11,6 +11,7 @@ import type { AcademicPeriod } from '@/types/academicPeriodApi';
 import { isPositiveInteger } from '@/lib/evaluationPreparation';
 import AnnulBimesterDialog from './AnnulBimesterDialog';
 import BimesterPublicationPanel from './BimesterPublicationPanel';
+import BimesterGradeWindowPanel from './BimesterGradeWindowPanel';
 
 const button = 'min-h-10 px-4 py-2 rounded-xl text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50';
 const input = 'w-full mt-2 p-3 rounded-xl border border-line bg-neutral/40 text-ink focus-visible:outline-accent';
@@ -26,6 +27,10 @@ const transitions = {
 const annullable = (b: Bimester) => b.status === 'PLANIFICADO' || b.status === 'ABIERTO';
 // #51-A review/publication (and #100 reopening) panel; DIRECTIVO reads it without actions.
 const publishable = (b: Bimester) => b.status === 'ABIERTO' || b.status === 'EN_REVISION' || b.status === 'CERRADO';
+// #39 grade window panel: every bimester except ANULADO; DIRECTIVO reads it without actions.
+const hasGradeWindow = (b: Bimester) => b.status !== 'ANULADO';
+type PanelKind = 'publication' | 'gradeWindow';
+const panelAvailable: Record<PanelKind, (b: Bimester) => boolean> = { publication: publishable, gradeWindow: hasGradeWindow };
 
 export default function VistaBimestres() {
   const auth = useContext(AuthContext);
@@ -41,9 +46,10 @@ export default function VistaBimestres() {
   const [opening, setOpening] = useState<OpeningConfirmation | null>(null);
   const [annulling, setAnnulling] = useState<OpeningConfirmation | null>(null);
   const [busyLabel, setBusyLabel] = useState('');
-  const [publication, setPublication] = useState<number | null>(null);
-  const [publicationBusy, setPublicationBusy] = useState(false);
-  const dialogOpen = !!opening || !!annulling || publicationBusy;
+  // One panel at a time: publication (#51-A) or grade window (#39).
+  const [panel, setPanel] = useState<{ id: number; kind: PanelKind } | null>(null);
+  const [panelBusy, setPanelBusy] = useState(false);
+  const dialogOpen = !!opening || !!annulling || panelBusy;
   const [refreshRequired, setRefreshRequired] = useState(false);
   const confirmation = useRef<OpeningConfirmation | null>(null);
   const contextGeneration = useRef(0);
@@ -61,8 +67,8 @@ export default function VistaBimestres() {
   const valid = query !== null;
   const key = JSON.stringify(query);
   const loading = valid && result?.key !== key;
-  // Every context change clears `publication`; the panel follows the row of the current list.
-  const publicationTarget = publication !== null && !loading ? result?.data?.find(b => b.id === publication && publishable(b)) : undefined;
+  // Every context change clears `panel`; the panel follows the row of the current list.
+  const panelTarget = panel !== null && !loading ? result?.data?.find(b => b.id === panel.id && panelAvailable[panel.kind](b)) : undefined;
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
@@ -95,7 +101,7 @@ export default function VistaBimestres() {
   function startQuery(id: number) {
     const next = { periodId: id, generation: ++contextGeneration.current };
     activeQuery.current = next; setQuery(next);
-    confirmation.current = null; setOpening(null); setAnnulling(null); setForm(null); setPublication(null);
+    confirmation.current = null; setOpening(null); setAnnulling(null); setForm(null); setPanel(null);
     setResult(null); setNotice(null); setActionError(null);
   }
   // After a panel action the list is read again (its status column changes); the panel keeps its own read.
@@ -118,9 +124,13 @@ export default function VistaBimestres() {
     setPeriodError(null); startQuery(id);
   }
   function currentContext() { return query !== null && activeQuery.current === query; }
+  function openPanel(bimester: Bimester, kind: PanelKind) {
+    if (lock.current || panelBusy || !currentContext() || loading || !panelAvailable[kind](bimester)) return;
+    setActionError(null); setNotice(null); setPanel({ id: bimester.id, kind });
+  }
 
   function refreshList() {
-    if (lock.current || publicationBusy || !currentContext() || loading) return;
+    if (lock.current || panelBusy || !currentContext() || loading) return;
     startQuery(periodId);
   }
   function cancelOpening() { if (!lock.current) { confirmation.current = null; setOpening(null); } }
@@ -155,7 +165,7 @@ export default function VistaBimestres() {
   }
   async function runTransition(target: OpeningConfirmation, kind: keyof typeof transitions, post: () => Promise<Bimester>, errorMessage: (error: unknown) => string) {
     const transition = transitions[kind];
-    lock.current = true; confirmation.current = null; setOpening(null); setAnnulling(null); setPublication(null);
+    lock.current = true; confirmation.current = null; setOpening(null); setAnnulling(null); setPanel(null);
     setBusy(true); setBusyLabel(transition.busy); setRefreshRequired(true); setActionError(null); setNotice(null);
     const current = () => mounted.current && target.generation === contextGeneration.current;
     let accepted = false, failure: string | null = null;
@@ -183,12 +193,12 @@ export default function VistaBimestres() {
   return <div className="w-full min-h-full bg-canvas p-6 md:p-8 font-sans flex flex-col gap-6">
     <header className="bg-white rounded-2xl border border-line p-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
       <div><h1 className="text-xl md:text-2xl font-bold text-ink flex items-center gap-3"><Calendar01Icon className="text-accent" aria-hidden="true" />Bimestres</h1><p className="text-xs text-muted mt-2">Configuración del calendario de evaluación.</p></div>
-      <div className="flex flex-wrap gap-2"><button type="button" disabled={!valid || busy || loading || publicationBusy} onClick={refreshList} className={`${button} bg-white border border-line hover:bg-neutral`}>Actualizar</button>
+      <div className="flex flex-wrap gap-2"><button type="button" disabled={!valid || busy || loading || panelBusy} onClick={refreshList} className={`${button} bg-white border border-line hover:bg-neutral`}>Actualizar</button>
       <button disabled={!valid || busy || loading || !!result?.error || !!form || dialogOpen || refreshRequired} onClick={() => { if (lock.current || !currentContext() || loading || result?.key !== key || result.error || refreshRequired) return; setActionError(null); setNotice(null); setForm({ periodId, values: { number: (result?.data?.filter(occupiesNumber).reduce((max, b) => Math.max(max, b.number), 0) ?? 0) + 1, name: '', startDate: '', endDate: '' } }); }} className={`${button} bg-accent text-white flex items-center gap-2 hover:bg-accent/90`}><PlusSignIcon size={16} aria-hidden="true" />Crear bimestre</button></div>
     </header>
     <section className="bg-white rounded-2xl border border-line p-6 shadow-sm">
       <form aria-label="Consulta de bimestres" noValidate onSubmit={e => { e.preventDefault(); confirmPeriod(); }} className="flex flex-wrap items-end gap-3">
-        <label className="block text-xs font-bold text-muted w-full max-w-md">Periodo académico<select className={input} value={period} disabled={busy || publicationBusy || periodsLoading || !periodOptions.length} aria-invalid={!!periodError} aria-describedby={periodError ? 'period-error' : undefined} onChange={e => { if (lock.current || publicationBusy) return; contextGeneration.current++; activeQuery.current = null; setQuery(null); setResult(null); confirmation.current = null; setOpening(null); setAnnulling(null); setPublication(null); setRefreshRequired(false); setPeriod(e.target.value); setPeriodError(null); setForm(null); setActionError(null); setNotice(null); }}>
+        <label className="block text-xs font-bold text-muted w-full max-w-md">Periodo académico<select className={input} value={period} disabled={busy || panelBusy || periodsLoading || !periodOptions.length} aria-invalid={!!periodError} aria-describedby={periodError ? 'period-error' : undefined} onChange={e => { if (lock.current || panelBusy) return; contextGeneration.current++; activeQuery.current = null; setQuery(null); setResult(null); confirmation.current = null; setOpening(null); setAnnulling(null); setPanel(null); setRefreshRequired(false); setPeriod(e.target.value); setPeriodError(null); setForm(null); setActionError(null); setNotice(null); }}>
           <option value="">Selecciona un periodo</option>
           {periodOptions.map(p => <option key={p.id} value={String(p.id)}>{academicPeriodLabel(p)}</option>)}
         </select></label>
@@ -204,12 +214,14 @@ export default function VistaBimestres() {
         : loading ? <p role="status" className="p-6 text-xs text-muted">Cargando bimestres...</p>
         : result?.error ? <div role="alert" className="p-6 text-xs text-rose-700"><p>{result.error}</p><button className={`${button} bg-accent text-white mt-3`} disabled={busy} onClick={refreshList}>Reintentar</button></div>
         : <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-neutral/40 text-muted uppercase text-[10px] tracking-wider"><tr>{['Nombre', 'Fechas', 'Estado', 'Acciones'].map(title => <th scope="col" key={title} className="p-4 border-b border-line">{title}</th>)}</tr></thead><tbody className="divide-y divide-line">
-          {result?.data?.map(b => <tr key={b.id}><th scope="row" className="p-4 font-bold text-ink">{b.name}</th><td className="p-4 whitespace-nowrap"><time dateTime={b.startDate}>{b.startDate.split('-').reverse().join('/')}</time> — <time dateTime={b.endDate}>{b.endDate.split('-').reverse().join('/')}</time></td><td className="p-4"><span className={`px-3 py-1 rounded-full border font-bold ${b.status === 'ABIERTO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : b.status === 'ANULADO' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-neutral text-muted border-line'}`}>{bimesterStatusLabels[b.status]}</span></td><td className="p-4"><div className="flex gap-2 whitespace-nowrap">{b.status === 'PLANIFICADO' && <><button className={`${button} bg-white border border-line hover:bg-neutral`} disabled={busy || !!form || dialogOpen || refreshRequired} onClick={() => { if (lock.current || !currentContext() || loading || refreshRequired) return; setActionError(null); setForm({ periodId, original: b, values: { number: b.number, name: b.name, startDate: b.startDate, endDate: b.endDate } }); }}>Editar</button><button type="button" className={`${button} bg-accent text-white`} disabled={busy || loading || !!form || dialogOpen || refreshRequired} onClick={() => requestOpening(b)}>Abrir bimestre</button></>}{canAnnul && annullable(b) && <button type="button" className={`${button} bg-white border border-rose-200 text-rose-700 hover:bg-rose-50`} disabled={busy || loading || !!form || dialogOpen || refreshRequired} onClick={() => requestAnnulment(b)}>Anular</button>}{publishable(b) && <button type="button" aria-label={`Publicación de ${b.name}`} className={`${button} bg-white border border-line hover:bg-neutral`} disabled={busy || loading || dialogOpen || refreshRequired || publication === b.id} onClick={() => { if (lock.current || publicationBusy || !currentContext() || loading) return; setActionError(null); setNotice(null); setPublication(b.id); }}>Publicación</button>}</div></td></tr>)}
+          {result?.data?.map(b => <tr key={b.id}><th scope="row" className="p-4 font-bold text-ink">{b.name}</th><td className="p-4 whitespace-nowrap"><time dateTime={b.startDate}>{b.startDate.split('-').reverse().join('/')}</time> — <time dateTime={b.endDate}>{b.endDate.split('-').reverse().join('/')}</time></td><td className="p-4"><span className={`px-3 py-1 rounded-full border font-bold ${b.status === 'ABIERTO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : b.status === 'ANULADO' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-neutral text-muted border-line'}`}>{bimesterStatusLabels[b.status]}</span></td><td className="p-4"><div className="flex gap-2 whitespace-nowrap">{b.status === 'PLANIFICADO' && <><button className={`${button} bg-white border border-line hover:bg-neutral`} disabled={busy || !!form || dialogOpen || refreshRequired} onClick={() => { if (lock.current || !currentContext() || loading || refreshRequired) return; setActionError(null); setForm({ periodId, original: b, values: { number: b.number, name: b.name, startDate: b.startDate, endDate: b.endDate } }); }}>Editar</button><button type="button" className={`${button} bg-accent text-white`} disabled={busy || loading || !!form || dialogOpen || refreshRequired} onClick={() => requestOpening(b)}>Abrir bimestre</button></>}{canAnnul && annullable(b) && <button type="button" className={`${button} bg-white border border-rose-200 text-rose-700 hover:bg-rose-50`} disabled={busy || loading || !!form || dialogOpen || refreshRequired} onClick={() => requestAnnulment(b)}>Anular</button>}{publishable(b) && <button type="button" aria-label={`Publicación de ${b.name}`} className={`${button} bg-white border border-line hover:bg-neutral`} disabled={busy || loading || dialogOpen || refreshRequired || (panel?.kind === 'publication' && panel.id === b.id)} onClick={() => openPanel(b, 'publication')}>Publicación</button>}{hasGradeWindow(b) && <button type="button" aria-label={`Plazo de notas de ${b.name}`} className={`${button} bg-white border border-line hover:bg-neutral`} disabled={busy || loading || dialogOpen || refreshRequired || (panel?.kind === 'gradeWindow' && panel.id === b.id)} onClick={() => openPanel(b, 'gradeWindow')}>Plazo de notas</button>}</div></td></tr>)}
           {result?.data?.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted">No hay bimestres registrados.</td></tr>}
         </tbody></table></div>}
     </section>
-    {publicationTarget && <BimesterPublicationPanel key={`${publicationTarget.id}:${key}`} bimester={publicationTarget} canManage={canAnnul} locked={busy || loading || refreshRequired}
-      onClose={() => setPublication(null)} onChanged={() => { void reloadAfterPublication(); }} onBusyChange={setPublicationBusy} />}
+    {panelTarget && panel?.kind === 'publication' && <BimesterPublicationPanel key={`${panelTarget.id}:${key}`} bimester={panelTarget} canManage={canAnnul} locked={busy || loading || refreshRequired}
+      onClose={() => setPanel(null)} onChanged={() => { void reloadAfterPublication(); }} onBusyChange={setPanelBusy} />}
+    {panelTarget && panel?.kind === 'gradeWindow' && <BimesterGradeWindowPanel key={`${panelTarget.id}:${key}`} bimester={panelTarget} canManage={canAnnul} locked={busy || loading || refreshRequired}
+      onClose={() => setPanel(null)} onChanged={() => { void reloadAfterPublication(); }} onBusyChange={setPanelBusy} />}
     {busy && !form && <p role="status" className="text-xs text-muted">{busyLabel}</p>}
     {refreshRequired && !busy && <p role="alert" className="text-xs text-rose-700">Actualiza la lista para confirmar el estado antes de otra operación.</p>}
     {!form && actionError && <p role="alert" className="text-xs text-rose-700">{actionError}</p>}

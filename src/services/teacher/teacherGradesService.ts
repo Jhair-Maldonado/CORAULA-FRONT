@@ -5,6 +5,7 @@ import type { CreateManualCriterionGradeRequest } from '@/types/teacherGradesApi
 import { manualGradesErrorMessage, parseBimestersResponse, parseCriterionGradeResponse, parseCriterionGradesSheetResponse } from '@/lib/manualGradesContract';
 import { gradeInputError } from '@/lib/manualGrades';
 import { parseEvaluationResultsResponse } from '@/lib/evaluationResultsContract';
+import { contractErrorCode } from '@/services/admin/contractErrors';
 
 const path = (sectionCourseId: number) => `/v1/teacher/courses/${sectionCourseId}/bimesters`;
 
@@ -33,7 +34,12 @@ export const teacherGradesService = {
   },
 };
 
+// BACKEND #39 (docs/grade-window.md): registering or editing MANUAL grades after the deadline.
+// The full read-only mode of the sheet belongs to FRONT #51.
+export const GRADE_WINDOW_EXPIRED_MESSAGE = 'El plazo para registrar o editar notas de este bimestre venció. Pide al Director que lo amplíe.';
+
 export function teacherGradesErrorMessage(error: unknown): string {
+  if (contractErrorCode(error, { GRADE_WINDOW_EXPIRED: [409] }) === 'GRADE_WINDOW_EXPIRED') return GRADE_WINDOW_EXPIRED_MESSAGE;
   if (isAxiosError(error)) {
     const body: unknown = error.response?.data;
     const message = body && typeof body === 'object' && 'message' in body && typeof body.message === 'string' ? body.message : undefined;

@@ -77,7 +77,7 @@ export default function VistaMaterialesAlumno() {
         subtitle="Descarga de separatas, lecturas y presentaciones oficiales"
       />
 
-      <AvisoModuloSimulado className="mb-0" detalle="los materiales de estudio son de demostración y no pueden descargarse." />
+      <AvisoModuloSimulado activo={true} className="mb-0" detalle="los materiales de estudio son de demostración y no pueden descargarse." />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-8 flex flex-col gap-6">

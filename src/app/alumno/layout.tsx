@@ -61,7 +61,8 @@ function AlumnoLayoutContent({ children }: { children: React.ReactNode }) {
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 w-full mx-auto pb-16 max-w-[1200px] flex flex-col">
-          <AvisoModuloSimulado />
+          {/* El portal del alumno aún no tiene backend: siempre usa datos de demostración (#121). */}
+          <AvisoModuloSimulado activo={true} />
           {children}
         </main>
       </div>

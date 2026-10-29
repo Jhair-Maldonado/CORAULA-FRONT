@@ -25,7 +25,8 @@ import {
   BookOpen01Icon,
   Logout01Icon,
   FingerPrintIcon,
-  SquareLockPasswordIcon
+  SquareLockPasswordIcon,
+  UserMultiple02Icon
 } from 'hugeicons-react';
 import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
 
@@ -80,6 +81,7 @@ const MENU_SECTIONS: MenuSection[] = [
   {
     sectionTitle: 'Sistema',
     items: [
+      { name: 'Personal', path: '/administrador/personal', icon: UserMultiple02Icon, roles: ['ADMINISTRADOR'] },
       { name: 'Huella Digital', path: '/administrador/registroHuella', icon: FingerPrintIcon },
       { name: 'Auditoría', path: '/administrador/auditoria', icon: Shield01Icon },
       { name: 'Chat', path: '/administrador/mensajeria', icon: Comment01Icon, badge: 3 },

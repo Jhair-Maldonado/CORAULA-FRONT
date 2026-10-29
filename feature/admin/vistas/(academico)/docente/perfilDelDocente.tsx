@@ -10,8 +10,11 @@ import { toAdminTeacher, toAdminTeacherDetail, toUpdateTeacher } from '@/adapter
 import type { AdminTeacherDetail, TeacherFormValues } from '@/types/adminTeacher';
 import type { TeacherAccountResponse } from '@/types/teacherApi';
 import { AuthContext } from '@/contexts/AuthContext';
+import { accountStateActionFor, accountStateActionLabels, accountStateChangeReloads, accountStateErrorMessage, accountStateService, accountStateSuccessMessage } from '@/services/admin/accountStateService';
+import type { AccountStateAction, ChangeAccountStateRequest } from '@/types/staffAccountApi';
 import TeacherAccountModal from './TeacherAccountModal';
 import DeactivateTeacherDialog from './DeactivateTeacherDialog';
+import AccountStateDialog from '../../(sistema)/personal/AccountStateDialog';
 
 type DetailResult = {
   revision: number;
@@ -47,6 +50,8 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
   const [accountRefreshError, setAccountRefreshError] = useState('');
+  const [accountStateAction, setAccountStateAction] = useState<AccountStateAction | null>(null);
+  const [accountStateError, setAccountStateError] = useState('');
   const mutationRef = useRef(false);
   const auth = useContext(AuthContext);
   const canManageAccount = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
@@ -197,6 +202,33 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
     }
   }
 
+  // Generic account endpoint (BACK #105): changes usuario.estado only, never teacher.active.
+  async function changeAccountState(request: ChangeAccountStateRequest) {
+    if (!account || !accountStateAction || mutationRef.current) return;
+    mutationRef.current = true;
+    setBusy(true);
+    setAccountStateError('');
+    let reload = false;
+    try {
+      const change = await accountStateService.change(account.userId, accountStateAction, request);
+      setAccountStateAction(null);
+      setNotice(accountStateSuccessMessage(change));
+      reload = true;
+    } catch (error) {
+      if (accountStateChangeReloads(error)) {
+        setAccountStateAction(null);
+        setActionError(accountStateErrorMessage(error));
+        reload = true;
+      } else {
+        setAccountStateError(accountStateErrorMessage(error));
+      }
+    } finally {
+      mutationRef.current = false;
+      setBusy(false);
+    }
+    if (reload) void refreshAccount();
+  }
+
   function handleAccountCreated(created: TeacherAccountResponse) {
     setAccountOpen(false);
     setNotice(created.created
@@ -224,7 +256,8 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
               ) : (
                 <button type="button" disabled={busy} onClick={cancelEditing} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Cancelar edición</button>
               )}
-              <button disabled={busy} onClick={requestToggleActive} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">{busy ? 'Guardando...' : teacher.active ? 'Desactivar docente' : 'Reactivar docente'}</button>
+              <button disabled={busy} onClick={requestToggleActive} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">{busy ? 'Guardando...' : teacher.active ? 'Desactivar docente (no afecta su cuenta de acceso)' : 'Reactivar docente'}</button>
+              {canManageAccount && account && <button disabled={busy} onClick={() => { setNotice(''); setActionError(''); setAccountRefreshError(''); setAccountStateError(''); setAccountStateAction(accountStateActionFor(account.active)); }} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">{accountStateActionLabels[accountStateActionFor(account.active)].button}</button>}
               {canCreateAccount && <button disabled={busy || accountBlocked} onClick={() => { setNotice(''); setActionError(''); setAccountRefreshError(''); setAccountOpen(true); }} className="px-4 py-2 bg-white border border-line rounded-xl text-xs font-bold min-h-10 hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Crear cuenta de acceso</button>}
             </div>
           </header>
@@ -498,8 +531,13 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
               onCreated={handleAccountCreated}
             />
           )}
+          {accountStateAction && canManageAccount && account && <AccountStateDialog
+            action={accountStateAction} name={teacher.nombreCompleto} email={account.email} busy={busy} error={accountStateError}
+            onCancel={() => { if (!busy) setAccountStateAction(null); }}
+            onConfirm={request => void changeAccountState(request)}
+          />}
           {confirmingDeactivate && <DeactivateTeacherDialog
-            message="Al desactivar al docente también se desactivarán sus asignaciones activas. ¿Deseas continuar?"
+            message="Al desactivar al docente también se desactivarán sus asignaciones activas. Su cuenta de acceso no se modifica. ¿Deseas continuar?"
             onCancel={() => setConfirmingDeactivate(false)}
             onConfirm={() => { setConfirmingDeactivate(false); void toggleActive(); }}
           />}

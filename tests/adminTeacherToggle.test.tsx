@@ -63,12 +63,12 @@ async function render(element: React.ReactElement, options: { active?: boolean; 
 }
 
 const listSwitch = (h: Harness) => h.renderer.root.findAll(node => node.type === 'button' && node.props.role === 'switch')[0];
-const profileToggle = (h: Harness) => h.renderer.root.findAllByType('button').find(node => /^(Desactivar|Reactivar) docente$/.test(text(node)));
+const profileToggle = (h: Harness) => h.renderer.root.findAllByType('button').find(node => /^(Desactivar docente \(no afecta su cuenta de acceso\)|Reactivar docente)$/.test(text(node)));
 const dialogButton = (h: Harness, label: string) => h.dialog()?.findAllByType('button').find(node => text(node) === label);
 
 for (const [name, element, toggle, message] of [
   ['list', <VistaTodosLosDocentes key="list" />, listSwitch, '¿Deseas desactivar al docente Docente Sintético? También se desactivarán sus asignaciones activas.'],
-  ['profile', <PerfilDelDocente key="profile" />, profileToggle, 'Al desactivar al docente también se desactivarán sus asignaciones activas. ¿Deseas continuar?'],
+  ['profile', <PerfilDelDocente key="profile" />, profileToggle, 'Al desactivar al docente también se desactivarán sus asignaciones activas. Su cuenta de acceso no se modifica. ¿Deseas continuar?'],
 ] as const) {
   test(`${name}: deactivating asks for confirmation and cancelling does not call the service`, async () => {
     await render(element, {}, async (h, calls) => {

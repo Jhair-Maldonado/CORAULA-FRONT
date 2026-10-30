@@ -1,13 +1,5 @@
-// src/services/padres/padreService.ts
-/**
- * Servicio de Padres
- * 
- * NOTA: Por ahora utiliza mocks. En el futuro, se conectará a los endpoints
- * reales de Spring Boot mediante httpClient.
- * 
- * TODO(futuro):
- * import httpClient from '../httpClient';
- */
+import httpClient from '@/services/httpClient';
+import type { GuardianStudentResponse } from '@/types/guardianApi';
 import {
   PadrePerfil,
   HijoResumen,
@@ -48,13 +40,41 @@ export async function getPadrePerfil(): Promise<PadrePerfil> {
 }
 
 export async function getHijos(): Promise<HijoResumen[]> {
-  await mockDelay(250);
+  try {
+    const response = await httpClient.get<GuardianStudentResponse[]>('/v1/guardian/students');
+    const realStudents = response.data;
+    if (Array.isArray(realStudents) && realStudents.length > 0) {
+      return realStudents.map(s => {
+        const parts = s.fullName.trim().split(/\s+/);
+        const nombres = parts.slice(0, Math.ceil(parts.length / 2)).join(' ');
+        const apellidos = parts.slice(Math.ceil(parts.length / 2)).join(' ');
+
+        return {
+          id: String(s.studentId),
+          nombres: nombres || s.fullName,
+          apellidos: apellidos || '',
+          nombreCompleto: s.fullName,
+          dni: '',
+          codigoEstudiante: s.studentCode || '',
+          grado: `${s.grade}° Grado`,
+          nivel: 'Secundaria',
+          asistencia: 100,
+          seccion: s.sectionName,
+          seccionId: `sec-${s.grade}-${s.sectionName}`,
+          tutor: 'Tutor asignado',
+          estado: 'Activo'
+        };
+      });
+    }
+  } catch {
+    // Si no hay sesión o falla la conexión, usa mock como respaldo
+  }
   return [...MOCK_HIJOS];
 }
 
 export async function getHijoById(hijoId: string): Promise<HijoResumen | null> {
-  await mockDelay(200);
-  const hijo = MOCK_HIJOS.find(h => h.id === hijoId);
+  const hijos = await getHijos();
+  const hijo = hijos.find(h => h.id === hijoId);
   return hijo ? { ...hijo } : null;
 }
 
@@ -87,7 +107,8 @@ export async function enviarJustificacion(data: {
   archivoNombre?: string;
 }): Promise<JustificacionInasistencia> {
   await mockDelay(400);
-  const hijo = MOCK_HIJOS.find(h => h.id === data.hijoId) || MOCK_HIJOS[0];
+  const hijos = await getHijos();
+  const hijo = hijos.find(h => h.id === data.hijoId) || hijos[0];
   const nueva: JustificacionInasistencia = {
     id: `just-${Date.now()}`,
     hijoId: data.hijoId,

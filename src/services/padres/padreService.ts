@@ -59,10 +59,18 @@ export async function getHijos(): Promise<HijoResumen[]> {
           grado: `${s.grade}° Grado`,
           nivel: 'Secundaria',
           asistencia: 100,
+          porcentajeAsistencia: 100,
           seccion: s.sectionName,
           seccionId: `sec-${s.grade}-${s.sectionName}`,
           tutor: 'Tutor asignado',
-          estado: 'Activo'
+          estado: 'Activo',
+          promedioGeneral: 16,
+          promedio: 16,
+          tareasTotales: 0,
+          tareasEntregadas: 0,
+          faltasSinJustificar: 0,
+          estadoPension: 'Al Día',
+          avisosPendientes: 0
         };
       });
     }

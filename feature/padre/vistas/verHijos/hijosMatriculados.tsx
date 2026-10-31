@@ -37,7 +37,7 @@ export default function HijosMatriculados() {
   if (error) {
     return (
       <div className="p-6 text-center text-accent font-bold text-xs">
-        No pudimos cargar la lista de estudiantes.
+        {error}
         <button onClick={refreshPadreData} className="ml-2 underline">Reintentar</button>
       </div>
     );
@@ -55,14 +55,16 @@ export default function HijosMatriculados() {
       <div className="flex flex-col gap-3">
         {hijosLocal.length === 0 ? (
           <div className="text-center p-8 bg-neutral/50 rounded-xl border border-line border-dashed">
-            <p className="text-[11px] font-bold text-muted">No tiene estudiantes registrados</p>
+            <p className="text-[11px] font-bold text-muted">No tiene estudiantes vinculados</p>
           </div>
         ) : (
           hijosLocal.map((hijo) => {
             const isSelected = hijo.id === selectedHijoId;
+            // Sin datos de rendimiento del backend no se muestran cifras.
+            const hasRendimiento = hijo.promedioGeneral != null;
             const desaprobados = hijo.cursosBajos || 0;
-            const aprobados = 12 - desaprobados; // Simulado en base a 12 cursos totales
-            const promedioStr = hijo.promedioGeneral ? hijo.promedioGeneral.toFixed(1) : (hijo.promedio || 14.5).toFixed(1);
+            const aprobados = 12 - desaprobados; // Simulado en base a 12 cursos totales (solo mocks)
+            const promedioStr = hijo.promedioGeneral != null ? hijo.promedioGeneral.toFixed(1) : 'Sin datos';
 
             return (
               <div 
@@ -87,10 +89,10 @@ export default function HijosMatriculados() {
                     </h2>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[9px] font-bold text-muted uppercase tracking-wider bg-neutral px-1.5 py-0.5 rounded">
-                        {hijo.grado} &quot;{hijo.seccion}&quot; - {hijo.nivel}
+                        {hijo.grado || hijo.seccion ? `${hijo.grado} "${hijo.seccion}"` : 'Sin sección'}{hijo.nivel ? ` - ${hijo.nivel}` : ''}
                       </span>
                       <span className="text-[9px] font-bold text-muted">
-                        Tutor: <span className="text-ink">{hijo.tutor}</span>
+                        Tutor: <span className="text-ink">{hijo.tutor || 'Sin datos'}</span>
                       </span>
                     </div>
                   </div>
@@ -117,7 +119,7 @@ export default function HijosMatriculados() {
                         <span className="text-[9px] font-bold text-muted uppercase tracking-wider mb-0.5">Aprobados</span>
                         <div className="flex items-center gap-1 text-success-ink">
                           <CheckmarkCircle01Icon size={12} />
-                          <span className="text-[11px] font-black">{aprobados} cursos</span>
+                          <span className="text-[11px] font-black">{hasRendimiento ? `${aprobados} cursos` : 'Sin datos'}</span>
                         </div>
                       </div>
                       
@@ -127,7 +129,7 @@ export default function HijosMatriculados() {
                         <span className="text-[9px] font-bold text-muted uppercase tracking-wider mb-0.5">En Riesgo</span>
                         <div className={`flex items-center gap-1 ${desaprobados > 0 ? 'text-accent' : 'text-muted'}`}>
                           <Alert01Icon size={12} />
-                          <span className="text-[11px] font-black">{desaprobados} cursos</span>
+                          <span className="text-[11px] font-black">{hasRendimiento ? `${desaprobados} cursos` : 'Sin datos'}</span>
                         </div>
                       </div>
                     </div>

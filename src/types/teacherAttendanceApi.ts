@@ -1,5 +1,11 @@
 export type TeacherAttendanceStatus = 'PRESENTE' | 'TARDANZA' | 'INASISTENCIA';
 
+export type TeacherContingencyCause =
+  | 'LECTOR_NO_DISPONIBLE'
+  | 'FALLA_CONECTIVIDAD'
+  | 'HUELLA_NO_RECONOCIDA'
+  | 'CAIDA_SISTEMA';
+
 export interface TeacherAttendanceResponse {
   sectionCourseId: number;
   courseName: string;
@@ -33,4 +39,6 @@ export interface TeacherAttendanceStudentResponse {
 
 export interface SaveTeacherAttendanceRequest {
   records: { enrollmentId: number; status: TeacherAttendanceStatus }[];
+  reason?: string;
+  contingencyCause?: TeacherContingencyCause;
 }

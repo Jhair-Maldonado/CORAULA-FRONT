@@ -41,12 +41,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Playwright
-node_modules/
-/test-results/
+# playwright
 /playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/
+/test-results/
+
 # design files (kept outside the repo)
 *.pen

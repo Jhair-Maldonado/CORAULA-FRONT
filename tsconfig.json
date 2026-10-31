@@ -22,7 +22,6 @@
         "name": "next"
       }
     ],
-    "types": ["jest", "node", "react"],
     "paths": {
       "@/*": [
         "./src/*"

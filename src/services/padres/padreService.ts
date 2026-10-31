@@ -1,13 +1,10 @@
 // src/services/padres/padreService.ts
 /**
  * Servicio de Padres
- * 
- * NOTA: Por ahora utiliza mocks. En el futuro, se conectará a los endpoints
- * reales de Spring Boot mediante httpClient.
- * 
- * TODO(futuro):
- * import httpClient from '../httpClient';
+ * Conectado al backend mediante httpClient para el contrato de estudiantes (BACK #33 / BACK #96).
  */
+import httpClient from '../httpClient';
+import { VinculoEstudiante } from '../../../feature/padre/vistas/estudiantes/types';
 import {
   PadrePerfil,
   HijoResumen,
@@ -48,14 +45,34 @@ export async function getPadrePerfil(): Promise<PadrePerfil> {
 }
 
 export async function getHijos(): Promise<HijoResumen[]> {
-  await mockDelay(250);
-  return [...MOCK_HIJOS];
+  try {
+    const response = await httpClient.get<VinculoEstudiante[]>('/v1/guardian/students');
+    if (Array.isArray(response.data)) {
+      return response.data.map((item) => ({
+        id: String(item.studentId),
+        nombres: item.fullName.split(' ')[0] || item.fullName,
+        apellidos: item.fullName.split(' ').slice(1).join(' ') || '',
+        nombreCompleto: item.fullName,
+        dni: item.studentCode,
+        codigoEstudiante: item.studentCode,
+        grado: item.grade,
+        nivel: 'Secundaria',
+        asistencia: 100,
+        seccion: item.sectionName,
+        seccionId: String(item.studentId),
+        tutor: 'Tutor de Aula',
+        estado: 'Activo',
+      }));
+    }
+  } catch {
+    // Si no se puede consultar al backend (ej. sin token activo)
+  }
+  return [];
 }
 
 export async function getHijoById(hijoId: string): Promise<HijoResumen | null> {
-  await mockDelay(200);
-  const hijo = MOCK_HIJOS.find(h => h.id === hijoId);
-  return hijo ? { ...hijo } : null;
+  const hijos = await getHijos();
+  return hijos.find((h) => h.id === hijoId) || null;
 }
 
 export async function getDashboardResumen(id?: string, periodo?: string): Promise<ResumenDashboardPadre> {

@@ -1,11 +1,7 @@
 'use client';
 
-import VistaPrincipalJustificacion from '../../../../feature/padre/vistas/justificacion/vistaPrincipalJustificacion';
+import ApodJustificacionesView from '../../../../feature/padre/vistas/justificaciones/vistaPrincipalJustificaciones';
 
 export default function JustificacionesPage() {
-  return (
-    <>
-      <VistaPrincipalJustificacion />
-    </>
-  );
+  return <ApodJustificacionesView />;
 }

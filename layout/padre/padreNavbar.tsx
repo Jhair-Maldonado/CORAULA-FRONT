@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { usePadre } from '@/components/padres/PadreContext'; 
 import { 
@@ -33,10 +34,13 @@ export const PadreNavbar: React.FC = () => {
   const getPageTitle = (path: string) => {
     if (path === '/padre') return 'Panel General';
     if (path.includes('/hijos')) return 'Mis Estudiantes';
+    if (path.includes('/notificaciones')) return 'Bandeja de Notificaciones';
+    if (path.includes('/incidencias')) return 'Incidencias Disciplinarias';
+    if (path.includes('/libreta')) return 'Libreta de Calificaciones';
     if (path.includes('/asistencia')) return 'Asistencia General';
     if (path.includes('/comunicados')) return 'Centro de Comunicados';
     if (path.includes('/justificacion')) return 'Control de Asistencia (Justificacion)';
-    if (path.includes('/chat')) return 'Mensajería';
+    if (path.includes('/chat') || path.includes('/mensajeria')) return 'Mensajería';
     return 'Portal de Padres';
   };
 
@@ -59,10 +63,14 @@ export const PadreNavbar: React.FC = () => {
         <div className="flex items-center gap-4">
           
           {/* Notificaciones */}
-          <button className="relative w-9 h-9 rounded-full flex items-center justify-center text-[#6B7280] hover:bg-slate-100 hover:text-[#111827] transition-colors">
+          <Link
+            href="/padre/notificaciones"
+            className="relative w-9 h-9 rounded-full flex items-center justify-center text-[#6B7280] hover:bg-slate-100 hover:text-[#111827] transition-colors"
+            title="Ver bandeja de notificaciones"
+          >
             <Notification01Icon size={18} />
             <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-          </button>
+          </Link>
 
           <div className="w-px h-6 bg-[#E5E7EB]"></div>
 

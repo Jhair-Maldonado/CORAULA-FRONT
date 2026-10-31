@@ -1,11 +1,7 @@
 'use client';
-import HijosMatriculados from '../../../../feature/padre/vistas/verHijos/hijosMatriculados';
+
+import { ApodHijoView } from '../../../../feature/padre/vistas/estudiantes';
 
 export default function HijosPage() {
-
-  return (
-    <>
-      <HijosMatriculados />
-    </>
-  );
+  return <ApodHijoView />;
 }

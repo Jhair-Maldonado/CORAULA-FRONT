@@ -25,6 +25,13 @@ export const PadreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const handleSetSelectedHijoId = useCallback((id: string) => {
+    setSelectedHijoId(id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('coraula_selected_student_id', id);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -35,7 +42,11 @@ export const PadreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ]);
       setPadre(padreData);
       setHijos(hijosData);
-      if (hijosData.length === 1 && !selectedHijoId) {
+      
+      const savedId = typeof window !== 'undefined' ? localStorage.getItem('coraula_selected_student_id') : null;
+      if (savedId && hijosData.some(h => h.id === savedId)) {
+        setSelectedHijoId(savedId);
+      } else if (hijosData.length > 0 && !selectedHijoId) {
         setSelectedHijoId(hijosData[0].id);
       }
     } catch (err) {
@@ -59,7 +70,11 @@ export const PadreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (!mounted) return;
         setPadre(padreData);
         setHijos(hijosData);
-        if (hijosData.length === 1 && !selectedHijoId) {
+        
+        const savedId = typeof window !== 'undefined' ? localStorage.getItem('coraula_selected_student_id') : null;
+        if (savedId && hijosData.some(h => h.id === savedId)) {
+          setSelectedHijoId(savedId);
+        } else if (hijosData.length > 0 && !selectedHijoId) {
           setSelectedHijoId(hijosData[0].id);
         }
       } catch (err) {
@@ -71,7 +86,20 @@ export const PadreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     
     fetchContext();
-    return () => { mounted = false; };
+
+    const handleStudentChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<{ studentId: string }>;
+      if (customEvent.detail?.studentId) {
+        setSelectedHijoId(customEvent.detail.studentId);
+      }
+    };
+
+    window.addEventListener('coraula:student-changed', handleStudentChanged);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('coraula:student-changed', handleStudentChanged);
+    };
   }, [selectedHijoId]);
 
   const selectedHijo = hijos.find((h) => h.id === selectedHijoId) || null;
@@ -83,7 +111,7 @@ export const PadreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         hijos,
         selectedHijoId,
         selectedHijo,
-        setSelectedHijoId,
+        setSelectedHijoId: handleSetSelectedHijoId,
         isLoading,
         error,
         refreshPadreData: loadData,

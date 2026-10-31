@@ -1,4 +1,6 @@
+import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
+import { isMockDataEnabled } from '@/lib/mockMode';
 import type { GuardianStudentResponse } from '@/types/guardianApi';
 import {
   PadrePerfil,
@@ -39,45 +41,56 @@ export async function getPadrePerfil(): Promise<PadrePerfil> {
   return { ...MOCK_PADRE_PERFIL };
 }
 
-export async function getHijos(): Promise<HijoResumen[]> {
-  try {
-    const response = await httpClient.get<GuardianStudentResponse[]>('/v1/guardian/students');
-    const realStudents = response.data;
-    if (Array.isArray(realStudents) && realStudents.length > 0) {
-      return realStudents.map(s => {
-        const parts = s.fullName.trim().split(/\s+/);
-        const nombres = parts.slice(0, Math.ceil(parts.length / 2)).join(' ');
-        const apellidos = parts.slice(Math.ceil(parts.length / 2)).join(' ');
-
-        return {
-          id: String(s.studentId),
-          nombres: nombres || s.fullName,
-          apellidos: apellidos || '',
-          nombreCompleto: s.fullName,
-          dni: '',
-          codigoEstudiante: s.studentCode || '',
-          grado: `${s.grade}° Grado`,
-          nivel: 'Secundaria',
-          asistencia: 100,
-          porcentajeAsistencia: 100,
-          seccion: s.sectionName,
-          seccionId: `sec-${s.grade}-${s.sectionName}`,
-          tutor: 'Tutor asignado',
-          estado: 'Activo',
-          promedioGeneral: 16,
-          promedio: 16,
-          tareasTotales: 0,
-          tareasEntregadas: 0,
-          faltasSinJustificar: 0,
-          estadoPension: 'Al Día',
-          avisosPendientes: 0
-        };
-      });
-    }
-  } catch {
-    // Si no hay sesión o falla la conexión, usa mock como respaldo
+export function guardianStudentsErrorMessage(error: unknown): string {
+  if (isAxiosError(error)) {
+    const status = error.response?.status;
+    if (status === 401) return 'La sesión ha expirado. Vuelve a iniciar sesión.';
+    if (status === 403) return 'Tu cuenta no tiene un perfil de apoderado activo.';
+    if (!error.response) return 'No se pudo conectar con el servidor. Intenta nuevamente.';
   }
-  return [...MOCK_HIJOS];
+  return 'No se pudo cargar la lista de estudiantes vinculados.';
+}
+
+// Solo se mapea lo que expone GET /v1/guardian/students; el resto queda vacío o null (sin datos).
+export function mapGuardianStudent(s: GuardianStudentResponse): HijoResumen {
+  return {
+    id: String(s.studentId),
+    nombres: s.fullName,
+    apellidos: '',
+    nombreCompleto: s.fullName,
+    dni: '',
+    codigoEstudiante: s.studentCode ?? '',
+    grado: s.grade != null ? `${s.grade}° Grado` : '',
+    nivel: null,
+    asistencia: null,
+    porcentajeAsistencia: null,
+    seccion: s.sectionName ?? '',
+    seccionId: '',
+    tutor: '',
+    estado: null,
+    promedioGeneral: null,
+    promedio: null,
+    tareasTotales: null,
+    tareasEntregadas: null,
+    faltasSinJustificar: null,
+    estadoPension: null,
+    avisosPendientes: null
+  };
+}
+
+export async function getHijos(): Promise<HijoResumen[]> {
+  if (isMockDataEnabled()) {
+    await mockDelay(250);
+    return [...MOCK_HIJOS];
+  }
+  let data: unknown;
+  try {
+    data = (await httpClient.get<GuardianStudentResponse[]>('/v1/guardian/students')).data;
+  } catch (error) {
+    throw new Error(guardianStudentsErrorMessage(error));
+  }
+  if (!Array.isArray(data)) throw new Error(guardianStudentsErrorMessage(null));
+  return data.map(mapGuardianStudent);
 }
 
 export async function getHijoById(hijoId: string): Promise<HijoResumen | null> {

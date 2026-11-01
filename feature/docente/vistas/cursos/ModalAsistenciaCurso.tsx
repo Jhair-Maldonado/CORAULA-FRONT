@@ -1,7 +1,18 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X, Check, CheckCircle2, Calendar, Loader2, ShieldAlert, FileText } from 'lucide-react';
+import { X, Check, CheckCircle2, Calendar, Loader2 } from 'lucide-react';
+import JustificacionAsistencia from '@/components/attendance/JustificacionAsistencia';
+import SelectorEstadoAsistencia from '@/components/attendance/SelectorEstadoAsistencia';
+import {
+  ATTENDANCE_REASON_MAX_LENGTH,
+  DEFAULT_CONTINGENCY_CAUSE,
+  REASON_REQUIRED_MESSAGE,
+  REASON_TOO_LONG_MESSAGE,
+  hasAttendanceChanges,
+  isFirstCapture as firstCaptureOf,
+  isReasonValid as reasonValid
+} from '@/lib/attendanceJustification';
 import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
 import { teacherAttendanceService, teacherAttendanceErrorMessage } from '@/services/teacher/teacherAttendanceService';
 import type { TeacherCourseStudentResponse } from '@/types/teacherCoursesApi';
@@ -18,13 +29,6 @@ interface ModalAsistenciaCursoProps {
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-];
-
-const CONTINGENCY_CAUSES: { value: TeacherContingencyCause; label: string }[] = [
-  { value: 'LECTOR_NO_DISPONIBLE', label: 'Lector biométrico no disponible' },
-  { value: 'FALLA_CONECTIVIDAD', label: 'Falla de conectividad' },
-  { value: 'HUELLA_NO_RECONOCIDA', label: 'Huella no reconocida' },
-  { value: 'CAIDA_SISTEMA', label: 'Caída del sistema' }
 ];
 
 const NO_SESSION_TODAY_MESSAGE =
@@ -60,7 +64,7 @@ export default function ModalAsistenciaCurso({
   // Sin integración con el lector biométrico, toda toma desde esta pantalla es manual:
   // primera toma = contingencia (causa + motivo); corrección = solo motivo.
   // Contingencia & Justificación (RF-16 / RF-42)
-  const [contingencyCause, setContingencyCause] = useState<TeacherContingencyCause>('LECTOR_NO_DISPONIBLE');
+  const [contingencyCause, setContingencyCause] = useState<TeacherContingencyCause>(DEFAULT_CONTINGENCY_CAUSE);
   const [reason, setReason] = useState('');
   
   const [saving, setSaving] = useState(false);
@@ -78,7 +82,7 @@ export default function ModalAsistenciaCurso({
     setSaveSuccess('');
     setSaveError('');
     setReason('');
-    setContingencyCause('LECTOR_NO_DISPONIBLE');
+    setContingencyCause(DEFAULT_CONTINGENCY_CAUSE);
 
     Promise.all([
       teacherCoursesService.getStudents(sectionCourseId),
@@ -127,25 +131,19 @@ export default function ModalAsistenciaCurso({
   }, [isOpen, sectionCourseId, todayInfo.iso]);
 
   // Determinar si es primera toma o corrección
-  const isFirstCapture = useMemo(() => {
-    if (students.length === 0) return true;
-    // Si algún estudiante no tenía registro guardado previo, es primera toma
-    return students.some(s => initialStatuses[s.enrollmentId] == null);
-  }, [students, initialStatuses]);
+  const enrollmentIds = useMemo(() => students.map(s => s.enrollmentId), [students]);
+  const isFirstCapture = useMemo(() => firstCaptureOf(enrollmentIds, initialStatuses), [enrollmentIds, initialStatuses]);
 
   // Determinar si hubo cambios con respecto a lo guardado
-  const hasChanges = useMemo(() => {
-    return students.some(s => {
-      const prev = initialStatuses[s.enrollmentId] ?? null;
-      const cur = attendanceDraft[s.enrollmentId] ?? 'PRESENTE';
-      return prev !== cur;
-    });
-  }, [students, initialStatuses, attendanceDraft]);
+  const hasChanges = useMemo(
+    () => hasAttendanceChanges(enrollmentIds, initialStatuses, attendanceDraft),
+    [enrollmentIds, initialStatuses, attendanceDraft]
+  );
 
   // Primera toma: causa y motivo obligatorios. Corrección con cambios: solo motivo.
   const isReasonRequired = isFirstCapture || hasChanges;
   const trimmedReason = reason.trim();
-  const isReasonValid = !isReasonRequired || (trimmedReason.length > 0 && trimmedReason.length <= 255);
+  const isReasonValid = reasonValid(reason, isReasonRequired);
 
   if (!isOpen) return null;
 
@@ -160,11 +158,11 @@ export default function ModalAsistenciaCurso({
   const handleSave = async () => {
     if (students.length === 0 || saving) return;
     if (isReasonRequired && trimmedReason.length === 0) {
-      setSaveError('El motivo es obligatorio al registrar o corregir asistencia manualmente.');
+      setSaveError(REASON_REQUIRED_MESSAGE);
       return;
     }
-    if (trimmedReason.length > 255) {
-      setSaveError('El motivo no puede superar los 255 caracteres.');
+    if (trimmedReason.length > ATTENDANCE_REASON_MAX_LENGTH) {
+      setSaveError(REASON_TOO_LONG_MESSAGE);
       return;
     }
 
@@ -292,127 +290,24 @@ export default function ModalAsistenciaCurso({
                     </div>
 
                     {/* Selector P / T / F */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: 'PRESENTE' }))
-                        }
-                        className={`w-8 h-8 rounded-lg text-xs font-black transition-all flex items-center justify-center border-2 ${
-                          currentStatus === 'PRESENTE'
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-200'
-                            : 'bg-white text-slate-800 border-slate-300 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50'
-                        }`}
-                        title="Presente"
-                        aria-label={`Marcar Presente a ${student.fullName}`}
-                      >
-                        P
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: 'TARDANZA' }))
-                        }
-                        className={`w-8 h-8 rounded-lg text-xs font-black transition-all flex items-center justify-center border-2 ${
-                          currentStatus === 'TARDANZA'
-                            ? 'bg-amber-500 text-white border-amber-500 shadow-sm ring-2 ring-amber-200'
-                            : 'bg-white text-slate-800 border-slate-300 hover:border-amber-500 hover:text-amber-700 hover:bg-amber-50/50'
-                        }`}
-                        title="Tardanza"
-                        aria-label={`Marcar Tardanza a ${student.fullName}`}
-                      >
-                        T
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: 'INASISTENCIA' }))
-                        }
-                        className={`w-8 h-8 rounded-lg text-xs font-black transition-all flex items-center justify-center border-2 ${
-                          currentStatus === 'INASISTENCIA'
-                            ? 'bg-rose-600 text-white border-rose-600 shadow-sm ring-2 ring-rose-200'
-                            : 'bg-white text-slate-800 border-slate-300 hover:border-rose-500 hover:text-rose-700 hover:bg-rose-50/50'
-                        }`}
-                        title="Falta / Inasistencia"
-                        aria-label={`Marcar Falta a ${student.fullName}`}
-                      >
-                        F
-                      </button>
-                    </div>
+                    <SelectorEstadoAsistencia
+                      studentName={student.fullName}
+                      status={currentStatus}
+                      onChange={status => setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: status }))}
+                    />
                   </div>
                 );
               })}
 
               {/* Contingencia (primera toma) o corrección manual */}
-              <div className="mt-2 pt-3 border-t border-line space-y-3 bg-neutral/10 p-3 rounded-xl animate-in fade-in duration-150">
-                {isFirstCapture ? (
-                  <div>
-                    <label
-                      htmlFor="contingency-cause-select"
-                      className="flex items-center gap-1.5 text-xs font-bold text-ink mb-1.5"
-                    >
-                      <ShieldAlert size={14} className="text-amber-600 shrink-0" />
-                      <span>Causa de contingencia</span>
-                      <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      id="contingency-cause-select"
-                      value={contingencyCause}
-                      onChange={e => setContingencyCause(e.target.value as TeacherContingencyCause)}
-                      className="w-full text-xs font-semibold text-ink bg-white border border-line rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-accent focus:outline-none"
-                    >
-                      {CONTINGENCY_CAUSES.map(c => (
-                        <option key={c.value} value={c.value}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                    <ShieldAlert size={14} className="text-blue-500 shrink-0" />
-                    <span>Modo corrección de asistencia (se conserva causa original de contingencia)</span>
-                  </div>
-                )}
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label
-                      htmlFor="attendance-reason-input"
-                      className="flex items-center gap-1.5 text-xs font-bold text-ink"
-                    >
-                      <FileText size={14} className="text-accent shrink-0" />
-                      <span>Motivo / Justificación</span>
-                      {isReasonRequired && <span className="text-rose-500">*</span>}
-                    </label>
-                    <span className={`text-[10px] font-bold ${reason.length > 255 ? 'text-rose-600' : 'text-muted'}`}>
-                      {reason.length}/255
-                    </span>
-                  </div>
-                  <input
-                    id="attendance-reason-input"
-                    type="text"
-                    maxLength={255}
-                    value={reason}
-                    onChange={e => setReason(e.target.value)}
-                    placeholder={
-                      isFirstCapture
-                        ? 'Ej. Registro regular de asistencia en aula por falta de lector'
-                        : 'Ej. Corrección por ingreso justificado del estudiante'
-                    }
-                    className={`w-full text-xs text-ink bg-white border rounded-lg px-2.5 py-2 placeholder:text-muted/70 focus:outline-none focus:ring-2 ${
-                      reason.length > 255
-                        ? 'border-rose-400 focus:ring-rose-400'
-                        : 'border-line focus:ring-accent'
-                    }`}
-                  />
-                  {isReasonRequired && trimmedReason.length === 0 && (
-                    <p className="text-[10px] text-muted mt-1">
-                      El motivo es obligatorio en el registro manual de asistencia.
-                    </p>
-                  )}
-                </div>
-              </div>
+              <JustificacionAsistencia
+                firstCapture={isFirstCapture}
+                reasonRequired={isReasonRequired}
+                contingencyCause={contingencyCause}
+                onContingencyCauseChange={setContingencyCause}
+                reason={reason}
+                onReasonChange={setReason}
+              />
             </>
           )}
         </div>

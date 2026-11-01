@@ -16,6 +16,7 @@ import { teacherAssignmentsService } from '@/services/admin/teacherAssignmentsSe
 import { sectionErrorMessage, sectionErrorStatus } from '@/services/admin/sectionErrors';
 import { primaryButtonClass, secondaryButtonClass, destructiveButtonClass, Failure, SectionBadge, SectionLoading, SectionEmpty, SectionDialog, SectionIdentity, sectionName } from './sectionUi';
 import ResourceSelector from './resourceSelector';
+import AsistenciaContingenciaDialog from './AsistenciaContingenciaDialog';
 
 type Result<T> = { revision: number; data?: T; error?: string; notFound?: boolean };
 type Action = { kind: 'add' } | { kind: 'assign' | 'unassign' | 'remove' | 'reactivate'; relation: SectionCourseResponse };
@@ -38,6 +39,8 @@ function SectionDetail({ sectionId }: { sectionId: string }) {
   const [action, setAction] = useState<Action | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // FRONT #108: ADMINISTRADOR registra por contingencia; DIRECTIVO solo consulta.
+  const [attendance, setAttendance] = useState<SectionCourseResponse | null>(null);
   const [actionError, setActionError] = useState('');
   const [notice, setNotice] = useState('');
   const mutation = useRef(false);
@@ -193,6 +196,7 @@ function SectionDetail({ sectionId }: { sectionId: string }) {
                 <td className="py-3 px-4"><span className="flex items-start gap-1.5 break-words"><UserIcon size={14} aria-hidden="true" className="text-muted shrink-0" />{relation.teacherId === null || relation.teacherName === null ? 'Sin docente asignado' : relation.teacherName}</span></td>
                 <td className="py-3 px-4"><div className="flex flex-wrap gap-2">
                   {relation.active ? <>
+                    <button className={secondaryButtonClass} disabled={busy || !section} aria-label={`${canManage ? 'Asistencia' : 'Ver asistencia'} de ${relation.courseName}`} onClick={() => setAttendance(relation)}>{canManage ? 'Asistencia' : 'Ver asistencia'}</button>
                     <button className={relation.teacherId === null ? primaryButtonClass : destructiveButtonClass} disabled={busy || !section} onClick={() => open({ kind: relation.teacherId === null ? 'assign' : 'unassign', relation })}>{relation.teacherId === null ? 'Asignar docente' : 'Retirar docente'}</button>
                     <button className={`${destructiveButtonClass} inline-flex items-center gap-1.5`} disabled={busy || !section} onClick={() => open({ kind: 'remove', relation })}><Delete01Icon size={14} aria-hidden="true" />Retirar curso</button>
                   </> : <button className={secondaryButtonClass} disabled={busy || !section} onClick={() => open({ kind: 'reactivate', relation })}>Reactivar curso</button>}
@@ -216,7 +220,9 @@ function SectionDetail({ sectionId }: { sectionId: string }) {
           </div>
         </form>
       </SectionDialog>}
-      {manage?.kind === 'edit' && section && canManage && <SectionForm original={section} onCancel={() => setManage(null)} onSaved={saved => sectionSaved(saved, 'Sección actualizada.')} />}
+      {attendance && section && <AsistenciaContingenciaDialog relation={attendance} canManage={canManage}
+        sectionLabel={`${sectionName(section.name)} • ${section.grade}° grado`} onClose={() => setAttendance(null)} />}
+      {manage?.kind === 'edit' && section && canManage &&<SectionForm original={section} onCancel={() => setManage(null)} onSaved={saved => sectionSaved(saved, 'Sección actualizada.')} />}
       {manage && manage.kind !== 'edit' && section && canManage && <SectionDialog title={manage.kind === 'reactivate' ? 'Reactivar sección' : 'Desactivar sección'} busy={busy} onClose={() => { if (!mutation.current) setManage(null); }}>
         <form aria-label="Estado de la sección" className="flex flex-col gap-4" onSubmit={event => { event.preventDefault(); void submitStatus(); }}>
           <p className="font-bold text-xs p-3 rounded-xl bg-neutral/50 border border-line break-words">{sectionName(section.name)} • {section.grade}° grado</p>

@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Bimester, TeacherEvaluationData } from '@/types/evaluationApi';
 import { MANUAL_GRADES_CONTRACT_VERIFIED } from '@/types/teacherGradesApi';
-import type { CreateManualCriterionGradeRequest } from '@/types/teacherGradesApi';
-import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
+import type { CreateManualCriterionGradeRequest, TeacherCorrectCriterionGradeRequest } from '@/types/teacherGradesApi';
+import type { GradeWindow } from '@/types/gradeWindowApi';
+import { correctionRequiresReload, teacherGradeCorrectionErrorMessage, teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
 import { adaptCriterionGradesSheet, prepareFirstGrades, registerFirstGrades } from '@/lib/manualGrades';
 
 type Result<T> = { key: string; data?: T; error?: string };
@@ -16,7 +17,7 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
   const [sheetRevision, setSheetRevision] = useState(0);
   const [selectedBimesterId, setSelectedBimesterId] = useState('');
   const [bimesterResult, setBimesterResult] = useState<Result<Bimester[]> | null>(null);
-  const [sheetResult, setSheetResult] = useState<Result<{ evaluation: TeacherEvaluationData; bimester: Bimester }> | null>(null);
+  const [sheetResult, setSheetResult] = useState<Result<{ evaluation: TeacherEvaluationData; bimester: Bimester; gradeWindow: GradeWindow | null }> | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
       .then(sheet => {
         if (abort.signal.aborted) return;
         if (sheet.bimester.status === 'ANULADO') { discardAnnulled(sheet.bimester); return; }
-        setSheetResult({ key: sheetKey, data: { evaluation: adaptCriterionGradesSheet(sheet), bimester: sheet.bimester } }); setRefreshRequired(false); setResultsRevision(n => n + 1);
+        setSheetResult({ key: sheetKey, data: { evaluation: adaptCriterionGradesSheet(sheet), bimester: sheet.bimester, gradeWindow: sheet.gradeWindow ?? null } }); setRefreshRequired(false); setResultsRevision(n => n + 1);
       })
       .catch(error => { if (!abort.signal.aborted) setSheetResult({ key: sheetKey, error: teacherGradesErrorMessage(error) }); });
     return () => abort.abort();
@@ -121,7 +122,7 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
           const row = evaluation.records.find(r => r.enrollmentId === c.enrollmentId);
           return row?.gradeIds?.[c.criterionId] != null && row.grades[c.criterionId] === c.grade;
         });
-        if (stillCurrent()) { setSheetResult({ key: sheetKey, data: { evaluation, bimester: sheet.bimester } }); setDrafts({}); setRefreshRequired(!confirmed); }
+        if (stillCurrent()) { setSheetResult({ key: sheetKey, data: { evaluation, bimester: sheet.bimester, gradeWindow: sheet.gradeWindow ?? null } }); setDrafts({}); setRefreshRequired(!confirmed); }
         if (!confirmed) throw new Error('La planilla consultada no confirmó todas las notas aceptadas.');
       });
       if (stillCurrent()) setSaveMessage(`Se registraron ${count} notas y se volvió a consultar la planilla.`);
@@ -136,7 +137,31 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
     }
   }
 
+  // BACKEND #39: one PATCH per edit. The sheet is read again after success and after any failure that
+  // makes it stale (GRADE_CHANGED_CONCURRENTLY, window expired, state change, 404). Drafts are kept.
+  async function correctGrade(gradeId: number, request: TeacherCorrectCriterionGradeRequest): Promise<{ ok: true } | { ok: false; error: string; reloaded: boolean }> {
+    if (!mounted.current || mutation.current || !current || !sectionCourseId) return { ok: false, error: 'Hay otra operación en curso. Espera a que termine.', reloaded: false };
+    mutation.current = true;
+    const generation = selectionGeneration.current;
+    const stillCurrent = () => mounted.current && generation === selectionGeneration.current;
+    setSaving(true); setSaveError(null); setSaveMessage(null);
+    try {
+      await teacherGradesService.correctGrade(sectionCourseId, current.bimester.id, gradeId, request);
+      if (stillCurrent()) { setSaveMessage('Nota corregida. Se volvió a consultar la planilla.'); setSheetRevision(n => n + 1); }
+      return { ok: true };
+    } catch (error) {
+      const message = teacherGradeCorrectionErrorMessage(error);
+      const reloaded = correctionRequiresReload(error);
+      if (stillCurrent() && reloaded) { setSaveError(message); setSheetRevision(n => n + 1); }
+      return { ok: false, error: message, reloaded };
+    } finally {
+      mutation.current = false;
+      if (stillCurrent()) setSaving(false);
+    }
+  }
+
   return {
+    gradeWindow: current?.gradeWindow ?? null, correctGrade,
     bimesters, bimestersLoading, bimestersError, selectedBimesterId, selectBimester,
     evaluation: current?.evaluation, bimester: current?.bimester ?? selected,
     evaluationLoading, evaluationError, refreshSheet, annulledNotice,

@@ -142,3 +142,55 @@ test('HijosMatriculados: real student renders "Sin datos" instead of invented fi
   assert.ok(!out.includes('16.0'));
   assert.ok(!out.includes('12 cursos'));
 });
+
+// REL-FIX-PADRE-HIJOS: sin endpoint de edición, "Editar Ficha" solo existe en modo demostración.
+test('HijosMatriculados with mocks off: no "Editar Ficha" button nor edit modal', async () => {
+  const out = await renderHijos({ status: 200, data: [ANA, SIN_MATRICULA] });
+  assert.ok(out.includes('Ana Arias Prueba'), out);
+  assert.ok(!out.includes('Editar Ficha'), out);
+  assert.ok(!out.includes('Guardar'), out);
+});
+
+test('HijosMatriculados with mocks on: "Editar Ficha" stays available for demo', async () => {
+  process.env.NEXT_PUBLIC_USE_MOCKS = 'true';
+  try {
+    const out = await renderHijos({ status: 200, data: [] });
+    assert.ok(out.includes('Editar Ficha'), out);
+  } finally {
+    process.env.NEXT_PUBLIC_USE_MOCKS = 'false';
+  }
+});
+
+test('PadreSidebar with mocks off: no fixed badges nor simulated guardian profile', async () => {
+  const { PadreSidebar } = await import('../layout/padre/padreSidebar');
+  const { MOCK_PADRE_PERFIL } = await import('../src/lib/mocks/mockPadres');
+  const render = async () => withBackend({ status: 200, data: [ANA] }, async () => {
+    let r!: ReturnType<typeof create>;
+    await act(async () => {
+      r = create(<PadreProvider><PadreSidebar /></PadreProvider>);
+    });
+    for (let i = 0; i < 2; i++) {
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 400)); });
+    }
+    const out = text(r.root);
+    act(() => r.unmount());
+    return out;
+  });
+  const initials = MOCK_PADRE_PERFIL.nombres.charAt(0) + MOCK_PADRE_PERFIL.apellidos.charAt(0);
+  // next/link lee `self` (mismo patrón que academicPeriods.test.tsx).
+  const oldSelf = Object.getOwnPropertyDescriptor(globalThis, 'self');
+  Object.defineProperty(globalThis, 'self', { configurable: true, value: globalThis });
+  try {
+    const off = await render();
+    assert.ok(off.includes('Chats') && off.includes('Avisos'), off);
+    assert.ok(!/\d/.test(off), off);
+    assert.ok(!off.includes(initials), off);
+    process.env.NEXT_PUBLIC_USE_MOCKS = 'true';
+    const on = await render();
+    assert.ok(/\d/.test(on), on);
+  } finally {
+    process.env.NEXT_PUBLIC_USE_MOCKS = 'false';
+    if (oldSelf) Object.defineProperty(globalThis, 'self', oldSelf);
+    else delete (globalThis as { self?: unknown }).self;
+  }
+});

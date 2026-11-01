@@ -6,10 +6,13 @@ import { usePadre } from '@/components/padres/PadreContext';
 import { CheckmarkCircle01Icon, Alert01Icon, PencilEdit02Icon, StarIcon } from 'hugeicons-react';
 import { EdicionHijoModal } from './component/edicionHijoModal'; 
 import { HijoResumen } from '@/types/padre';
+import { isMockDataEnabled } from '@/lib/mockMode';
 
 export default function HijosMatriculados() {
   const { hijos, selectedHijoId, setSelectedHijoId, isLoading, error, refreshPadreData } = usePadre();
-  
+  // No existe endpoint para que el apoderado edite la ficha: la edición solo existe en modo demostración.
+  const mocksActivos = isMockDataEnabled();
+
   // Estado para el modal de edición
   const [hijoEditando, setHijoEditando] = useState<HijoResumen | null>(null);
   
@@ -23,6 +26,8 @@ export default function HijosMatriculados() {
       setHijosLocal(hijos);
     }
   }, [hijos]);
+
+  const listaHijos = mocksActivos ? hijosLocal : hijos;
 
   if (isLoading) {
     return (
@@ -53,12 +58,12 @@ export default function HijosMatriculados() {
       </div>
 
       <div className="flex flex-col gap-3">
-        {hijosLocal.length === 0 ? (
+        {listaHijos.length === 0 ? (
           <div className="text-center p-8 bg-neutral/50 rounded-xl border border-line border-dashed">
             <p className="text-[11px] font-bold text-muted">No tiene estudiantes vinculados</p>
           </div>
         ) : (
-          hijosLocal.map((hijo) => {
+          listaHijos.map((hijo) => {
             const isSelected = hijo.id === selectedHijoId;
             // Sin datos de rendimiento del backend no se muestran cifras.
             const hasRendimiento = hijo.promedioGeneral != null;
@@ -135,7 +140,8 @@ export default function HijosMatriculados() {
                     </div>
                   </div>
 
-                  {/* Acciones */}
+                  {/* Acciones (solo modo demostración) */}
+                  {mocksActivos && (
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                     <button
                       onClick={(e) => {
@@ -147,6 +153,7 @@ export default function HijosMatriculados() {
                       <PencilEdit02Icon size={14} /> Editar Ficha
                     </button>
                   </div>
+                  )}
 
                 </div>
               </div>
@@ -156,14 +163,13 @@ export default function HijosMatriculados() {
       </div>
 
       {/* Render Modal de Edición */}
-      {hijoEditando && (
+      {mocksActivos && hijoEditando && (
         <EdicionHijoModal
           hijo={hijoEditando}
           onClose={() => setHijoEditando(null)}
           onSave={(hijoEditado) => {
             setHijosLocal(prev => prev.map(h => h.id === hijoEditado.id ? hijoEditado : h));
             setHijoEditando(null);
-            // Aquí idealmente llamaríamos a la API para actualizar los datos en BD.
           }}
         />
       )}

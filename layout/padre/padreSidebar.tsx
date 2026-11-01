@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   DashboardSquare01Icon,
   UserGroupIcon,
+  Calendar01Icon,
   Notification01Icon,
   Comment01Icon,
   Logout01Icon,
@@ -26,6 +27,7 @@ type MenuItem = {
 const MENU_ITEMS: MenuItem[] = [
   { name: 'Ficha', path: '/padre', icon: DashboardSquare01Icon },
   { name: 'Hijos', path: '/padre/hijos', icon: UserGroupIcon },
+  { name: 'Asistencia', path: '/padre/asistencia', icon: Calendar01Icon },
   { name: 'Chats', path: '/padre/mensajeria', icon: Comment01Icon, badge: 1 },
   { name: 'Justificar', path: '/padre/justificacion', icon: AlertCircleIcon, badge: '1' },
   { name: 'Avisos', path: '/padre/avisos', icon: Notification01Icon, badge: 2 },

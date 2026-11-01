@@ -528,9 +528,13 @@ export default function VistaIncidenciasDocente() {
                 maxLength={INCIDENT_TEXT_MAX}
                 value={descripcion}
                 onChange={e => setDescripcion(e.target.value)}
+                aria-describedby="incidencia-descripcion-ayuda"
                 placeholder="Detalla de forma objetiva los hechos ocurridos, palabras expresadas o transgresión al reglamento..."
                 className="w-full mt-1.5 p-3 rounded-xl border border-line bg-white text-xs font-normal text-ink placeholder:text-muted focus-visible:outline-accent resize-none"
               />
+              <span id="incidencia-descripcion-ayuda" className="text-[11px] font-normal text-muted block mt-1">
+                Esta descripción será visible para el apoderado.
+              </span>
               <span className="text-[10px] font-normal text-muted block text-right mt-0.5">
                 {descripcion.length}/{INCIDENT_TEXT_MAX} caracteres
               </span>

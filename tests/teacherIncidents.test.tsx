@@ -268,6 +268,21 @@ test('incidents view registers against the backend, shows real history and no si
   });
 });
 
+test('incidents form warns that the description is visible to the guardian, linked with aria-describedby', async () => {
+  await withTeacherStubs(async () => {
+    await withAdapter(() => ({ status: 200, data: page([], 0, 10) }), async () => {
+      const r = await renderView();
+      try {
+        const description = r.root.findByProps({ placeholder: 'Detalla de forma objetiva los hechos ocurridos, palabras expresadas o transgresión al reglamento...' });
+        const helpId = description.props['aria-describedby'];
+        assert.equal(helpId, 'incidencia-descripcion-ayuda');
+        const help = r.root.find(n => typeof n.type === 'string' && n.props.id === helpId);
+        assert.equal(text(help).trim(), 'Esta descripción será visible para el apoderado.');
+      } finally { await act(async () => { r.unmount(); }); }
+    });
+  });
+});
+
 test('incidents view sends severity, section and date filters to the backend and paginates', async () => {
   await withTeacherStubs(async () => {
     await withAdapter(call => ({ status: 200, data: page([incident(1, { severity: (call.params?.severity as IncidenciaResponse['severity']) ?? 'MODERADA' })], (call.params?.page as number) ?? 0, 10, 25) }), async calls => {

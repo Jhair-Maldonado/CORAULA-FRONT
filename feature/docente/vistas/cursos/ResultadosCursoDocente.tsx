@@ -5,6 +5,7 @@ import { bimesterStatusLabels, type Bimester } from '@/types/evaluationApi';
 import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
 import ResultadosBimestre from '@/components/evaluation/ResultadosBimestre';
 import RegistroCursoDocente from './RegistroCursoDocente';
+import AlertasTempranasDocente from './AlertasTempranasDocente';
 
 type Result = { key: string; data?: Bimester[]; error?: string };
 const button = 'min-h-10 px-3 py-2 rounded-lg border border-line bg-white text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent';
@@ -52,6 +53,8 @@ export default function ResultadosCursoDocente({ sectionCourseId }: { sectionCou
           </label>}
       {/* #106: registro del curso para la publicación del bimestre seleccionado */}
       {bimester && <RegistroCursoDocente key={`registro-${bimester.id}`} sectionCourseId={sectionCourseId} bimester={bimester} />}
+      {/* #107: alertas tempranas (PA acumulada < 11) del bimestre seleccionado */}
+      {bimester && <AlertasTempranasDocente key={`alertas-${bimester.id}`} sectionCourseId={sectionCourseId} bimester={bimester} />}
       {bimester && <ResultadosBimestre key={bimester.id} load={load} />}
     </div>
   );

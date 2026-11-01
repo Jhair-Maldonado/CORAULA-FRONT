@@ -1,5 +1,6 @@
 import type { Bimester, EvaluationCriterion, EvaluationStudentRow, TeacherEvaluationData } from '../types/evaluationApi';
 import type { CreateManualCriterionGradeRequest, CriterionGradesSheetResponse } from '../types/teacherGradesApi';
+import type { GradeWindow } from '../types/gradeWindowApi';
 
 export function gradeInputError(value: string): string | null {
   if (!value.trim()) return 'Ingresa una nota.';
@@ -11,6 +12,14 @@ export function gradeInputError(value: string): string | null {
 export function canEnterFirstGrade(bimester: Bimester | undefined, criterion: EvaluationCriterion, row: EvaluationStudentRow): boolean {
   return bimester?.status === 'ABIERTO' && criterion.type === 'MANUAL' && criterion.active
     && row.grades[criterion.id] == null && row.gradeIds?.[criterion.id] == null;
+}
+
+// BACKEND #39: a teacher edits an existing MANUAL grade only in ABIERTO, on an active criterion and
+// while the window is known and open. The backend still validates every condition.
+export function canCorrectGrade(bimester: Bimester | undefined, criterion: EvaluationCriterion, row: EvaluationStudentRow, gradeWindow: GradeWindow | null): boolean {
+  return bimester?.status === 'ABIERTO' && criterion.type === 'MANUAL' && criterion.active
+    && row.gradeIds?.[criterion.id] != null && row.grades[criterion.id] != null
+    && gradeWindow !== null && gradeWindow.bimesterId === bimester.id && !gradeWindow.expired;
 }
 
 export function manualSheetColumns(evaluation?: TeacherEvaluationData): EvaluationCriterion[] {

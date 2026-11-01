@@ -1,5 +1,6 @@
 import { bimesterStatusLabels, type Bimester } from '../types/evaluationApi';
 import type { CriterionGradesSheetResponse, CriterionGradeResponse } from '../types/teacherGradesApi';
+import { parseGradeWindow } from './gradeWindowContract';
 
 // Boundary validation for the documented backend DTOs. No default response is synthesized.
 function invalid(): never { throw new Error('La respuesta no coincide con el contrato N2 documentado.'); }
@@ -68,7 +69,9 @@ export function parseCriterionGradesSheetResponse(value: unknown, expected: { se
     return { enrollmentId: id(student.enrollmentId), studentId: id(student.studentId), fullName: text(student.fullName), grades };
   });
   unique(students.map(s => s.enrollmentId));
-  return { courseId, sectionCourseId, academicPeriodId, bimester, criteria, students };
+  // BACKEND #39: additive field, validated with the same parser as the bimester panel.
+  const gradeWindow = s.gradeWindow === undefined || s.gradeWindow === null ? null : parseGradeWindow(s.gradeWindow, bimester.id);
+  return { courseId, sectionCourseId, academicPeriodId, bimester, criteria, students, gradeWindow };
 }
 
 export function parseCriterionGradeResponse(value: unknown): CriterionGradeResponse {

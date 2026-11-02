@@ -47,9 +47,9 @@ export interface HijoResumen {
   dni: string;
   codigoEstudiante: string;
   grado: string; // Ej: "4° Grado"
-  nivel: NivelEducativo;
+  nivel: NivelEducativo | null;
   asistenciaDelta?: number; 
-  asistencia: number;
+  asistencia: number | null; // null = sin datos del backend
   seccion: string; // Ej: "A"
   seccionId: string;
   fotoUrl?: string;
@@ -57,17 +57,17 @@ export interface HijoResumen {
   curso?: string;
   tutorEmail?: string;
   tutorTelefono?: string;
-  estado: EstadoEstudiante;
-  promedioGeneral: number;
-  promedio: number;
+  estado: EstadoEstudiante | null;
+  promedioGeneral: number | null;
+  promedio: number | null;
   promedioDelta?: number;
-  porcentajeAsistencia: number;
-  tareasTotales: number;
-  tareasEntregadas: number;
-  faltasSinJustificar: number;
+  porcentajeAsistencia: number | null;
+  tareasTotales: number | null;
+  tareasEntregadas: number | null;
+  faltasSinJustificar: number | null;
   cursosBajos?: number;
-  estadoPension: EstadoPension;
-  avisosPendientes: number;
+  estadoPension: EstadoPension | null;
+  avisosPendientes: number | null;
   incidenciasCount?: number; // Cary.pen: "0 Incidencias", "1 Incidencia", "3 Incidencias"
   // Detalle adicional
   fechaNacimiento?: string;

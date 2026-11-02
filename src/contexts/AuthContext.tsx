@@ -1,9 +1,10 @@
 'use client';
 
-import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { jwtDecode } from 'jwt-decode';
 import { BackendRole } from '@/types';
+import { PASSWORD_CHANGE_REQUIRED_EVENT } from '@/services/httpClient';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -12,7 +13,12 @@ interface AuthContextType {
   role: BackendRole | null;
   status: AuthStatus;
   sessionValid: boolean;
-  login: (token: string, role: BackendRole) => void;
+  /**
+   * La cuenta debe cambiar su contraseña antes de usar cualquier portal.
+   * AuthProvider siempre lo define; es opcional solo para que los dobles de prueba existentes sigan siendo válidos.
+   */
+  passwordChangeRequired?: boolean;
+  login: (token: string, role: BackendRole, passwordChangeRequired?: boolean) => void;
   logout: () => void;
   validateSession: () => void;
   isSessionPhysicallyValid: () => boolean;
@@ -26,6 +32,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 interface JwtPayloadWithExp {
   exp?: number;
+  passwordChangeRequired?: boolean;
 }
 
 const ALLOWED_ROLES: BackendRole[] = ['ADMINISTRADOR', 'DIRECTIVO', 'DOCENTE', 'ESTUDIANTE', 'APODERADO'];
@@ -40,13 +47,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<BackendRole | null>(null);
   const [sessionValid, setSessionValid] = useState<boolean>(false);
+  const [passwordChangeRequired, setPasswordChangeRequired] = useState<boolean>(false);
+  // Token para el que el backend respondió 403 PASSWORD_CHANGE_REQUIRED aunque su claim no lo indicara.
+  const serverRequiredTokenRef = useRef<string | null>(null);
 
   const invalidateSession = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
+    serverRequiredTokenRef.current = null;
     setToken(null);
     setRole(null);
     setSessionValid(false);
+    setPasswordChangeRequired(false);
     setStatus('unauthenticated');
   }, []);
 
@@ -73,6 +85,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setToken(storedToken);
         setRole(storedRole);
         setSessionValid(true);
+        setPasswordChangeRequired(
+          decoded.passwordChangeRequired === true || serverRequiredTokenRef.current === storedToken
+        );
         setStatus('authenticated');
       }
     } catch (error) {
@@ -114,6 +129,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       invalidateSession();
     };
 
+    const handlePasswordChangeRequired = () => {
+      serverRequiredTokenRef.current = localStorage.getItem('token');
+      setPasswordChangeRequired(true);
+    };
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'token' || e.key === 'role') {
         validateSession();
@@ -121,10 +141,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
+    window.addEventListener(PASSWORD_CHANGE_REQUIRED_EVENT, handlePasswordChangeRequired);
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
       window.removeEventListener('auth:unauthorized', handleUnauthorized);
+      window.removeEventListener(PASSWORD_CHANGE_REQUIRED_EVENT, handlePasswordChangeRequired);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [invalidateSession, validateSession]);
@@ -164,8 +186,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Autentica al usuario en el cliente y persiste sus credenciales.
+   * También reemplaza el token tras un cambio de contraseña; el evento `storage` sincroniza las demás pestañas.
+   * La obligación de cambio se toma de la respuesta o del claim del JWT, lo que sea más restrictivo.
    */
-  const login = (newToken: string, newRole: BackendRole) => {
+  const login = (newToken: string, newRole: BackendRole, newPasswordChangeRequired = false) => {
     if (!newToken || !newRole || !ALLOWED_ROLES.includes(newRole)) {
       invalidateSession();
       return;
@@ -182,9 +206,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       localStorage.setItem('token', newToken);
       localStorage.setItem('role', newRole);
+      serverRequiredTokenRef.current = null;
       setToken(newToken);
       setRole(newRole);
       setSessionValid(true);
+      setPasswordChangeRequired(newPasswordChangeRequired === true || decoded.passwordChangeRequired === true);
       setStatus('authenticated');
     } catch (error) {
       invalidateSession();
@@ -201,7 +227,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ token, role, status, sessionValid, login, logout, validateSession, isSessionPhysicallyValid }}>
+    <AuthContext.Provider value={{ token, role, status, sessionValid, passwordChangeRequired, login, logout, validateSession, isSessionPhysicallyValid }}>
       {children}
     </AuthContext.Provider>
   );

@@ -29,8 +29,8 @@ const detail = (guardians: GuardianSummaryResponse[] = [], id = 1, active = true
   sectionId: active ? 3 : null, sectionName: active ? 'A' : null, grade: active ? 1 : null, level: active ? 'PRIMARY' : null,
   enrollmentDate: active ? '2020-01-01' : null, guardians,
 });
-const httpError = (status?: number) => new AxiosError('PRIVATE DETAIL', 'ERR_TEST', undefined, undefined,
-  status ? { status, data: { message: 'PRIVATE DETAIL' } } as AxiosResponse : undefined);
+const httpError = (status?: number, code?: unknown) => new AxiosError('PRIVATE DETAIL', 'ERR_TEST', undefined, undefined,
+  status ? { status, data: { message: 'PRIVATE DETAIL', ...(code === undefined ? {} : { code }) } } as AxiosResponse : undefined);
 function text(node: ReactTestInstance): string { return node.children.map(child => typeof child === 'string' ? child : text(child)).join(''); }
 function deferred<T>() {
   let resolve!: (value: T) => void, reject!: (error: unknown) => void;
@@ -254,4 +254,26 @@ test('student or role changes invalidate a late guardian response', async () => 
       });
     }
   }
+});
+
+test('guardian 409 codes name each cause; without a valid code the grouped text stays', async () => {
+  assert.equal(guardianCreateErrorMessage(httpError(409, 'GUARDIAN_ALREADY_LINKED')), 'Esta persona ya es apoderado de este alumno.');
+  assert.match(guardianCreateErrorMessage(httpError(409, 'PRIMARY_GUARDIAN_ALREADY_EXISTS')), /ya tiene un apoderado principal activo/);
+  assert.match(guardianCreateErrorMessage(httpError(409, 'GUARDIAN_REGISTRATION_CONFLICT')), /Revisa la lista de apoderados/);
+  assert.equal(guardianCreateErrorMessage(httpError(409, 'DNI_ALREADY_EXISTS')),
+    'El DNI ya está registrado para otra persona. Si es el apoderado de un hermano, por ahora no se puede vincular desde aquí.');
+  assert.doesNotMatch(guardianCreateErrorMessage(httpError(409, 'DNI_ALREADY_EXISTS')), /ya es apoderado de este alumno/);
+  assert.match(guardianCreateErrorMessage(httpError(404, 'STUDENT_NOT_FOUND')), /ya no existe/);
+  for (const code of [undefined, 'UNKNOWN_CODE', 409, '', 'VALIDATION_ERROR', 'STUDENT_NOT_FOUND']) assert.equal(guardianCreateErrorMessage(httpError(409, code)), conflict, String(code));
+  // INVALID_PARAMETER is 400 for guardians: generic, so the HTTP text stays.
+  assert.equal(guardianCreateErrorMessage(httpError(400, 'INVALID_PARAMETER')), guardianCreateErrorMessage(httpError(400)));
+  assert.equal(isUncertainGuardianCreate(httpError(500, 'INTERNAL_ERROR')), true);
+  let posts = 0, reads = 0;
+  await view({ read: async () => { reads++; return detail(); }, add: async () => { posts++; throw httpError(409, 'PRIMARY_GUARDIAN_ALREADY_EXISTS'); } }, async h => {
+    await h.click('Agregar apoderado'); await h.fill(); await h.submit();
+    assert.equal(posts, 1); assert.equal(reads, 1);
+    assert.equal(h.renderer.root.findAllByProps({ role: 'dialog' }).length, 1);
+    assert.match(h.text(), /ya tiene un apoderado principal activo/);
+    assert.doesNotMatch(h.text(), /PRIVATE DETAIL/); assert.equal(h.text().includes(conflict), false);
+  });
 });

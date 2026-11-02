@@ -1,5 +1,6 @@
-import type { Bimester } from '../types/evaluationApi';
+import { bimesterStatusLabels, type Bimester } from '../types/evaluationApi';
 import type { CriterionGradesSheetResponse, CriterionGradeResponse } from '../types/teacherGradesApi';
+import { parseGradeWindow } from './gradeWindowContract';
 
 // Boundary validation for the documented backend DTOs. No default response is synthesized.
 function invalid(): never { throw new Error('La respuesta no coincide con el contrato N2 documentado.'); }
@@ -23,7 +24,8 @@ function unique(ids: number[]) { if (new Set(ids).size !== ids.length) invalid()
 
 export function parseBimesterResponse(value: unknown): Bimester {
   const b = object(value);
-  if (!['PLANIFICADO', 'ABIERTO', 'EN_REVISION', 'CERRADO'].includes(String(b.status))) return invalid();
+  // ANULADO (#43) is a valid terminal status: an annulled row must not fail the whole list.
+  if (!Object.keys(bimesterStatusLabels).includes(String(b.status))) return invalid();
   return { id: id(b.id), academicPeriodId: id(b.academicPeriodId), number: id(b.number), name: text(b.name), startDate: text(b.startDate), endDate: text(b.endDate), status: b.status as Bimester['status'] };
 }
 
@@ -67,7 +69,9 @@ export function parseCriterionGradesSheetResponse(value: unknown, expected: { se
     return { enrollmentId: id(student.enrollmentId), studentId: id(student.studentId), fullName: text(student.fullName), grades };
   });
   unique(students.map(s => s.enrollmentId));
-  return { courseId, sectionCourseId, academicPeriodId, bimester, criteria, students };
+  // BACKEND #39: additive field, validated with the same parser as the bimester panel.
+  const gradeWindow = s.gradeWindow === undefined || s.gradeWindow === null ? null : parseGradeWindow(s.gradeWindow, bimester.id);
+  return { courseId, sectionCourseId, academicPeriodId, bimester, criteria, students, gradeWindow };
 }
 
 export function parseCriterionGradeResponse(value: unknown): CriterionGradeResponse {

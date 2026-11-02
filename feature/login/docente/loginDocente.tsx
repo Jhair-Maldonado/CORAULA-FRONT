@@ -15,6 +15,7 @@ import {
 import { GraduationCap } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { AuthContext } from '@/contexts/AuthContext';
+import { CHANGE_PASSWORD_ROUTE, postLoginPath } from '@/utils/authRoutes';
 import { isAxiosError } from 'axios';
 
 export default function LoginDocente() {
@@ -38,15 +39,9 @@ export default function LoginDocente() {
       // 1. Intento de autenticación real contra el backend
       const response = await authService.login(email, password);
 
-      if (response.role === 'DOCENTE') {
-        authContext.login(response.token, response.role);
-        router.push('/docente');
-        return;
-      }
-
-      if (response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO') {
-        if (authContext) authContext.login(response.token, response.role);
-        router.push('/administrador');
+      if (response.role === 'DOCENTE' || response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO') {
+        authContext.login(response.token, response.role, response.passwordChangeRequired);
+        router.push(postLoginPath(response.role, response.passwordChangeRequired === true));
         return;
       }
 
@@ -70,7 +65,7 @@ export default function LoginDocente() {
   React.useEffect(() => {
     // Si ya está autenticado específicamente como DOCENTE, enviarlo al dashboard
     if (authContext?.status === 'authenticated' && authContext?.role === 'DOCENTE') {
-      router.replace('/docente');
+      router.replace(authContext.passwordChangeRequired ? CHANGE_PASSWORD_ROUTE : '/docente');
     }
   }, [authContext, router]);
 
@@ -183,7 +178,7 @@ export default function LoginDocente() {
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted/70 hover:text-ink transition-colors cursor-pointer"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-w-6 min-h-6 p-1 text-muted/70 hover:text-ink transition-colors cursor-pointer"
                       >
                         {showPassword ? <ViewOffIcon size={16} /> : <ViewIcon size={16} />}
                       </button>
@@ -191,7 +186,7 @@ export default function LoginDocente() {
                   </div>
 
                   {errorMsg && (
-                    <div role="alert" className="text-center bg-red-50 text-red-600 text-xs py-2 px-3 rounded-xl border border-red-100 font-medium">
+                    <div role="alert" aria-live="assertive" className="text-center bg-red-50 text-red-600 text-xs py-2 px-3 rounded-xl border border-red-100 font-medium">
                       {errorMsg}
                     </div>
                   )}

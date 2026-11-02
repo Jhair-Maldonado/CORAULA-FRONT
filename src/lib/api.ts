@@ -76,6 +76,11 @@ import { isMockDataEnabled } from './mockMode';
 
 // Determina si se usan mocks o backend real según variable de entorno
 const USE_MOCKS = isMockDataEnabled();
+// Módulos sin endpoints en el backend (#121): sirven datos de demostración aunque NEXT_PUBLIC_USE_MOCKS sea "false",
+// y sus vistas muestran siempre el aviso de módulo en construcción. Al conectar uno, agrégalo a este conjunto.
+type ModuloSinBackend = 'alumno' | 'chatDocente';
+const MODULOS_CON_BACKEND: ReadonlySet<ModuloSinBackend> = new Set<ModuloSinBackend>();
+const simulated = (modulo: ModuloSinBackend) => USE_MOCKS || !MODULOS_CON_BACKEND.has(modulo);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 // Retardo simulado para validar estados de carga (Loading skeleton / spinners)
@@ -486,7 +491,7 @@ export async function enviarMensajeChat(contactoId: string, texto: string): Prom
  * Obtiene el perfil completo del alumno autenticado
  */
 export async function getPerfilAlumno(): Promise<AlumnoPerfil> {
-  if (USE_MOCKS) {
+  if (simulated('alumno')) {
     await mockDelay(200);
     return { ...MOCK_ALUMNO_PERFIL };
   }
@@ -498,7 +503,7 @@ export async function getPerfilAlumno(): Promise<AlumnoPerfil> {
  * Obtiene el resumen del dashboard del alumno (Pantalla 1)
  */
 export async function getResumenDashboardAlumno(): Promise<ResumenDashboardAlumno> {
-  if (USE_MOCKS) {
+  if (simulated('alumno')) {
     await mockDelay(300);
     return { ...MOCK_RESUMEN_DASHBOARD_ALUMNO };
   }
@@ -513,7 +518,7 @@ export async function getCalificacionesAlumno(
   periodo?: string,
   curso?: string
 ): Promise<CalificacionesAlumnoData> {
-  if (USE_MOCKS) {
+  if (simulated('alumno')) {
     await mockDelay(300);
     let data = { ...MOCK_CALIFICACIONES_ALUMNO };
     if (curso && curso !== 'Todos los cursos') {
@@ -535,7 +540,7 @@ export async function getCalificacionesAlumno(
  * Obtiene el reporte y marcaciones de asistencia del alumno (Pantalla 2)
  */
 export async function getAsistenciaAlumno(mes?: string): Promise<ResumenAsistenciaAlumno> {
-  if (USE_MOCKS) {
+  if (simulated('alumno')) {
     await mockDelay(250);
     return { ...MOCK_ASISTENCIA_ALUMNO };
   }
@@ -549,7 +554,7 @@ export async function getAsistenciaAlumno(mes?: string): Promise<ResumenAsistenc
  * Obtiene el horario semanal de clases y próxima sesión (Pantalla 4)
  */
 export async function getHorarioAlumno(): Promise<HorarioAlumnoData> {
-  if (USE_MOCKS) {
+  if (simulated('alumno')) {
     await mockDelay(250);
     return { ...MOCK_HORARIO_ALUMNO };
   }
@@ -564,7 +569,7 @@ export async function getMaterialesAlumno(
   curso?: string,
   formato?: string
 ): Promise<MaterialesAlumnoData> {
-  if (USE_MOCKS) {
+  if (simulated('alumno')) {
     await mockDelay(250);
     let mats = [...MOCK_MATERIALES_ALUMNO.materiales];
     if (curso && curso !== 'Todos los cursos') {
@@ -590,7 +595,7 @@ export async function getMaterialesAlumno(
  * Obtiene la lista de chats y docentes asignados al alumno (Pantalla 6)
  */
 export async function getMensajesDocentesAlumno(): Promise<ContactoDocenteAlumno[]> {
-  if (USE_MOCKS) {
+  if (simulated('alumno')) {
     await mockDelay(250);
     return [...MOCK_MENSAJES_DOCENTES];
   }
@@ -605,7 +610,7 @@ export async function enviarMensajeDocenteAlumno(
   docenteId: string,
   texto: string
 ): Promise<boolean> {
-  if (USE_MOCKS) {
+  if (simulated('alumno')) {
     await mockDelay(200);
     const docente = MOCK_MENSAJES_DOCENTES.find(d => d.id === docenteId);
     if (docente) {
@@ -839,7 +844,7 @@ export async function guardarNotasDocente(
  * Obtiene las conversaciones de mensajería del docente clasificadas por tab (Frame AVY9a)
  */
 export async function getDocenteChats(tab?: 'alumnos' | 'padres'): Promise<ChatContactoDocente[]> {
-  if (USE_MOCKS) {
+  if (simulated('chatDocente')) {
     await mockDelay(200);
     if (!tab) return [...MOCK_CHAT_CONTACTOS_DOCENTE];
     const tipoTarget = tab === 'alumnos' ? 'alumno' : 'padre';
@@ -855,7 +860,7 @@ export async function getDocenteChats(tab?: 'alumnos' | 'padres'): Promise<ChatC
  * Envía un mensaje en el chat con un alumno o padre (Frame AVY9a)
  */
 export async function enviarMensajeDocenteChat(contactoId: string, texto: string): Promise<boolean> {
-  if (USE_MOCKS) {
+  if (simulated('chatDocente')) {
     await mockDelay(150);
     const contacto = MOCK_CHAT_CONTACTOS_DOCENTE.find(c => c.id === contactoId);
     if (contacto) {

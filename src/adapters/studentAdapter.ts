@@ -3,7 +3,9 @@ import type { CreateStudentGuardianRequest, CreateStudentRequest, EnrollmentStat
 import { isIsoDate, localToday } from '@/services/admin/enrollmentsService';
 
 export const studentLevelLabels: Record<StudentLevel, string> = { PRIMARY: 'Primaria', SECONDARY: 'Secundaria' };
-export const studentStatusLabels: Record<StudentStatus, string> = { ACTIVE: 'Activo', WITHDRAWN: 'Retirado', GRADUATED: 'Egresado' };
+export const studentStatusLabels: Record<StudentStatus, string> = {
+  ACTIVE: 'Activo', SUSPENDED: 'Suspendido', DEACTIVATED: 'De baja', WITHDRAWN: 'Retirado', GRADUATED: 'Egresado',
+};
 const enrollmentLabels: Record<EnrollmentStatus, string> = { ACTIVE: 'Activa', WITHDRAWN: 'Retirada', COMPLETED: 'Finalizada' };
 export const guardianRelationshipLabels: Record<GuardianRelationship, string> = {
   FATHER: 'Padre', MOTHER: 'Madre', TUTOR: 'Tutor', GUARDIAN: 'Apoderado', OTHER: 'Otro',
@@ -19,7 +21,7 @@ export function toAdminStudent(student: StudentSummaryResponse): AdminStudent {
     apellidoPaterno: student.paternalLastName, apellidoMaterno: student.maternalLastName,
     nombreCompleto: studentFullName(student),
     nivelLabel: student.level === null ? null : studentLevelLabels[student.level],
-    estadoLabel: studentStatusLabels[student.studentStatus],
+    estadoLabel: studentStatusLabels[student.studentStatus] ?? 'Estado desconocido',
     matriculaLabel: student.enrollmentStatus === null ? null : enrollmentLabels[student.enrollmentStatus],
     tieneMatriculaActiva: student.enrollmentId !== null && student.enrollmentStatus === 'ACTIVE',
   };
@@ -100,7 +102,7 @@ export const emptyGuardianCreateValues: GuardianCreateValues = {
 const isGuardianRelationship = (value: string): value is GuardianRelationship => Object.keys(guardianRelationshipLabels).includes(value);
 export const hasActivePrimaryGuardian = (guardians: GuardianSummaryResponse[]) => guardians.some(guardian => guardian.active && guardian.primary);
 
-// Complete local validation: the backend answers 500 to blank names or a missing relationship (BACKEND #77).
+// Complete local validation for immediate feedback; the backend also rejects blank names or a missing relationship with 400.
 export function guardianCreateValidation(values: GuardianCreateValues, guardians: GuardianSummaryResponse[]): string | null {
   const dni = values.dni.trim();
   if (!/^\d{8}$/.test(dni)) return 'El DNI debe tener exactamente 8 dígitos.';

@@ -8,14 +8,16 @@ import PerfilDelDocente from '../feature/admin/vistas/(academico)/docente/perfil
 import { AuthContext } from '../src/contexts/AuthContext';
 import { accountEmailError, teacherAccountErrorMessage, teachersService } from '../src/services/admin/teachersService';
 import httpClient from '../src/services/httpClient';
-import type { TeacherAccountResponse, TeacherDetailResponse } from '../src/types/teacherApi';
+import { toAdminTeacherDetail } from '../src/adapters/teacherAdapter';
+import type { TeacherAccountResponse, TeacherAccountStatusResponse, TeacherDetailResponse } from '../src/types/teacherApi';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const email = 'docente.prueba@example.com';
 const detail = (overrides: Partial<TeacherDetailResponse> = {}): TeacherDetailResponse => ({
   id: 7, dni: '00000007', firstNames: 'Docente', paternalLastName: 'Sintético', maternalLastName: null, fullName: 'Docente Sintético',
-  phone: null, specialty: null, active: true, assignments: [], ...overrides,
+  phone: null, specialty: null, active: true, assignments: [], account: null, ...overrides,
 });
+const status = (active = true): TeacherAccountStatusResponse => ({ userId: 70, email, active });
 const account = (created = true): TeacherAccountResponse => ({ userId: 70, teacherId: 7, email, role: 'DOCENTE', created });
 function deferred<T>() {
   let resolve!: (value: T) => void, reject!: (error: unknown) => void;
@@ -27,12 +29,22 @@ const httpError = (status?: number) => new AxiosError('PRIVATE DETAIL', 'ERR_TES
 function text(node: ReactTestInstance): string { return node.children.map(child => typeof child === 'string' ? child : text(child)).join(''); }
 type Auth = NonNullable<React.ContextType<typeof AuthContext>>;
 
-async function view(options: { role?: Auth['role']; teacher?: TeacherDetailResponse; createAccount?: typeof teachersService.createAccount },
+type ViewOptions = { role?: Auth['role']; teacher?: TeacherDetailResponse; read?: typeof teachersService.getById;
+  createAccount?: typeof teachersService.createAccount; update?: typeof teachersService.update };
+
+// Simulates the backend: a successful POST persists the account, which later GETs return.
+async function view(options: ViewOptions,
   run: (h: { text: () => string; button: (label: string) => ReactTestInstance | undefined; click: (label: string) => Promise<void>;
-    type: (value: string) => Promise<void>; submit: () => Promise<void> }) => Promise<void>) {
-  const oldRead = teachersService.getById, oldCreate = teachersService.createAccount;
-  teachersService.getById = async () => options.teacher ?? detail();
-  teachersService.createAccount = options.createAccount ?? (async () => account());
+    type: (value: string) => Promise<void>; submit: () => Promise<void>; change: (placeholder: string, value: string) => Promise<void> }) => Promise<void>) {
+  const oldRead = teachersService.getById, oldCreate = teachersService.createAccount, oldUpdate = teachersService.update;
+  let persisted = options.teacher ?? detail();
+  teachersService.getById = options.read ?? (async () => persisted);
+  teachersService.createAccount = async (id, payload) => {
+    const created = await (options.createAccount ?? (async () => account()))(id, payload);
+    persisted = { ...persisted, account: persisted.account ?? { userId: created.userId, email: created.email, active: true } };
+    return created;
+  };
+  if (options.update) teachersService.update = options.update;
   const oldSelf = Object.getOwnPropertyDescriptor(globalThis, 'self');
   Object.defineProperty(globalThis, 'self', { configurable: true, value: globalThis });
   const auth: Auth = { token: 'synthetic', role: options.role ?? 'ADMINISTRADOR', status: 'authenticated', sessionValid: true,
@@ -48,10 +60,11 @@ async function view(options: { role?: Auth['role']; teacher?: TeacherDetailRespo
       click: async label => { const node = button(label); assert.ok(node, label); assert.equal(!!node.props.disabled, false, label); await act(async () => { node.props.onClick(); }); },
       type: async value => { await act(async () => { renderer.root.findByProps({ 'aria-label': 'Correo del docente' }).props.onChange({ target: { value } }); }); },
       submit: async () => { await act(async () => { renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }); }); },
+      change: async (placeholder, value) => { await act(async () => { renderer.root.findByProps({ placeholder }).props.onChange({ target: { value } }); }); },
     });
   } finally {
     if (renderer) await act(async () => { renderer.unmount(); });
-    teachersService.getById = oldRead; teachersService.createAccount = oldCreate;
+    teachersService.getById = oldRead; teachersService.createAccount = oldCreate; teachersService.update = oldUpdate;
     if (oldSelf) Object.defineProperty(globalThis, 'self', oldSelf); else Reflect.deleteProperty(globalThis, 'self');
   }
 }
@@ -152,7 +165,7 @@ test('confirmation: cancel does not send; confirm sends once and shows the creat
     await act(async () => { pending.resolve(account(true)); });
     assert.equal(requests.length, 1);
     assert.match(h.text(), /La contraseña inicial es el DNI del docente; pídele que la cambie\./);
-    assert.match(h.text(), new RegExp(`El docente ya tiene cuenta de acceso: ${email}`));
+    assert.match(h.text(), new RegExp(`Cuenta de acceso: ${email} · Cuenta activa`));
     assert.equal(h.button('Crear cuenta de acceso'), undefined);
   });
 });
@@ -176,7 +189,103 @@ test('backend errors keep the modal open with a Spanish message and allow retryi
       assert.ok(h.button('Continuar'), String(status));
       await h.submit(); await h.click('Confirmar');
       assert.equal(calls, 2);
-      assert.match(h.text(), /El docente ya tiene cuenta de acceso/);
+      assert.match(h.text(), /Cuenta activa/);
     });
   }
+});
+
+test('toAdminTeacherDetail copies the account state and accepts null', () => {
+  assert.equal(toAdminTeacherDetail(detail()).account, null);
+  assert.deepEqual(toAdminTeacherDetail(detail({ account: status(true) })).account, status(true));
+  assert.deepEqual(toAdminTeacherDetail(detail({ account: status(false) })).account, status(false));
+});
+
+test('toAdminTeacherDetail rejects an invalid account shape', () => {
+  const bad: unknown[] = [undefined, 'cuenta', [], {}, { userId: 70, email }, { ...status(), role: 'DOCENTE' }, { ...status(), passwordHash: 'x' },
+    { ...status(), userId: '70' }, { ...status(), userId: 1.5 }, { ...status(), email: '' }, { ...status(), email: null }, { ...status(), active: 'true' }];
+  for (const account of bad) {
+    assert.throws(() => toAdminTeacherDetail({ ...detail(), account } as unknown as TeacherDetailResponse), /Estado de cuenta docente inesperado/, JSON.stringify(account));
+  }
+});
+
+test('the profile shows the persisted account state to both reader roles', async () => {
+  for (const role of ['ADMINISTRADOR', 'DIRECTIVO'] as const) {
+    await view({ role }, async h => {
+      assert.match(h.text(), /El docente no tiene cuenta de acceso\./, role);
+      assert.equal(!!h.button('Crear cuenta de acceso'), role === 'ADMINISTRADOR', role);
+    });
+    await view({ role, teacher: detail({ account: status(true) }) }, async h => {
+      assert.match(h.text(), new RegExp(`Cuenta de acceso: ${email} · Cuenta activa`), role);
+      assert.doesNotMatch(h.text(), /Cuenta deshabilitada|no tiene cuenta/, role);
+      assert.equal(h.button('Crear cuenta de acceso'), undefined, role);
+    });
+    await view({ role, teacher: detail({ account: status(false) }) }, async h => {
+      assert.match(h.text(), new RegExp(`Cuenta de acceso: ${email} · Cuenta deshabilitada`), role);
+      assert.doesNotMatch(h.text(), /Cuenta activa|debe estar activo y tener DNI/, role);
+      assert.equal(h.button('Crear cuenta de acceso'), undefined, role);
+    });
+  }
+});
+
+test('an inactive teacher with a disabled account is not offered another account', async () => {
+  await view({ teacher: detail({ active: false, account: status(false) }) }, async h => {
+    assert.match(h.text(), /Cuenta deshabilitada/);
+    assert.equal(h.button('Crear cuenta de acceso'), undefined);
+    assert.doesNotMatch(h.text(), /debe estar activo y tener DNI/);
+  });
+});
+
+test('after creating the account the detail is read again and its state persists on reload', async () => {
+  let reads = 0, persisted = detail();
+  const read = async () => { reads++; return persisted; };
+  const createAccount = async () => { persisted = detail({ account: status(false) }); return account(true); };
+  await view({ read, createAccount }, async h => {
+    assert.equal(reads, 1);
+    await h.click('Crear cuenta de acceso'); await h.type(email); await h.submit(); await h.click('Confirmar');
+    assert.equal(reads, 2);
+    // The state comes from the GET, not from the POST response (which has no `active`).
+    assert.match(h.text(), /Cuenta deshabilitada/);
+    assert.equal(h.button('Crear cuenta de acceso'), undefined);
+  });
+  await view({ read, createAccount: async () => assert.fail('no POST on reload') }, async h => {
+    assert.equal(reads, 3);
+    assert.match(h.text(), new RegExp(`Cuenta de acceso: ${email} · Cuenta deshabilitada`));
+    assert.equal(h.button('Crear cuenta de acceso'), undefined);
+  });
+});
+
+test('a failed re-read after creating the account can be retried', async () => {
+  let reads = 0, persisted = detail();
+  const read = async () => { reads++; if (reads === 2) throw httpError(500); return persisted; };
+  const createAccount = async () => { persisted = detail({ account: status(true) }); return account(true); };
+  await view({ read, createAccount }, async h => {
+    await h.click('Crear cuenta de acceso'); await h.type(email); await h.submit(); await h.click('Confirmar');
+    assert.match(h.text(), /No se pudo actualizar el estado de la cuenta\./);
+    assert.match(h.text(), /La contraseña inicial es el DNI/);
+    assert.doesNotMatch(h.text(), /PRIVATE/);
+    await h.click('Actualizar estado');
+    assert.equal(reads, 3);
+    assert.doesNotMatch(h.text(), /No se pudo actualizar el estado/);
+    assert.match(h.text(), /Cuenta activa/);
+  });
+});
+
+test('an invalid account shape in the GET shows the load error instead of the profile', async () => {
+  await view({ teacher: { ...detail(), account: { ...status(), role: 'DOCENTE' } } as unknown as TeacherDetailResponse }, async h => {
+    assert.match(h.text(), /No se pudo cargar el docente/);
+    assert.equal(h.button('Crear cuenta de acceso'), undefined);
+  });
+});
+
+test('editing the teacher keeps the persisted account state', async () => {
+  const teacher = detail({ account: status(false) });
+  let updates = 0;
+  await view({ teacher, update: async (_, payload) => { updates++; const { account: _a, assignments: _b, ...base } = teacher; return { ...base, phone: payload.phone ?? null }; } }, async h => {
+    await h.click('Editar docente');
+    await h.change('Ej. 987654321', '987654321');
+    await h.submit();
+    assert.equal(updates, 1);
+    assert.match(h.text(), /Datos del docente actualizados/);
+    assert.match(h.text(), /Cuenta deshabilitada/);
+  });
 });

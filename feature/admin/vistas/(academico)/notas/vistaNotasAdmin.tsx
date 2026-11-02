@@ -5,29 +5,15 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { sectionsService } from '@/services/admin/sectionsService';
 import { sectionCoursesService } from '@/services/admin/sectionCoursesService';
 import { evaluationService } from '@/services/admin/evaluationService';
-import { adminGradesService, adminGradesErrorMessage, correctionError } from '@/services/admin/adminGradesService';
+import { adminGradesService, adminGradeCorrectionErrorMessage, correctableBimesterStatuses, correctionError, maxCorrectionReasonLength } from '@/services/admin/adminGradesService';
 import type { AdminGradeContext } from '@/services/admin/adminGradesService';
 import type { SectionResponse } from '@/types/sectionApi';
 import ScheduleDialog from '../../(administrativo)/horario/components/ScheduleDialog';
+import ResultadosBimestre, { type ResultsPublication } from '@/components/evaluation/ResultadosBimestre';
+import { bimesterPublicationService } from '@/services/admin/bimesterPublicationService';
+import { button, input, useRead, Failure } from './components/notesShared';
+import ActivityGradesAdmin from './components/ActivityGradesAdmin';
 
-const button = 'min-h-10 px-3 py-2 rounded-xl border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50';
-const input = 'w-full mt-2 p-3 rounded-xl border border-line bg-neutral/30 text-ink focus-visible:outline-accent';
-function useRead<T>(load: () => Promise<T>) {
-  const [revision, setRevision] = useState(0);
-  const [result, setResult] = useState<{ load: typeof load; revision: number; data?: T; error?: string }>();
-  const loading = result?.load !== load || result?.revision !== revision;
-  useEffect(() => {
-    let current = true;
-    load().then(data => { if (current) setResult({ load, revision, data }); })
-      .catch(error => { if (current) setResult({ load, revision, error: adminGradesErrorMessage(error) }); });
-    return () => { current = false; };
-  }, [load, revision]);
-  return { loading, data: loading ? undefined : result?.data, error: loading ? undefined : result?.error,
-    refresh: () => setRevision(n => n + 1), publish: (data: T) => setResult({ load, revision, data }) };
-}
-function Failure({ message, retry }: { message: string; retry: () => void }) {
-  return <div role="alert" className="p-4 text-sm text-rose-700"><p>{message}</p><button type="button" className={`${button} bg-white mt-3`} onClick={retry}>Reintentar</button></div>;
-}
 export default function VistaNotasAdmin() {
   const auth = useContext(AuthContext);
   if (auth?.status !== 'authenticated' || !auth.sessionValid || (auth.role !== 'ADMINISTRADOR' && auth.role !== 'DIRECTIVO')) return <p role="alert">No tienes acceso a la planilla administrativa.</p>;
@@ -41,7 +27,7 @@ function NotesContexts({ canCorrect }: { canCorrect: boolean }) {
   const [epoch, setEpoch] = useState(0);
   const section = sections.data?.find(s => String(s.id) === selected && s.active);
   return <div className="bg-canvas p-6 md:p-8 font-sans text-ink flex flex-col gap-5">
-    <header className="bg-white rounded-2xl p-6 border border-line shadow-sm"><h1 className="text-xl md:text-2xl font-bold">Calificaciones MANUAL</h1><p className="text-xs text-muted mt-2">Consulta de notas e historial. {canCorrect ? 'Las correcciones requieren motivo y un bimestre ABIERTO.' : 'Acceso DIRECTIVO: solo lectura.'}</p></header>
+    <header className="bg-white rounded-2xl p-6 border border-line shadow-sm"><h1 className="text-xl md:text-2xl font-bold">Calificaciones</h1><p className="text-xs text-muted mt-2">Consulta de notas MANUAL y de actividades, con su historial. {canCorrect ? 'Las correcciones del Director requieren motivo y un bimestre EN_REVISION o CERRADO.' : 'Acceso DIRECTIVO: solo lectura.'}</p></header>
     <section className="bg-white p-5 rounded-xl border border-line">
       {sections.loading ? <p role="status">Cargando secciones...</p> : sections.error ? <Failure message={sections.error} retry={sections.refresh} /> : !sections.data?.length ? <p>No hay secciones activas.</p>
         : <label className="block max-w-md text-xs font-bold text-muted">Sección<select aria-label="Sección" className={input} value={selected} onChange={e => { setEpoch(++generation.current); setSelected(e.target.value); }}><option value="">Selecciona una sección</option>{sections.data.filter(s => s.active).map(s => <option key={s.id} value={s.id}>{s.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'} · {s.grade}° {s.name} · Periodo {s.academicPeriodId}</option>)}</select></label>}
@@ -77,14 +63,32 @@ function AdminSheet({ context, canCorrect, isCurrent }: { context: AdminGradeCon
   const [busy, setBusy] = useState(false), lock = useRef(false), mounted = useRef(true);
   const [refreshRequired, setRefreshRequired] = useState(false);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const [resultsRevision, setResultsRevision] = useState(0);
+  const loadResults = useCallback((signal: AbortSignal) => adminGradesService.getResults(sectionCourseId, bimesterId, signal), [sectionCourseId, bimesterId]);
   const data = sheet.data;
-  const disabled = busy || sheet.loading || !!sheet.error || refreshRequired;
+  // MANUAL and activity corrections exclude each other while one of them runs.
+  const [activityBusy, setActivityBusy] = useState(false);
+  const disabled = busy || activityBusy || sheet.loading || !!sheet.error || refreshRequired;
+  // Only EN_REVISION → CERRADO publishes, so the (lock-taking) publication read runs only for CERRADO.
+  const status = data?.bimester.status;
+  const [publication, setPublication] = useState<{ key: string; value: ResultsPublication }>();
+  const publicationKey = `${bimesterId}:${resultsRevision}`;
+  useEffect(() => {
+    if (status !== 'CERRADO') return;
+    const abort = new AbortController();
+    bimesterPublicationService.getPublication(bimesterId, abort.signal)
+      .then(view => { if (!abort.signal.aborted) setPublication({ key: `${bimesterId}:${resultsRevision}`, value: { publishedAt: view.publishedAt, revision: view.revision } }); })
+      .catch(() => { /* Unknown mark: the results keep the neutral note. */ });
+    return () => abort.abort();
+  }, [bimesterId, status, resultsRevision]);
+  const resultsPublication: ResultsPublication | undefined = !status ? undefined : status !== 'CERRADO' ? { publishedAt: null, revision: 0 }
+    : publication?.key === publicationKey ? publication.value : undefined;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   function close() { if (!lock.current) { targetRef.current = null; setTarget(null); } }
-  function refresh() { if (!lock.current) { close(); setHistoryId(null); setNotice(''); setRefreshRequired(false); sheet.refresh(); } }
+  function refresh() { if (!lock.current && !activityBusy) { close(); setHistoryId(null); setNotice(''); setRefreshRequired(false); sheet.refresh(); setResultsRevision(n => n + 1); } }
   function eligible(t: Target, s = data) {
     const cell = s?.students.find(student => student.enrollmentId === t.enrollmentId)?.grades.find(g => g.criterionId === t.criterionId);
-    return canCorrect && s?.bimester.status === 'ABIERTO' && s.criteria.some(c => c.id === t.criterionId && c.type === 'MANUAL' && c.active) && cell?.gradeId === t.gradeId && cell.grade === t.grade;
+    return canCorrect && !!s && correctableBimesterStatuses.includes(s.bimester.status) && s.criteria.some(c => c.id === t.criterionId && c.type === 'MANUAL' && c.active) && cell?.gradeId === t.gradeId && cell.grade === t.grade;
   }
   async function submit() {
     if (!mounted.current || !isCurrent() || lock.current || disabled || !target || targetRef.current !== target || !eligible(target) || correctionError(newGrade, reason, target.grade)) return;
@@ -96,7 +100,7 @@ function AdminSheet({ context, canCorrect, isCurrent }: { context: AdminGradeCon
         const saved = await adminGradesService.correctGrade(original.gradeId, { grade: proposed, reason, expectedGrade: original.grade });
         if (saved.sectionCourseId !== sectionCourseId || saved.bimesterId !== bimesterId || saved.enrollmentId !== original.enrollmentId || saved.criterionId !== original.criterionId) throw new Error('Contexto de corrección inconsistente.');
         accepted = true;
-      } catch (error) { failure = adminGradesErrorMessage(error); }
+      } catch (error) { failure = adminGradeCorrectionErrorMessage(error); }
       try {
         const reloaded = await load();
         if (!mounted.current || !isCurrent()) return;
@@ -109,13 +113,14 @@ function AdminSheet({ context, canCorrect, isCurrent }: { context: AdminGradeCon
       } catch {
         if (mounted.current && isCurrent()) setError(`${failure || 'El servidor aceptó la corrección.'} No se pudo recargar la planilla; actualiza antes de continuar.`);
       }
-    } finally { lock.current = false; if (mounted.current) setBusy(false); }
+    } finally { lock.current = false; if (mounted.current) { setBusy(false); if (accepted) setResultsRevision(n => n + 1); } }
   }
   const criteria = data?.criteria.filter(c => c.type === 'MANUAL').sort((a, b) => a.order - b.order || a.id - b.id) ?? [];
   return <section className="bg-white rounded-2xl border border-line p-5 shadow-sm flex flex-col gap-4">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-bold">Planilla {data?.bimester.name} {data && `· ${data.bimester.status}`}</h2><button type="button" disabled={busy || sheet.loading} onClick={refresh} className={`${button} bg-white`}>Actualizar planilla</button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-bold">Planilla {data?.bimester.name} {data && `· ${data.bimester.status}`}</h2><button type="button" disabled={busy || activityBusy || sheet.loading} onClick={refresh} className={`${button} bg-white`}>Actualizar planilla</button></div>
     {sheet.loading ? <p role="status">Cargando planilla...</p> : sheet.error ? <Failure message={sheet.error} retry={refresh} /> : data && <>
-      {data.bimester.status !== 'ABIERTO' && <p className="text-xs text-muted">Bimestre de solo lectura: las correcciones requieren ABIERTO.</p>}
+      {data.bimester.status === 'ABIERTO' ? <p role="note" className="text-xs text-muted">Mientras el bimestre está abierto, las notas las corrige el docente. El Director corrige en revisión o después del cierre.</p>
+        : !correctableBimesterStatuses.includes(data.bimester.status) && <p className="text-xs text-muted">Bimestre de solo lectura: las correcciones del Director requieren EN_REVISION o CERRADO.</p>}
       {!criteria.length && <p className="text-xs text-muted">No hay criterios MANUAL.</p>}
       <div className="overflow-x-auto"><table className="w-full text-xs text-left"><thead className="bg-neutral/40 text-muted"><tr><th scope="col" className="p-3">Estudiante</th>{criteria.map(c => <th key={c.id} scope="col" className="p-3">{c.name}{!c.active && ' (inactivo)'}</th>)}<th scope="col" className="p-3">PA · solo lectura</th></tr></thead><tbody className="divide-y divide-line">{data.students.map(s => <tr key={s.enrollmentId}><th scope="row" className="p-3">{s.fullName}</th>{criteria.map(c => {
         const cell = s.grades.find(g => g.criterionId === c.id);
@@ -129,10 +134,14 @@ function AdminSheet({ context, canCorrect, isCurrent }: { context: AdminGradeCon
     {refreshRequired && !busy && <p role="alert" className="text-xs text-rose-700">Actualiza la planilla antes de otra corrección.</p>}
     {target && <ScheduleDialog title="Corregir nota MANUAL" busy={busy} onClose={close}><p className="text-sm">{target.student} · {target.criterion}</p><p className="text-sm mt-2">Nota actual: <strong>{target.grade}</strong></p><form className="flex flex-col gap-4 mt-4" onSubmit={e => { e.preventDefault(); void submit(); }}>
       <label className="text-xs font-bold">Nueva nota<input aria-label="Nueva nota" required inputMode="decimal" className={input} value={newGrade} onChange={e => setNewGrade(e.target.value)} /></label>
-      <label className="text-xs font-bold">Motivo obligatorio<input aria-label="Motivo" required className={input} value={reason} onChange={e => setReason(e.target.value)} /></label>
+      <label className="text-xs font-bold">Motivo obligatorio<textarea aria-label="Motivo" aria-describedby="correction-reason-help" required rows={3} maxLength={maxCorrectionReasonLength} className={input} value={reason} onChange={e => setReason(e.target.value)} /></label>
+      <p id="correction-reason-help" className="text-xs text-muted">Máximo {maxCorrectionReasonLength} caracteres ({reason.trim().length}/{maxCorrectionReasonLength}). Queda en el historial de la nota.</p>
       {correctionError(newGrade, reason, target.grade) && <p role="status" className="text-xs text-muted">{correctionError(newGrade, reason, target.grade)}</p>}
       <div className="flex gap-3"><button type="submit" disabled={disabled || !!correctionError(newGrade, reason, target.grade)} className={`${button} bg-accent text-white`}>Confirmar corrección</button><button type="button" className={`${button} bg-white`} onClick={close}>Cancelar</button></div>
     </form></ScheduleDialog>}
+    <ActivityGradesAdmin context={{ sectionCourseId, bimesterId }} canCorrect={canCorrect} locked={busy} publishedAt={resultsPublication?.publishedAt}
+      isCurrent={isCurrent} onBusyChange={setActivityBusy} onGradeChanged={() => setResultsRevision(n => n + 1)} />
+    {data && <ResultadosBimestre load={loadResults} reloadKey={resultsRevision} publication={resultsPublication} criterionName={criterionId => data.criteria.find(c => c.id === criterionId)?.name} />}
     {historyId !== null && <GradeHistoryView key={historyId} gradeId={historyId} close={() => setHistoryId(null)} />}
   </section>;
 }

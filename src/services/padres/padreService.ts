@@ -1,13 +1,7 @@
-// src/services/padres/padreService.ts
-/**
- * Servicio de Padres
- * 
- * NOTA: Por ahora utiliza mocks. En el futuro, se conectará a los endpoints
- * reales de Spring Boot mediante httpClient.
- * 
- * TODO(futuro):
- * import httpClient from '../httpClient';
- */
+import { isAxiosError } from 'axios';
+import httpClient from '@/services/httpClient';
+import { isMockDataEnabled } from '@/lib/mockMode';
+import type { GuardianStudentResponse } from '@/types/guardianApi';
 import {
   PadrePerfil,
   HijoResumen,
@@ -47,14 +41,61 @@ export async function getPadrePerfil(): Promise<PadrePerfil> {
   return { ...MOCK_PADRE_PERFIL };
 }
 
+export function guardianStudentsErrorMessage(error: unknown): string {
+  if (isAxiosError(error)) {
+    const status = error.response?.status;
+    if (status === 401) return 'La sesión ha expirado. Vuelve a iniciar sesión.';
+    if (status === 403) return 'Tu cuenta no tiene un perfil de apoderado activo.';
+    if (!error.response) return 'No se pudo conectar con el servidor. Intenta nuevamente.';
+  }
+  return 'No se pudo cargar la lista de estudiantes vinculados.';
+}
+
+// Solo se mapea lo que expone GET /v1/guardian/students; el resto queda vacío o null (sin datos).
+export function mapGuardianStudent(s: GuardianStudentResponse): HijoResumen {
+  return {
+    id: String(s.studentId),
+    nombres: s.fullName,
+    apellidos: '',
+    nombreCompleto: s.fullName,
+    dni: '',
+    codigoEstudiante: s.studentCode ?? '',
+    grado: s.grade != null ? `${s.grade}° Grado` : '',
+    nivel: null,
+    asistencia: null,
+    porcentajeAsistencia: null,
+    seccion: s.sectionName ?? '',
+    seccionId: '',
+    tutor: '',
+    estado: null,
+    promedioGeneral: null,
+    promedio: null,
+    tareasTotales: null,
+    tareasEntregadas: null,
+    faltasSinJustificar: null,
+    estadoPension: null,
+    avisosPendientes: null
+  };
+}
+
 export async function getHijos(): Promise<HijoResumen[]> {
-  await mockDelay(250);
-  return [...MOCK_HIJOS];
+  if (isMockDataEnabled()) {
+    await mockDelay(250);
+    return [...MOCK_HIJOS];
+  }
+  let data: unknown;
+  try {
+    data = (await httpClient.get<GuardianStudentResponse[]>('/v1/guardian/students')).data;
+  } catch (error) {
+    throw new Error(guardianStudentsErrorMessage(error));
+  }
+  if (!Array.isArray(data)) throw new Error(guardianStudentsErrorMessage(null));
+  return data.map(mapGuardianStudent);
 }
 
 export async function getHijoById(hijoId: string): Promise<HijoResumen | null> {
-  await mockDelay(200);
-  const hijo = MOCK_HIJOS.find(h => h.id === hijoId);
+  const hijos = await getHijos();
+  const hijo = hijos.find(h => h.id === hijoId);
   return hijo ? { ...hijo } : null;
 }
 
@@ -87,7 +128,8 @@ export async function enviarJustificacion(data: {
   archivoNombre?: string;
 }): Promise<JustificacionInasistencia> {
   await mockDelay(400);
-  const hijo = MOCK_HIJOS.find(h => h.id === data.hijoId) || MOCK_HIJOS[0];
+  const hijos = await getHijos();
+  const hijo = hijos.find(h => h.id === data.hijoId) || hijos[0];
   const nueva: JustificacionInasistencia = {
     id: `just-${Date.now()}`,
     hijoId: data.hijoId,

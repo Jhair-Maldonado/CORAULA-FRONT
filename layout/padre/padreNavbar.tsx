@@ -9,6 +9,7 @@ import {
   CheckmarkBadge01Icon,
   Menu01Icon
 } from 'hugeicons-react';
+import { isMockDataEnabled } from '@/lib/mockMode';
 
 export const PadreNavbar: React.FC = () => {
   const pathname = usePathname();
@@ -61,7 +62,10 @@ export const PadreNavbar: React.FC = () => {
           {/* Notificaciones */}
           <button className="relative w-9 h-9 rounded-full flex items-center justify-center text-[#6B7280] hover:bg-slate-100 hover:text-[#111827] transition-colors">
             <Notification01Icon size={18} />
-            <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+            {/* Indicador de no leídos simulado: solo en modo demostración. */}
+            {isMockDataEnabled() && (
+              <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+            )}
           </button>
 
           <div className="w-px h-6 bg-[#E5E7EB]"></div>

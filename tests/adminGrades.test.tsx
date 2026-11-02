@@ -10,11 +10,13 @@ import { sectionsService } from '../src/services/admin/sectionsService';
 import { sectionCoursesService } from '../src/services/admin/sectionCoursesService';
 import { evaluationService } from '../src/services/admin/evaluationService';
 import httpClient from '../src/services/httpClient';
+import { bimesterPublicationService } from '../src/services/admin/bimesterPublicationService';
+import { adminActivityGradesService } from '../src/services/admin/adminActivityGradesService';
 import type { CriterionGradesSheetResponse } from '../src/types/teacherGradesApi';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const context = { sectionCourseId: 10, courseId: 20, academicPeriodId: 30, bimesterId: 1 };
-const sheet = (grade: number | null = 0, status: CriterionGradesSheetResponse['bimester']['status'] = 'ABIERTO'): CriterionGradesSheetResponse => ({ ...context, bimester: { id: 1, academicPeriodId: 30, number: 1, name: 'Primer bimestre', startDate: '2026-03-01', endDate: '2026-04-30', status }, criteria: [{ id: 40, courseId: 20, academicPeriodId: 30, name: 'Criterio manual', description: null, order: 1, type: 'MANUAL', active: true }, { id: 41, courseId: 20, academicPeriodId: 30, name: 'Participación', description: null, order: 2, type: 'PARTICIPACION_ACADEMICA', active: true }], students: [{ enrollmentId: 50, studentId: 60, fullName: 'Estudiante', grades: [{ criterionId: 40, gradeId: grade === null ? null : 70, grade, registeredAt: grade === null ? null : '2026-10-10T12:00:00Z', updatedAt: null }] }] });
+const sheet = (grade: number | null = 0, status: CriterionGradesSheetResponse['bimester']['status'] = 'EN_REVISION'):CriterionGradesSheetResponse => ({ ...context, bimester: { id: 1, academicPeriodId: 30, number: 1, name: 'Primer bimestre', startDate: '2026-03-01', endDate: '2026-04-30', status }, criteria: [{ id: 40, courseId: 20, academicPeriodId: 30, name: 'Criterio manual', description: null, order: 1, type: 'MANUAL', active: true }, { id: 41, courseId: 20, academicPeriodId: 30, name: 'Participación', description: null, order: 2, type: 'PARTICIPACION_ACADEMICA', active: true }], students: [{ enrollmentId: 50, studentId: 60, fullName: 'Estudiante', grades: [{ criterionId: 40, gradeId: grade === null ? null : 70, grade, registeredAt: grade === null ? null : '2026-10-10T12:00:00Z', updatedAt: null }] }] });
 const saved = (grade = 15) => ({ id: 70, enrollmentId: 50, sectionCourseId: 10, bimesterId: 1, criterionId: 40, grade, registeredByTeacherId: 80, registeredAt: '2026-10-10T12:00:00Z', updatedAt: '2026-10-10T13:00:00Z' });
 const history = { id: 1, criterionGradeId: 70, previousValue: 0, newValue: 15, reason: 'Corrección documentada', changedByUserId: 90, occurredAt: '2026-10-10T13:00:00Z' };
 const httpError = (status?: number) => new AxiosError('private', 'ERR_BAD_REQUEST', undefined, undefined, status ? { status, data: { message: 'secret detail' } } as AxiosResponse : undefined);
@@ -54,7 +56,10 @@ test('history GET accepts empty and complete entries, rejects wrong grade IDs an
 
 async function view(overrides: Partial<typeof adminGradesService>, run: (h: { renderer: ReactTestRenderer; click: (name: string) => Promise<void>; button: (name: string) => ReactTestInstance | undefined; change: (label: string, value: string) => Promise<void>; submit: () => Promise<void> }) => Promise<void>, role: 'ADMINISTRADOR' | 'DIRECTIVO' = 'ADMINISTRADOR') {
   const original = { ...adminGradesService }, oldSections = sectionsService.list, oldCourses = sectionCoursesService.list, oldBimesters = evaluationService.getBimesters;
-  Object.assign(adminGradesService, { getSheet: async (c: typeof context) => ({ ...sheet(), ...c, bimester: { ...sheet().bimester, id: c.bimesterId } }), correctGrade: async () => saved(), getHistory: async () => [history] }, overrides);
+  // MANUAL tests: the activity block (#105 part 2) has no activities; tests/adminActivityGrades covers it.
+  const oldActivities = adminActivityGradesService.listActivities;
+  adminActivityGradesService.listActivities = async () => [];
+  Object.assign(adminGradesService, { getSheet: async (c: typeof context) => ({ ...sheet(), ...c, bimester: { ...sheet().bimester, id: c.bimesterId } }), correctGrade: async () => saved(), getHistory: async () => [history], getResults: async (sectionCourseId: number, bimesterId: number) => ({ sectionCourseId, bimesterId, areaId: 2, students: [{ enrollmentId: 50, studentId: 60, fullName: 'Estudiante', pa: 13.5, criteriaIndicator: 14, courseGrade: 14, courseApproved: true, areaGrade: 14, areaApproved: true, reasons: [] }] }) }, overrides);
   sectionsService.list = async () => [1, 2].map(id => ({ id, academicPeriodId: 30, level: 'PRIMARY', grade: 1, name: `Sección ${id}`, maxCapacity: 30, enrollmentOpen: false, active: true }));
   sectionCoursesService.list = async id => [10, 11].map(courseId => ({ id: courseId, sectionId: Number(id), courseId: 20, courseCode: 'MAT', courseName: `Matemática ${courseId}`, active: true, teacherId: null, teacherName: null }));
   evaluationService.getBimesters = async () => [1, 2].map(id => ({ ...sheet().bimester, id }));
@@ -70,7 +75,7 @@ async function view(overrides: Partial<typeof adminGradesService>, run: (h: { re
     const change = async (label: string, value: string) => { await act(async () => { renderer.root.findByProps({ 'aria-label': label }).props.onChange({ target: { value } }); }); };
     await change('Sección', '1'); await change('Curso-sección', '10'); await change('Bimestre', '1');
     await run({ renderer, button, change, click: async name => { const node = button(name); assert.ok(node); assert.equal(!!node.props.disabled, false); await act(async () => { node.props.onClick(); }); }, submit: async () => { await act(async () => { renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }); }); } });
-  } finally { if (renderer) await act(async () => { renderer.unmount(); }); Object.assign(adminGradesService, original); sectionsService.list = oldSections; sectionCoursesService.list = oldCourses; evaluationService.getBimesters = oldBimesters; for (const [name, descriptor] of globals) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); } }
+  } finally { if (renderer) await act(async () => { renderer.unmount(); }); Object.assign(adminGradesService, original); adminActivityGradesService.listActivities = oldActivities; sectionsService.list = oldSections; sectionCoursesService.list = oldCourses; evaluationService.getBimesters = oldBimesters; for (const [name, descriptor] of globals) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); } }
 }
 
 test('pending cells cannot correct or view history; persisted zero is correctable and PA readonly once', async () => {
@@ -78,9 +83,22 @@ test('pending cells cannot correct or view history; persisted zero is correctabl
   await view({}, async h => { assert.ok(h.button('Corregir Estudiante · Criterio manual')); assert.equal(h.renderer.root.findAllByType('th').filter(n => text(n) === 'PA · solo lectura').length, 1); await h.click('Corregir Estudiante · Criterio manual'); assert.match(text(h.renderer.root), /Nota actual: 0/); });
 });
 
-test('DIRECTIVO, inactive criterion and non-open bimesters remain readonly while history is available', async () => {
-  await view({}, async h => { assert.equal(h.button('Corregir Estudiante · Criterio manual'), undefined); await h.click('Historial #70'); assert.match(text(h.renderer.root), /0 → 15/); assert.match(text(h.renderer.root), /Usuario #90/); }, 'DIRECTIVO');
-  for (const status of ['PLANIFICADO', 'EN_REVISION', 'CERRADO'] as const) await view({ getSheet: async () => sheet(0, status) }, async h => { assert.equal(h.button('Corregir Estudiante · Criterio manual'), undefined); assert.ok(h.button('Historial #70')); });
+test('#51-A window: ADMINISTRADOR corrects only in EN_REVISION/CERRADO; ABIERTO explains that the teacher corrects', async () => {
+  for (const role of ['ADMINISTRADOR', 'DIRECTIVO'] as const) {
+    for (const status of ['PLANIFICADO', 'ABIERTO', 'EN_REVISION', 'CERRADO', 'ANULADO'] as const) {
+      await view({ getSheet: async () => sheet(0, status) }, async h => {
+        const correctable = role === 'ADMINISTRADOR' && (status === 'EN_REVISION' || status === 'CERRADO');
+        assert.equal(!!h.button('Corregir Estudiante · Criterio manual'), correctable, `${role} ${status}`);
+        assert.ok(h.button('Historial #70'));
+        assert.equal(/las notas las corrige el docente/.test(text(h.renderer.root)), status === 'ABIERTO', `${role} ${status}`);
+        assert.equal(/Bimestre de solo lectura/.test(text(h.renderer.root)), status === 'PLANIFICADO' || status === 'ANULADO', `${role} ${status}`);
+      }, role);
+    }
+  }
+});
+
+test('DIRECTIVO and inactive criterion remain readonly while history is available', async () => {
+  await view({}, async h => { assert.equal(h.button('Corregir Estudiante · Criterio manual'), undefined); assert.match(text(h.renderer.root), /solo lectura/); await h.click('Historial #70'); assert.match(text(h.renderer.root), /0 → 15/); assert.match(text(h.renderer.root), /Usuario #90/); }, 'DIRECTIVO');
   await view({ getSheet: async () => { const s = sheet(); s.criteria[0].active = false; return s; } }, async h => { assert.equal(h.button('Corregir Estudiante · Criterio manual'), undefined); assert.match(text(h.renderer.root), /inactivo/); });
 });
 
@@ -188,9 +206,98 @@ test('manual columns are dynamic beyond five and stale history cannot appear in 
     }
     return s;
   } }, async h => {
-    assert.equal(h.renderer.root.findByType('thead').findAllByType('th').length, 10);
+    assert.equal(h.renderer.root.findAllByType('thead')[0].findAllByType('th').length, 10);
     await h.click('Historial #70'); await h.change('Bimestre', '2');
     await act(async () => { pending.resolve([{ ...history, reason: 'OBSOLETE HISTORY' }]); });
     assert.doesNotMatch(text(h.renderer.root), /OBSOLETE HISTORY/);
   });
+});
+
+test('ADMINISTRADOR and DIRECTIVO see #45 results read-only, reloaded after an accepted correction', async () => {
+  for (const role of ['ADMINISTRADOR', 'DIRECTIVO'] as const) {
+    const calls: number[][] = [];
+    await view({ getResults: async (sectionCourseId: number, bimesterId: number) => { calls.push([sectionCourseId, bimesterId]); return { sectionCourseId, bimesterId, areaId: 2, students: [] }; } }, async h => {
+      assert.match(text(h.renderer.root), /Resultados del bimestre/);
+      assert.match(text(h.renderer.root), /Calculado, aún no publicado/);
+      assert.deepEqual(calls, [[10, 1]]);
+      await h.click('Actualizar resultados'); assert.equal(calls.length, 2);
+      if (role === 'ADMINISTRADOR') {
+        await h.click('Corregir Estudiante · Criterio manual');
+        await h.change('Nueva nota', '15'); await h.change('Motivo', 'Corrección documentada');
+        await h.submit();
+        assert.equal(calls.length, 3);
+      }
+    }, role);
+  }
+  await view({ getResults: async () => { throw new AxiosError('x', 'ERR', undefined, undefined, { status: 403, data: {} } as AxiosResponse); } }, async h => {
+    assert.match(text(h.renderer.root), /No tienes permiso para consultar los resultados/);
+    assert.ok(h.button('Reintentar resultados'));
+  }, 'DIRECTIVO');
+});
+
+test('reason: trimmed 1000 characters accepted, 1001 rejected in the UI without PATCH, with a visible counter', async () => {
+  assert.equal(correctionError('15', 'm'.repeat(1000), 0), null);
+  assert.equal(correctionError('15', `  ${'m'.repeat(1000)}  `, 0), null);
+  assert.match(correctionError('15', 'm'.repeat(1001), 0)!, /1000 caracteres/);
+  await assert.rejects(adminGradesService.correctGrade(70, { grade: 15, expectedGrade: 0, reason: 'm'.repeat(1001) }), /1000 caracteres/);
+  const sent: string[] = [];
+  await view({ correctGrade: async (_id, dto) => { sent.push(dto.reason); return saved(); } }, async h => {
+    await h.click('Corregir Estudiante · Criterio manual');
+    assert.equal(h.renderer.root.findByProps({ 'aria-label': 'Motivo' }).props.maxLength, 1000);
+    await h.change('Nueva nota', '15'); await h.change('Motivo', 'm'.repeat(1001)); await h.submit();
+    assert.deepEqual(sent, []); assert.match(text(h.renderer.root), /1001\/1000/);
+    await h.change('Motivo', 'm'.repeat(1000)); await h.submit();
+    assert.equal(sent.length, 1);
+  });
+});
+
+test('coded PATCH errors show the catalog text only with their contract status; one PATCH, sheet reload, no results reload', async () => {
+  const coded = (status: number, code: string) => new AxiosError('private', 'ERR', undefined, undefined, { status, data: { error: 'X', message: 'secret detail', code } } as AxiosResponse);
+  const cases: [number, string, RegExp | string][] = [
+    [409, 'BIMESTER_STATE_CONFLICT', /El bimestre o la nota cambiaron\. Se recargó la planilla/],
+    [409, 'GRADE_CHANGED_CONCURRENTLY', /Otra persona cambió esta nota/],
+    [409, 'STRUCTURE_FROZEN', /congelada por una publicación/],
+    [400, 'REASON_REQUIRED', /Indica el motivo de la corrección \(obligatorio/],
+    [404, 'RESOURCE_NOT_FOUND', /La nota o su contexto ya no está disponible\. Se recargó/],
+    [400, 'VALIDATION_ERROR', adminGradesErrorMessage(httpError(400))],
+    [409, 'UNKNOWN_CODE', adminGradesErrorMessage(httpError(409))],
+    [400, 'GRADE_CHANGED_CONCURRENTLY', adminGradesErrorMessage(httpError(400))],
+    [500, 'INTERNAL_ERROR', adminGradesErrorMessage(httpError(500))],
+  ];
+  for (const [status, code, expected] of cases) {
+    let patches = 0, reads = 0, results = 0;
+    await view({ getSheet: async () => { reads++; return sheet(); }, getResults: async (sectionCourseId: number, bimesterId: number) => { results++; return { sectionCourseId, bimesterId, areaId: 2, students: [] }; }, correctGrade: async () => { patches++; throw coded(status, code); } }, async h => {
+      await h.click('Corregir Estudiante · Criterio manual'); await h.change('Nueva nota', '15'); await h.change('Motivo', 'Motivo'); await h.submit();
+      const shown = text(h.renderer.root);
+      assert.equal(patches, 1, code); assert.equal(reads, 2, code); assert.equal(results, 1, code);
+      if (typeof expected === 'string') assert.ok(shown.includes(expected), `${status} ${code}`); else assert.match(shown, expected, `${status} ${code}`);
+      assert.doesNotMatch(shown, /secret detail|Corrección confirmada/);
+    });
+  }
+});
+
+test('#111: the publication mark is read only for CERRADO and drives the results note; re-read after an accepted correction', async () => {
+  const original = bimesterPublicationService.getPublication;
+  const calls: number[] = [];
+  let answer: () => Promise<unknown> = async () => ({ bimesterId: 1, status: 'CERRADO', publishedAt: '2026-04-30T18:00:00Z', revision: 3, preparationRevision: null, courses: [], details: [] });
+  bimesterPublicationService.getPublication = (async (bimesterId: number) => { calls.push(bimesterId); return answer(); }) as typeof original;
+  try {
+    for (const status of ['ABIERTO', 'EN_REVISION'] as const) {
+      await view({ getSheet: async () => sheet(0, status) }, async h => { assert.match(text(h.renderer.root), /Calculado, aún no publicado/); });
+    }
+    assert.deepEqual(calls, []);
+    let reads = 0;
+    await view({ getSheet: async () => sheet(++reads === 1 ? 0 : 15, 'CERRADO') }, async h => {
+      assert.match(text(h.renderer.root), /Publicado el .* · revisión 3\./);
+      assert.doesNotMatch(text(h.renderer.root), /no publicado/);
+      assert.equal(calls.length, 1);
+      await h.click('Corregir Estudiante · Criterio manual'); await h.change('Nueva nota', '15'); await h.change('Motivo', 'Corrección publicada'); await h.submit();
+      assert.equal(calls.length, 2);
+    });
+    // CERRADO without a mark is not published; an unreadable mark falls back to the neutral note.
+    answer = async () => ({ bimesterId: 1, status: 'CERRADO', publishedAt: null, revision: 0, preparationRevision: 'abc', courses: [], details: [] });
+    await view({ getSheet: async () => sheet(0, 'CERRADO') }, async h => { assert.match(text(h.renderer.root), /Calculado, aún no publicado/); });
+    answer = async () => { throw httpError(); };
+    await view({ getSheet: async () => sheet(0, 'CERRADO') }, async h => { assert.match(text(h.renderer.root), /Calculado desde las notas actuales/); });
+  } finally { bimesterPublicationService.getPublication = original; }
 });

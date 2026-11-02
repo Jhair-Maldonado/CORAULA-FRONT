@@ -1,7 +1,7 @@
 // feature/docente/vistas/notas/vistaNotasDocente.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -12,14 +12,18 @@ import {
   Download,
 } from 'lucide-react';
 import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
-import type { EvaluationStudentRow } from '@/types/evaluationApi';
+import { bimesterStatusLabels, type EvaluationStudentRow } from '@/types/evaluationApi';
 import type { TeacherCourseSummaryResponse } from '@/types/teacherCoursesApi';
 import { MANUAL_GRADES_CONTRACT_VERIFIED } from '@/types/teacherGradesApi';
 import { useTeacherGrades } from '@/hooks/useTeacherGrades';
-import { canEnterFirstGrade, gradeInputError, manualSheetColumns } from '@/lib/manualGrades';
+import { canCorrectGrade, canEnterFirstGrade, gradeInputError, manualSheetColumns } from '@/lib/manualGrades';
+import ModalCorreccionNota, { type CorrectionTarget } from './ModalCorreccionNota';
+import PlazoRegistroNotas from './PlazoRegistroNotas';
 import { evaluationColumns, participationGrade } from '@/lib/evaluationPreparation';
 import { CardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
+import ResultadosBimestre from '@/components/evaluation/ResultadosBimestre';
+import { teacherGradesService } from '@/services/teacher/teacherGradesService';
 import { useDocenteSession } from '@/app/docente/components/DocenteSessionContext';
 
 export default function VistaNotasDocente() {
@@ -41,6 +45,7 @@ function NotasDelCurso({ course, selectCourse }: { course?: TeacherCourseSummary
   const criteria = manualSheetColumns(scopedEvaluation);
   const { participation } = evaluationColumns(config);
   const [revision, setRevision] = useState(0);
+  const [correction, setCorrection] = useState<CorrectionTarget | null>(null);
   const [result, setResult] = useState<{ key: string; rows?: EvaluationStudentRow[]; error?: string } | null>(null);
   const key = JSON.stringify([selectedCursoId, revision]);
   const loading = isLoading || (!!selectedCursoId && result?.key !== key && !scopedEvaluation);
@@ -58,7 +63,13 @@ function NotasDelCurso({ course, selectCourse }: { course?: TeacherCourseSummary
     }).catch(error => { if (current) setResult({ key, error: teacherCoursesErrorMessage(error) }); });
     return () => { current = false; };
   }, [selectedCursoId, key]);
-  const hasDrafts = Object.values(grades.drafts).some(value => value !== '');
+  const resultsSectionCourseId = course?.sectionCourseId, resultsBimesterId = bimester?.id;
+  const loadResults = useCallback((signal: AbortSignal) => {
+    if (!resultsSectionCourseId || !resultsBimesterId) return Promise.reject(new Error('Selecciona un curso y bimestre.'));
+    return teacherGradesService.getResults(resultsSectionCourseId, resultsBimesterId, signal);
+  }, [resultsSectionCourseId, resultsBimesterId]);
+  const criterionName = (criterionId: number) => criteria.find(c => c.id === criterionId)?.name;
+  const hasDrafts =Object.values(grades.drafts).some(value => value !== '');
   const invalidDrafts = Object.values(grades.drafts).some(value => value !== '' && gradeInputError(value));
 
   if (loading && cursos.length === 0) {
@@ -136,7 +147,7 @@ function NotasDelCurso({ course, selectCourse }: { course?: TeacherCourseSummary
         </div>
       </div>
 
-      <p id="grades-integration" className="p-3 bg-white border border-[#E5E7EB] text-[#64748B] rounded-xl text-xs">{MANUAL_GRADES_CONTRACT_VERIFIED ? 'Solo primeras notas MANUAL en un bimestre ABIERTO. El registro es individual por celda; las notas existentes son de solo lectura.' : 'El registro de notas aún no está disponible.'}</p>
+      <p id="grades-integration" className="p-3 bg-white border border-[#E5E7EB] text-[#64748B] rounded-xl text-xs">{MANUAL_GRADES_CONTRACT_VERIFIED ? 'Primeras notas MANUAL en un bimestre ABIERTO, registro individual por celda. Las notas existentes se corrigen con «Editar», indicando motivo y justificación, mientras el plazo esté vigente.' : 'El registro de notas aún no está disponible.'}</p>
 
       {/* Contenedor de Filtros (Frame K24L9 Filters Container) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -180,12 +191,14 @@ function NotasDelCurso({ course, selectCourse }: { course?: TeacherCourseSummary
             </span>
             <select aria-label="Bimestre" aria-busy={bimestersLoading} disabled={grades.saving || bimestersLoading || !!bimestersError || bimesters.length === 0} value={bimester?.id ?? ''} onChange={e => grades.selectBimester(e.target.value)} className="w-full text-xs font-bold text-[#111827] bg-transparent border-none p-0 focus-visible:outline-[#BE123C] cursor-pointer disabled:opacity-50">
               <option value="">{bimestersLoading ? 'Cargando bimestres...' : bimesters.length ? 'Selecciona un bimestre' : 'Sin bimestres disponibles'}</option>
-              {bimesters.map(b => <option key={b.id} value={b.id}>{b.name} ({b.status})</option>)}
+              {bimesters.map(b => <option key={b.id} value={b.id} disabled={b.status === 'ANULADO'}>{b.name} ({bimesterStatusLabels[b.status]})</option>)}
             </select>
           </div>
         </div>
       </div>
 
+      {scopedEvaluation && bimester && bimester.status !== 'ANULADO' && <PlazoRegistroNotas gradeWindow={grades.gradeWindow} />}
+      {grades.annulledNotice &&<p role="alert" className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs">{grades.annulledNotice}</p>}
       {bimestersError && <ErrorState title="No pudimos cargar los bimestres" message={bimestersError} onRetry={onRetryBimesters} />}
       {course && !bimestersLoading && !bimestersError && bimesters.length === 0 && <p role="status" className="p-3 bg-white border border-[#E5E7EB] text-[#64748B] rounded-xl text-xs">No hay bimestres disponibles para este curso-sección.</p>}
       {grades.saveError && <ErrorState title="No se completó el registro" message={grades.saveError} onRetry={grades.refreshSheet} />}
@@ -212,7 +225,7 @@ function NotasDelCurso({ course, selectCourse }: { course?: TeacherCourseSummary
                   const editable = !!supplied && canEnterFirstGrade(bimester, c, supplied);
                   const draft = grades.drafts[draftKey] ?? '';
                   const inputError = editable && draft !== '' ? gradeInputError(draft) : null;
-                  return <td key={c.id} className="py-2.5 px-2 text-center"><input aria-label={c.name + ', ' + student.fullName + (editable ? '' : ', solo lectura')} aria-invalid={!!inputError} aria-describedby={inputError ? 'grade-error-' + draftKey : undefined} title={editable ? 'Primera nota: 0 a 20, máximo dos decimales' : 'Nota registrada, criterio inactivo o bimestre no abierto'} type="text" inputMode="decimal" readOnly={!editable} disabled={grades.saving || grades.refreshRequired} value={supplied?.grades[c.id] ?? (editable ? draft : '')} onChange={e => { if (editable) grades.changeDraft(student.enrollmentId, c.id, e.target.value); }} className="w-14 text-center py-1 font-semibold text-[#111827] bg-[#F3F4F6] rounded-md border border-transparent focus:border-[#BE123C] focus:bg-white focus:outline-hidden" />{inputError && <p id={'grade-error-' + draftKey} className="text-[10px] text-rose-700 mt-1 max-w-32 mx-auto">{inputError}</p>}</td>;
+                  return <td key={c.id} className="py-2.5 px-2 text-center"><input aria-label={c.name + ', ' + student.fullName + (editable ? '' : ', solo lectura')} aria-invalid={!!inputError} aria-describedby={inputError ? 'grade-error-' + draftKey : undefined} title={editable ? 'Primera nota: 0 a 20, máximo dos decimales' : 'Nota registrada, criterio inactivo o bimestre no abierto'} type="text" inputMode="decimal" readOnly={!editable} disabled={grades.saving || grades.refreshRequired} value={supplied?.grades[c.id] ?? (editable ? draft : '')} onChange={e => { if (editable) grades.changeDraft(student.enrollmentId, c.id, e.target.value); }} className="w-14 text-center py-1 font-semibold text-[#111827] bg-[#F3F4F6] rounded-md border border-transparent focus:border-[#BE123C] focus:bg-white focus:outline-hidden" />{supplied && canCorrectGrade(bimester, c, supplied, grades.gradeWindow) && <button type="button" aria-label={'Editar ' + c.name + ', ' + student.fullName} disabled={grades.saving || grades.refreshRequired} onClick={() => setCorrection({ gradeId: supplied.gradeIds![c.id]!, studentName: student.fullName, criterionName: c.name, currentGrade: supplied.grades[c.id]! })} className="block mx-auto mt-1 text-[10px] font-bold text-[#BE123C] hover:underline disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-[#BE123C]">Editar</button>}{inputError && <p id={'grade-error-' + draftKey} className="text-[10px] text-rose-700 mt-1 max-w-32 mx-auto">{inputError}</p>}</td>;
                 })}
                 <td className="py-2.5 px-4 text-center bg-[#F8FAFC]"><output aria-label={'PA, ' + student.fullName + ', solo lectura'} className="inline-block px-3 py-1 rounded-md font-extrabold text-xs bg-[#F3F4F6] text-[#64748B]">{pa ?? 'Pendiente'}</output></td>
               </tr>;
@@ -221,6 +234,9 @@ function NotasDelCurso({ course, selectCourse }: { course?: TeacherCourseSummary
           </tbody></table>
         </div></div>
       </>}
+
+      {correction && <ModalCorreccionNota key={correction.gradeId} target={correction} busy={grades.saving} onClose={() => setCorrection(null)} onSubmit={grades.correctGrade} />}
+      {course && scopedEvaluation && bimester && bimester.status !== 'ANULADO' && <ResultadosBimestre load={loadResults} reloadKey={grades.resultsRevision} criterionName={criterionName} />}
     </div>
   );
 }

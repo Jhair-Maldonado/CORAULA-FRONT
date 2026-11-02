@@ -133,7 +133,7 @@ export default function VistaDetalleMateriales({ slug }: VistaDetalleMaterialesP
         }
       />
 
-      <AvisoModuloSimulado className="mb-0" detalle="los materiales de estudio son de demostración y no pueden descargarse." />
+      <AvisoModuloSimulado activo={true} className="mb-0" detalle="los materiales de estudio son de demostración y no pueden descargarse." />
 
       <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 sm:p-6 shadow-xs flex flex-col gap-6">
         {downloadNotice && (

@@ -1,6 +1,8 @@
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
-import type { AcademicPeriod, CreateAcademicPeriodRequest, UpdateAcademicPeriodRequest } from '@/types/academicPeriodApi';
+import type {
+  AcademicPeriod, AcademicPeriodActivationAction, AcademicPeriodActivationRequest, CreateAcademicPeriodRequest, UpdateAcademicPeriodRequest,
+} from '@/types/academicPeriodApi';
 
 const endpoint = '/v1/management/academic-periods';
 export const maxAcademicPeriodNameLength = 100;
@@ -29,6 +31,25 @@ function sameId(period: AcademicPeriod, id: number) {
   return period;
 }
 
+export const maxAcademicPeriodReasonLength = 255;
+const activationTargets: Record<AcademicPeriodActivationAction, boolean> = { deactivate: false, reactivate: true };
+
+export function academicPeriodReasonError(reason: string): string | null {
+  const motive = reason.trim();
+  if (!motive) return 'Indica el motivo.';
+  return motive.length > maxAcademicPeriodReasonLength ? `El motivo no puede superar los ${maxAcademicPeriodReasonLength} caracteres.` : null;
+}
+
+async function changeActivation(id: number, action: AcademicPeriodActivationAction, reason: string): Promise<AcademicPeriod> {
+  checkId(id);
+  if (academicPeriodReasonError(reason)) throw new Error('El motivo no es válido.');
+  // Only {reason}: the backend rejects extra fields.
+  const request: AcademicPeriodActivationRequest = { reason: reason.trim() };
+  const period = sameId(parseAcademicPeriod((await httpClient.post<unknown>(`${endpoint}/${id}/${action}`, request)).data), id);
+  if (period.active !== activationTargets[action]) throw new Error('La respuesta no refleja el cambio de estado solicitado.');
+  return period;
+}
+
 export const academicPeriodsService = {
   async list(): Promise<AcademicPeriod[]> {
     const data: unknown = (await httpClient.get<unknown>(endpoint)).data;
@@ -46,6 +67,12 @@ export const academicPeriodsService = {
     checkId(id);
     if (!Object.keys(payload).length) throw new Error('No hay cambios para guardar.');
     return sameId(parseAcademicPeriod((await httpClient.patch<unknown>(`${endpoint}/${id}`, payload)).data), id);
+  },
+  deactivate(id: number, reason: string): Promise<AcademicPeriod> {
+    return changeActivation(id, 'deactivate', reason);
+  },
+  reactivate(id: number, reason: string): Promise<AcademicPeriod> {
+    return changeActivation(id, 'reactivate', reason);
   },
 };
 
@@ -67,10 +94,14 @@ export function academicPeriodChanges(original: AcademicPeriod, values: CreateAc
   return changes;
 }
 
-// Backend texts are never shown; the three 409 causes only differ by message text.
+// Backend texts are never shown; only the overlap 409 is told apart by its code (#43).
 export function academicPeriodErrorMessage(error: unknown): string {
   if (!isAxiosError(error)) return 'No se pudo completar la solicitud. Intenta nuevamente.';
   if (!error.response) return 'No se pudo conectar con el servidor. Revisa tu conexión e intenta nuevamente.';
+  const body: unknown = error.response.data;
+  if (error.response.status === 409 && body && typeof body === 'object' && 'code' in body && body.code === 'ACADEMIC_PERIOD_OVERLAP') {
+    return 'Las fechas se solapan con otro periodo académico activo. Las fechas son inclusivas: compartir el primer o el último día también es solapamiento, así que el periodo debe empezar al día siguiente del fin del otro.';
+  }
   switch (error.response.status) {
     case 400: return 'Revisa los datos: nombre de 1 a 100 caracteres y fecha de fin posterior a la de inicio.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';

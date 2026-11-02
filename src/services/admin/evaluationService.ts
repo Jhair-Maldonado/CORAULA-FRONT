@@ -20,6 +20,16 @@ export const evaluationService = {
     if (bimester.id !== id || bimester.status !== 'ABIERTO') throw new Error('La respuesta de apertura no corresponde al bimestre solicitado.');
     return bimester;
   },
+  async annulBimester(id: number, reason: string): Promise<Bimester> {
+    if (!Number.isSafeInteger(id) || id <= 0) throw new Error('El ID del bimestre debe ser un entero positivo.');
+    const trimmed = reason.trim();
+    if (!trimmed) throw new Error('El motivo de anulación es obligatorio.');
+    const response = await httpClient.post<unknown>(`${base}/bimesters/${id}/annul`, { reason: trimmed });
+    if (response.status !== 200) throw new Error('La respuesta de anulación no pudo confirmarse.');
+    const bimester = parseBimesterResponse(response.data);
+    if (bimester.id !== id || bimester.status !== 'ANULADO') throw new Error('La respuesta de anulación no corresponde al bimestre solicitado.');
+    return bimester;
+  },
   async getCriterion(criterionId: number): Promise<EvaluationCriterion> {
     return (await httpClient.get<EvaluationCriterion>(`${base}/evaluation-criteria/${criterionId}`)).data;
   },
@@ -47,6 +57,33 @@ export function bimesterOpeningErrorMessage(error: unknown): string {
     case 409: return 'No se puede abrir: el estado del bimestre o su periodo pudo haber cambiado. Se consultará nuevamente la lista.';
     default: return 'La operación no está confirmada. Consulta el estado antes de intentar otra apertura.';
   }
+}
+
+// Catalog controllers (#43) add a machine-readable code; 401/403 bodies never carry one.
+export function catalogErrorCode(error: unknown): string | null {
+  const body: unknown = isAxiosError(error) ? error.response?.data : undefined;
+  return body && typeof body === 'object' && 'code' in body && typeof body.code === 'string' ? body.code : null;
+}
+
+const annulmentCodeMessages: Record<string, string> = {
+  BIMESTER_HAS_DEPENDENCIES: 'No se puede anular: el bimestre ya tiene información académica registrada (notas, actividades, participaciones o resultados).',
+  BIMESTER_STATE_CONFLICT: 'No se puede anular: solo se anulan bimestres Planificados o Abiertos, y su estado pudo haber cambiado.',
+  REASON_REQUIRED: 'Ingresa el motivo de la anulación.',
+  INVALID_REQUEST: 'La solicitud de anulación no es válida. Actualiza la lista.',
+  RESOURCE_NOT_FOUND: 'El bimestre ya no está disponible.',
+  ACADEMIC_CATALOG_CONFLICT: 'No se puede anular por un conflicto con la configuración académica. Actualiza la lista.',
+  INTERNAL_ERROR: 'El servidor no pudo completar la anulación. Consulta el estado antes de volver a intentar.',
+};
+
+export function bimesterAnnulmentErrorMessage(error: unknown): string {
+  if (!isAxiosError(error)) return 'La anulación no pudo confirmarse. Revisa el estado en la lista antes de volver a intentar.';
+  if (!error.response) return 'No se recibió respuesta del servidor: el resultado de la anulación es incierto. Revisa el estado en la lista antes de volver a intentar.';
+  if (error.response.status === 401) return 'Tu sesión ha expirado. Vuelve a iniciar sesión.';
+  if (error.response.status === 403) return 'No tienes autorización para anular bimestres.';
+  const code = catalogErrorCode(error);
+  if (code && annulmentCodeMessages[code]) return annulmentCodeMessages[code];
+  if (error.response.status === 409) return 'No se puede anular: el bimestre cambió o entra en conflicto con otro registro. Actualiza la lista.';
+  return 'La anulación no está confirmada. Consulta el estado antes de volver a intentar.';
 }
 
 export function evaluationErrorMessage(error: unknown): string {

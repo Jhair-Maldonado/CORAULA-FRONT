@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   AlertTriangle,
@@ -11,8 +11,22 @@ import {
 } from 'lucide-react';
 import { MensajeDocenteItem } from '@/types/docentes';
 import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
+import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
+import {
+  teacherIncidentsService,
+  teacherIncidentsErrorMessage,
+  isUncertainIncidentRegistration,
+  incidentLocationError,
+  incidentDescriptionError,
+  nowLimaDateTimeLocal,
+  limaDateTimeToIso,
+  UNCERTAIN_INCIDENT_MESSAGE
+} from '@/services/teacher/teacherIncidentsService';
+import type { TeacherCourseStudentResponse, TeacherCourseSummaryResponse } from '@/types/teacherCoursesApi';
+import { INCIDENT_LOCATION_MAX, INCIDENT_TEXT_MAX } from '@/types/incidenciasApi';
+import type { GravedadIncidencia, IncidenciaResponse } from '@/types/incidenciasApi';
 
-export type GravedadIncidencia = 'LEVE' | 'MODERADA' | 'GRAVE';
+export type { GravedadIncidencia };
 
 interface ModalReportarIncidenciaProps {
   isOpen: boolean;
@@ -20,13 +34,11 @@ interface ModalReportarIncidenciaProps {
   studentName: string;
   studentSubtitle?: string;
   mensaje: MensajeDocenteItem | null;
-  onSubmitReport: (data: {
-    gravedad: GravedadIncidencia;
-    descripcion: string;
-    mensajeId: string;
-    mensajeTexto: string;
-  }) => Promise<void> | void;
+  /** Se invoca solo cuando el backend confirmó el registro. */
+  onReported: (incident: IncidenciaResponse, mensajeId: string) => void;
 }
+
+const LUGAR_CHAT = 'Chat / Canal virtual';
 
 const GRAVEDADES: {
   value: GravedadIncidencia;
@@ -54,47 +66,128 @@ const GRAVEDADES: {
   }
 ];
 
+const normalize = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+
 export default function ModalReportarIncidencia({
   isOpen,
   onClose,
   studentName,
   studentSubtitle,
   mensaje,
-  onSubmitReport
+  onReported
 }: ModalReportarIncidenciaProps) {
   const [gravedad, setGravedad] = useState<GravedadIncidencia>('MODERADA');
   const [descripcion, setDescripcion] = useState('');
+  const [lugar, setLugar] = useState(LUGAR_CHAT);
   const [error, setError] = useState('');
+  const [uncertain, setUncertain] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // Contexto real del docente: el contacto del chat es simulado y no aporta matrícula.
+  const [courses, setCourses] = useState<TeacherCourseSummaryResponse[]>([]);
+  const [coursesError, setCoursesError] = useState('');
+  const [sectionCourseId, setSectionCourseId] = useState<number | ''>('');
+  const [students, setStudents] = useState<TeacherCourseStudentResponse[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [studentsError, setStudentsError] = useState('');
+  const [enrollmentId, setEnrollmentId] = useState<number | ''>('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    setCoursesError('');
+    teacherCoursesService
+      .getCourses()
+      .then(data => {
+        if (!active) return;
+        setCourses(data);
+        setSectionCourseId(prev => (prev !== '' && data.some(c => c.sectionCourseId === prev) ? prev : data[0]?.sectionCourseId ?? ''));
+      })
+      .catch(err => {
+        if (active) setCoursesError(teacherCoursesErrorMessage(err));
+      });
+    return () => {
+      active = false;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || sectionCourseId === '') {
+      setStudents([]);
+      setEnrollmentId('');
+      return;
+    }
+    let active = true;
+    setStudentsLoading(true);
+    setStudentsError('');
+    setEnrollmentId('');
+    teacherCoursesService
+      .getStudents(sectionCourseId)
+      .then(data => {
+        if (!active) return;
+        setStudents(data);
+        // Preselección por coincidencia exacta de nombre; el docente puede corregirla.
+        const matches = data.filter(s => normalize(s.fullName) === normalize(studentName));
+        setEnrollmentId(matches.length === 1 ? matches[0].enrollmentId : '');
+      })
+      .catch(err => {
+        if (active) setStudentsError(teacherCoursesErrorMessage(err));
+      })
+      .finally(() => {
+        if (active) setStudentsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isOpen, sectionCourseId, studentName]);
+
   if (!isOpen || !mensaje) return null;
+
+  const handleClose = () => {
+    setError('');
+    setUncertain(false);
+    onClose();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!descripcion.trim()) {
-      setError('Por favor indica qué pasó (la descripción es obligatoria).');
+    if (submitting) return;
+    setUncertain(false);
+    if (sectionCourseId === '' || enrollmentId === '') {
+      setError('Selecciona el curso y el estudiante implicado.');
+      return;
+    }
+    const textError = incidentLocationError(lugar) ?? incidentDescriptionError(descripcion);
+    if (textError) {
+      setError(textError);
       return;
     }
     setError('');
     setSubmitting(true);
 
     try {
-      await onSubmitReport({
-        gravedad,
-        descripcion: descripcion.trim(),
-        mensajeId: mensaje.id,
-        mensajeTexto: mensaje.texto
+      const saved = await teacherIncidentsService.registerIncident({
+        sectionCourseId,
+        enrollmentId,
+        occurredAt: limaDateTimeToIso(nowLimaDateTimeLocal()),
+        location: lugar,
+        severity: gravedad,
+        description: descripcion,
+        actionsTaken: null
       });
       setSuccess(true);
+      onReported(saved, mensaje.id);
       setTimeout(() => {
         setSuccess(false);
         setDescripcion('');
         setGravedad('MODERADA');
+        setLugar(LUGAR_CHAT);
         onClose();
       }, 1400);
-    } catch (err: any) {
-      setError(err?.message || 'Error al registrar la incidencia.');
+    } catch (err) {
+      if (isUncertainIncidentRegistration(err)) setUncertain(true);
+      else setError(teacherIncidentsErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -119,14 +212,14 @@ export default function ModalReportarIncidencia({
                 Reportar Incidencia Disciplinaria
               </h3>
               <p className="text-xs text-muted truncate mt-0.5">
-                Estudiante: <strong className="text-ink">{studentName}</strong>
+                Contacto del chat: <strong className="text-ink">{studentName}</strong>
                 {studentSubtitle ? ` · ${studentSubtitle}` : ''}
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 text-muted hover:text-ink hover:bg-neutral/40 rounded-lg transition-colors shrink-0"
             aria-label="Cerrar modal"
           >
@@ -137,12 +230,12 @@ export default function ModalReportarIncidencia({
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-            <AvisoModuloSimulado activo={true} className="mb-0" detalle="el reporte de incidencias aún no está conectado; el reporte no se guarda." />
-            {/* Contexto: Mensaje reportado como evidencia */}
+            {/* Contexto: Mensaje del chat (mensajería simulada) */}
             <div className="bg-neutral/20 border border-line rounded-xl p-3 sm:p-4">
+              <AvisoModuloSimulado activo={true} className="mb-2" detalle="la mensajería del chat es de demostración; el mensaje no se adjunta como evidencia de la incidencia." />
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-muted uppercase tracking-wider mb-1.5">
                 <Quote size={13} className="text-accent shrink-0" aria-hidden="true" />
-                <span>Mensaje evidenciado del chat</span>
+                <span>Mensaje del chat</span>
                 <span className="ml-auto font-normal text-muted lowercase">
                   ({mensaje.hora})
                 </span>
@@ -151,6 +244,57 @@ export default function ModalReportarIncidencia({
                 &ldquo;{mensaje.texto}&rdquo;
               </p>
             </div>
+
+            {/* Curso y estudiante reales del docente */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="block text-xs font-bold text-ink">
+                Curso / Sección <span className="text-rose-600">*</span>
+                <select
+                  aria-label="Curso de la incidencia"
+                  value={sectionCourseId}
+                  onChange={e => setSectionCourseId(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full mt-1.5 p-2.5 rounded-lg border border-line bg-white text-ink text-xs font-semibold focus-visible:outline-accent"
+                >
+                  {courses.length === 0 && <option value="">No hay cursos asignados</option>}
+                  {courses.map(c => (
+                    <option key={c.sectionCourseId} value={c.sectionCourseId}>
+                      {c.name} — {c.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'} {c.grade}° {c.sectionName}
+                    </option>
+                  ))}
+                </select>
+                {coursesError && <span className="block mt-1 text-[11px] font-normal text-rose-600">{coursesError}</span>}
+              </label>
+              <label className="block text-xs font-bold text-ink">
+                Estudiante implicado <span className="text-rose-600">*</span>
+                <select
+                  aria-label="Estudiante de la incidencia"
+                  value={enrollmentId}
+                  disabled={studentsLoading}
+                  onChange={e => setEnrollmentId(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full mt-1.5 p-2.5 rounded-lg border border-line bg-white text-ink text-xs font-semibold focus-visible:outline-accent"
+                >
+                  <option value="">{studentsLoading ? 'Cargando alumnos...' : 'Selecciona un estudiante'}</option>
+                  {students.map(s => (
+                    <option key={s.enrollmentId} value={s.enrollmentId}>
+                      {s.fullName}{s.studentCode ? ` (${s.studentCode})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {studentsError && <span className="block mt-1 text-[11px] font-normal text-rose-600">{studentsError}</span>}
+              </label>
+            </div>
+
+            <label className="block text-xs font-bold text-ink">
+              Lugar / Contexto <span className="text-rose-600">*</span>
+              <input
+                type="text"
+                required
+                maxLength={INCIDENT_LOCATION_MAX}
+                value={lugar}
+                onChange={e => setLugar(e.target.value)}
+                className="w-full mt-1.5 p-2.5 rounded-lg border border-line bg-white text-ink text-xs font-semibold focus-visible:outline-accent"
+              />
+            </label>
 
             {/* Selector de Gravedad */}
             <div>
@@ -201,6 +345,7 @@ export default function ModalReportarIncidencia({
                 id="incidencia-descripcion"
                 rows={4}
                 required
+                maxLength={INCIDENT_TEXT_MAX}
                 value={descripcion}
                 onChange={(e) => {
                   setDescripcion(e.target.value);
@@ -210,11 +355,11 @@ export default function ModalReportarIncidencia({
                 className="w-full p-3 rounded-xl border border-line bg-white text-xs text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent transition-all resize-none"
               />
               <p className="text-[11px] text-muted text-right mt-1">
-                {descripcion.length} caracteres
+                {descripcion.length}/{INCIDENT_TEXT_MAX} caracteres
               </p>
             </div>
 
-            {/* Notificaciones de éxito o error */}
+            {/* Notificaciones de éxito, error o resultado incierto */}
             {error && (
               <div role="alert" className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium flex items-center gap-2">
                 <AlertTriangle size={15} className="shrink-0" />
@@ -222,10 +367,17 @@ export default function ModalReportarIncidencia({
               </div>
             )}
 
+            {uncertain && (
+              <div role="alert" className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold flex items-center gap-2">
+                <AlertTriangle size={15} className="shrink-0 text-amber-600" />
+                <span>{UNCERTAIN_INCIDENT_MESSAGE}</span>
+              </div>
+            )}
+
             {success && (
-              <div role="status" className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
-                <AlertTriangle size={16} className="shrink-0 text-amber-600" />
-                <span>Simulación: la incidencia no se guardó (módulo en construcción).</span>
+              <div role="status" className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
+                <span>Incidencia registrada en el historial.</span>
               </div>
             )}
           </div>
@@ -234,7 +386,7 @@ export default function ModalReportarIncidencia({
           <div className="p-4 border-t border-line bg-neutral/10 flex items-center justify-end gap-2.5 shrink-0">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={submitting}
               className="px-4 py-2 rounded-xl border border-line bg-white hover:bg-neutral text-xs font-bold text-muted transition-colors disabled:opacity-50"
             >
@@ -242,7 +394,7 @@ export default function ModalReportarIncidencia({
             </button>
             <button
               type="submit"
-              disabled={submitting || !descripcion.trim()}
+              disabled={submitting || success || !descripcion.trim() || enrollmentId === ''}
               className="px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold hover:bg-accent/90 transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (

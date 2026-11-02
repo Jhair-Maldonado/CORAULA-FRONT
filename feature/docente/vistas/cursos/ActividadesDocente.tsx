@@ -3,29 +3,26 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import {
-  Upload,
-  FileText,
-  Clock,
-  X,
   Calendar,
   Award,
-  ChevronRight,
-  AlertCircle
+  ChevronRight
 } from 'lucide-react';
-import { validateMaterialFile } from '@/services/materialesService';
-import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
+import MaterialesDocente from './MaterialesDocente';
 import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
 import {
   activityTitleError,
   activityChanges,
   activityMatchesChanges,
+  annulmentReasonError,
   isAmbiguousActivityCreation,
+  isUncertainActivityResult,
   teacherActivitiesErrorMessage,
   teacherActivitiesService
 } from '@/services/teacher/teacherActivitiesService';
-import { ACADEMIC_ACTIVITY_TYPES } from '@/types/teacherActivitiesApi';
+import NotasActividadDocente from './NotasActividadDocente';
+import { ACADEMIC_ACTIVITY_TYPES, academicActivityStatusLabels } from '@/types/teacherActivitiesApi';
 import type { AcademicActivity, ActivityContext, CreateAcademicActivityRequest } from '@/types/teacherActivitiesApi';
-import type { Bimester } from '@/types/evaluationApi';
+import { bimesterStatusLabels, type Bimester } from '@/types/evaluationApi';
 
 const button =
   'min-h-10 px-3 py-2 rounded-lg border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 transition-colors';
@@ -33,16 +30,6 @@ const input =
   'w-full mt-1.5 p-2.5 rounded-lg border border-line bg-neutral/30 text-ink focus-visible:outline-accent text-xs';
 
 type Result<T> = { key: string; data?: T; error?: string };
-
-interface MaterialSubmission {
-  id: string;
-  title: string;
-  date: string;
-  fileName?: string;
-  fileSize?: string;
-  status: 'EN_PROCESO';
-  createdAt: string;
-}
 
 const emptyForm: CreateAcademicActivityRequest = {
   title: '',
@@ -145,7 +132,7 @@ function CourseActivities({
         if (current) {
           setResult({ key, data });
           if (autoSelectCurrent && data?.length) {
-            const currentBimester = data.find(b => b.status === 'ABIERTO') ?? data[0];
+            const currentBimester = data.find(b => b.status === 'ABIERTO') ?? data.find(b => b.status !== 'ANULADO');
             if (currentBimester) {
               setSelected(String(currentBimester.id));
             }
@@ -169,7 +156,8 @@ function CourseActivities({
             Actividades académicas y materiales
           </h2>
           <p className="text-xs text-muted mt-0.5">
-            Prepara actividades para este curso y sección. Cuenta para PA es una configuración futura; no calcula calificaciones.
+            Prepara, publica y califica actividades de este curso y sección. Las notas de actividades publicadas que cuentan para PA
+            forman el promedio de actividades (PA), calculado por el servidor y de solo lectura.
           </p>
         </div>
 
@@ -190,7 +178,7 @@ function CourseActivities({
                 <option value="">Selecciona un bimestre</option>
                 {bimesters.map(b => (
                   <option key={b.id} value={b.id}>
-                    {b.name} · {b.status}
+                    {b.name} · {bimesterStatusLabels[b.status]}
                   </option>
                 ))}
               </select>
@@ -272,18 +260,13 @@ function ActivitySheet({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
   const [detail, setDetail] = useState<Result<AcademicActivity> | null>(null);
+  const [confirming, setConfirming] = useState<{ kind: 'publish' | 'annul'; activity: AcademicActivity } | null>(null);
+  const [annulReason, setAnnulReason] = useState('');
 
   // Estados para formulario dual y fechas
   const [creationMode, setCreationMode] = useState<'actividad' | 'material'>('actividad');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [materialTitle, setMaterialTitle] = useState('');
-  const [materialDate, setMaterialDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [materialFile, setMaterialFile] = useState<File | null>(null);
-  const [materialFileSize, setMaterialFileSize] = useState<string | null>(null);
-  const [materialFileError, setMaterialFileError] = useState<string | null>(null);
-  const [materials, setMaterials] = useState<MaterialSubmission[]>([]);
-  const [toastNotice, setToastNotice] = useState<string | null>(null);
 
   // Fechas personalizadas de actividades por ID
   const [activityDates, setActivityDates] = useState<Record<number, { startDate?: string; endDate?: string }>>({});
@@ -297,7 +280,9 @@ function ActivitySheet({
   const detailKey = JSON.stringify([selectedId, detailRevision]);
   const loading = list?.key !== key;
   const titleError = activityTitleError(form.title);
-  const disabled = busy || parentBusy || loading || !!list?.error || ambiguous || refreshRequired;
+  // An annulled bimester is read-only: no creation, material request or edit.
+  const annulled = bimester.status === 'ANULADO';
+  const disabled = annulled || busy || parentBusy || loading || !!list?.error || ambiguous || refreshRequired;
   const { sectionCourseId, bimesterId } = context;
 
   useEffect(() => {
@@ -397,55 +382,6 @@ function ActivitySheet({
     }
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] || null;
-    if (!file) {
-      setMaterialFile(null);
-      setMaterialFileSize(null);
-      setMaterialFileError(null);
-      return;
-    }
-    const result = validateMaterialFile(file);
-    if (!result.valid) {
-      setMaterialFile(null);
-      setMaterialFileSize(null);
-      setMaterialFileError(result.error);
-    } else {
-      setMaterialFile(file);
-      setMaterialFileSize(result.formattedSize);
-      setMaterialFileError(null);
-    }
-  }
-
-  function handleMaterialSubmit() {
-    if (!materialTitle.trim() || disabled) return;
-    if (!materialFile) {
-      setMaterialFileError('Debe adjuntar un archivo para el material de clase.');
-      return;
-    }
-    const validation = validateMaterialFile(materialFile);
-    if (!validation.valid) {
-      setMaterialFileError(validation.error);
-      return;
-    }
-    const newSubmission: MaterialSubmission = {
-      id: `mat-${materials.length + 1}-${materialTitle.trim().toLowerCase().slice(0, 10).replace(/\s+/g, '_')}`,
-      title: materialTitle.trim(),
-      date: materialDate || new Date().toISOString().slice(0, 10),
-      fileName: materialFile.name,
-      fileSize: validation.formattedSize,
-      status: 'EN_PROCESO',
-      createdAt: new Date().toISOString()
-    };
-    setMaterials(prev => [newSubmission, ...prev]);
-    // La subida de material es siempre local hasta BACK #53.
-    setToastNotice('Simulación: el material no se subió (módulo en construcción).');
-    setMaterialTitle('');
-    setMaterialFile(null);
-    setMaterialFileSize(null);
-    setMaterialFileError(null);
-  }
-
   function cancelEdit() {
     if (!lockRef.current) {
       editRef.current = null;
@@ -464,7 +400,10 @@ function ActivitySheet({
     try {
       const original = await teacherActivitiesService.getActivity(context, activityId);
       if (!mounted.current || generationRef.current !== epoch) return;
-      if (original.status !== 'PLANIFICADA') throw new Error('Estado no editable.');
+      if (original.status !== 'PLANIFICADA') {
+        setError(`La actividad ya está ${academicActivityStatusLabels[original.status].toLowerCase()} y no admite esta edición. Actualiza la lista.`);
+        return;
+      }
       editRef.current = original;
       setEditing({
         original,
@@ -556,8 +495,57 @@ function ActivitySheet({
     }
   }
 
+  // Publish/annul require an open bimester; the server re-checks state and window.
+  const windowOpen = bimester.status === 'ABIERTO';
+
+  async function transition() {
+    if (!mounted.current || generationRef.current !== epoch || lockRef.current || disabled || !windowOpen || !confirming) return;
+    const { kind, activity } = confirming;
+    if (kind === 'annul' && annulmentReasonError(annulReason)) return;
+    const expected = kind === 'publish' ? 'PUBLICADA' : 'ANULADA';
+    lockRef.current = true;
+    setBusy(true);
+    setParentBusy(true);
+    setConfirming(null);
+    setNotice(null);
+    setError(null);
+    let failure: unknown = null;
+    try {
+      try {
+        if (kind === 'publish') await teacherActivitiesService.publishActivity(context, activity.id);
+        else await teacherActivitiesService.annulActivity(context, activity.id, annulReason);
+      } catch (err) {
+        failure = err;
+      }
+      // Always reload: the state shown comes from the server, never from the request.
+      const [fresh, collection] = await Promise.allSettled([
+        teacherActivitiesService.getActivity(context, activity.id),
+        teacherActivitiesService.getActivities(context)
+      ]);
+      if (!mounted.current || generationRef.current !== epoch) return;
+      if (collection.status === 'fulfilled') setList({ key, data: collection.value });
+      if (fresh.status === 'fulfilled') setDetail({ key: JSON.stringify([activity.id, detailRevision]), data: fresh.value });
+      const row = collection.status === 'fulfilled' ? collection.value.find(a => a.id === activity.id) : undefined;
+      const confirmed = fresh.status === 'fulfilled' && fresh.value.status === expected && row?.status === expected;
+      setRefreshRequired(fresh.status !== 'fulfilled' || collection.status !== 'fulfilled');
+      if (!failure && confirmed) {
+        setAnnulReason('');
+        setNotice(kind === 'publish' ? `Actividad «${activity.title}» publicada y confirmada en el listado.` : `Actividad «${activity.title}» anulada y confirmada en el listado. Sus notas se conservan.`);
+      } else if (failure && isUncertainActivityResult(failure)) {
+        setError(`No se pudo confirmar la ${kind === 'publish' ? 'publicación' : 'anulación'}. Se volvió a consultar el estado: ${confirmed ? 'la operación sí se aplicó' : 'revísalo antes de reintentar'}.`);
+      } else {
+        setError(failure ? teacherActivitiesErrorMessage(failure) : 'La operación no se corroboró en el listado recargado. Actualiza antes de continuar.');
+      }
+    } finally {
+      lockRef.current = false;
+      setParentBusy(false);
+      if (mounted.current) setBusy(false);
+    }
+  }
+
   function refresh() {
     if (!lockRef.current) {
+      setConfirming(null);
       cancelEdit();
       setSelectedId(null);
       setNotice(null);
@@ -579,41 +567,13 @@ function ActivitySheet({
     return getActivityMonth(a) === selectedMonth;
   });
 
-  const filteredMaterials = materials.filter(m => {
-    if (selectedMonth === 'ALL') return true;
-    const d = new Date(m.date);
-    return isNaN(d.getTime()) ? true : d.getMonth() === selectedMonth;
-  });
-
-  const hasAnyItems = (list?.data && list.data.length > 0) || materials.length > 0;
-  const hasFilteredItems = (filteredActivities && filteredActivities.length > 0) || filteredMaterials.length > 0;
+  const hasAnyItems = !!list?.data && list.data.length > 0;
+  const hasFilteredItems = !!filteredActivities && filteredActivities.length > 0;
 
   return (
     <div className="flex flex-col gap-5 mt-5">
-      {/* Toast Alert para confirmación de solicitud de material */}
-      {toastNotice && (
-        <div
-          role="status"
-          className="p-4 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl flex items-start justify-between gap-3 shadow-sm animate-in fade-in"
-        >
-          <div className="flex items-start gap-2.5">
-            <Clock size={18} className="text-amber-700 shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider">Solicitud de aprobación</p>
-              <p className="text-xs mt-0.5">{toastNotice}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setToastNotice(null)}
-            className="text-amber-700 hover:text-amber-950 p-1"
-            aria-label="Cerrar alerta"
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
-        </div>
-      )}
 
+      {annulled && <p role="status" className="text-xs font-medium text-amber-800 p-3 bg-amber-50 border border-amber-200 rounded-lg">Este bimestre está anulado. Solo puedes consultar sus actividades; no se pueden crear ni editar.</p>}
       {notice && <p role="status" className="text-xs font-medium text-emerald-700 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">{notice}</p>}
       {error && <p role="alert" className="text-xs font-medium text-rose-700 p-3 bg-rose-50 border border-rose-200 rounded-lg">{error}</p>}
       {busy && <p role="status" className="text-xs text-muted">Procesando y sincronizando con el servidor...</p>}
@@ -742,21 +702,18 @@ function ActivitySheet({
                 </button>
               </div>
 
-              {/* Formulario Unificado */}
+              {/* FRONT #52: materiales reales del curso (BACK #53); la pestaña ya no simula envíos */}
+              {creationMode === 'material' ? <MaterialesDocente sectionCourseId={sectionCourseId} /> : (
               <form
                 onSubmit={e => {
                   e.preventDefault();
-                  if (creationMode === 'actividad') {
-                    void createActivity();
-                  } else {
-                    handleMaterialSubmit();
-                  }
+                  void createActivity();
                 }}
                 className="flex flex-col gap-4"
                 aria-label="Crear actividad académica"
               >
                 <fieldset disabled={disabled} className="flex flex-col gap-3 text-xs font-bold text-muted">
-                  {creationMode === 'actividad' ? (
+                  {(
                     <>
                       <label>
                         Título
@@ -835,72 +792,7 @@ function ActivitySheet({
                       </label>
 
                       <p className="font-normal text-[11px] text-muted">
-                        La actividad se crea PLANIFICADA. Esta pantalla no publica ni recibe entregas ni calcula calificaciones.
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <AvisoModuloSimulado className="mb-0" detalle="la subida de materiales aún no está conectada; los materiales son de demostración y no se guardan." />
-                      <label>
-                        Título del material
-                        <input
-                          required
-                          maxLength={255}
-                          className={input}
-                          placeholder="Ej. Diapositivas - Módulo 2"
-                          value={materialTitle}
-                          onChange={e => setMaterialTitle(e.target.value)}
-                        />
-                      </label>
-
-                      <label>
-                        Fecha
-                        <input
-                          type="date"
-                          required
-                          className={input}
-                          value={materialDate}
-                          onChange={e => setMaterialDate(e.target.value)}
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className="text-xs font-bold text-muted">Subir documento</span>
-                        <div className={`mt-1.5 flex justify-center px-4 pt-4 pb-5 border-2 border-dashed rounded-lg bg-white transition-colors ${
-                          materialFileError ? 'border-rose-300 bg-rose-50/20' : 'border-line hover:border-accent/50'
-                        }`}>
-                          <div className="space-y-1 text-center">
-                            <Upload className={`mx-auto h-7 w-7 ${materialFileError ? 'text-rose-500' : 'text-muted'}`} aria-hidden="true" />
-                            <div className="text-xs text-muted">
-                              <label className="relative cursor-pointer rounded-md font-bold text-accent hover:underline">
-                                <span>Seleccionar archivo</span>
-                                <input
-                                  type="file"
-                                  className="sr-only"
-                                  accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.zip,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.*"
-                                  onChange={handleFileChange}
-                                />
-                              </label>
-                              {materialFile ? (
-                                <p className="text-xs text-ink font-semibold mt-1 truncate max-w-xs">
-                                  {materialFile.name} <span className="text-muted font-normal">({materialFileSize})</span>
-                                </p>
-                              ) : (
-                                <p className="text-[11px] text-muted">PDF, Word, PowerPoint, Excel o ZIP (Máx. 15 MB)</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        {materialFileError && (
-                          <div role="alert" className="mt-2 flex items-start gap-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
-                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                            <span>{materialFileError}</span>
-                          </div>
-                        )}
-                      </label>
-
-                      <p className="font-normal text-[11px] text-muted">
-                        Al enviar la solicitud, pasará por aprobación administrativa y se listará con estado en proceso.
+                        La actividad se crea PLANIFICADA. Publícala desde su detalle para registrar notas; no recibe entregas de estudiantes.
                       </p>
                     </>
                   )}
@@ -908,16 +800,13 @@ function ActivitySheet({
 
                 <button
                   type="submit"
-                  disabled={
-                    creationMode === 'actividad'
-                      ? disabled || !!titleError
-                      : !materialTitle.trim() || !materialFile || !!materialFileError || disabled
-                  }
+                  disabled={disabled || !!titleError}
                   className={`${button} bg-accent text-white disabled:bg-neutral/60 disabled:text-muted disabled:border-line disabled:opacity-100 w-full sm:w-auto mt-1`}
                 >
-                  {creationMode === 'actividad' ? 'Crear actividad' : 'Enviar solicitud'}
+                  Crear actividad
                 </button>
               </form>
+              )}
             </div>
           )}
         </div>
@@ -987,33 +876,6 @@ function ActivitySheet({
             </p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {/* Materiales en proceso de aprobación */}
-              {filteredMaterials.map(m => (
-                <li
-                  key={m.id}
-                  className="p-4 bg-amber-50/50 border border-amber-200 rounded-lg flex flex-wrap justify-between items-start gap-3 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <FileText size={16} className="text-amber-700 shrink-0" aria-hidden="true" />
-                      <p className="font-bold text-sm text-ink break-words">{m.title}</p>
-                    </div>
-                    <div className="text-xs text-muted mt-1.5 flex flex-wrap items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                        En proceso
-                      </span>
-                      <span>Material pedagógico</span>
-                      <span>· Fecha: {formatDisplayDate(m.date)}</span>
-                    </div>
-                    {m.fileName && (
-                      <p className="text-[11px] text-muted mt-1 font-mono">
-                        Archivo: {m.fileName} {m.fileSize && `· ${m.fileSize}`}
-                      </p>
-                    )}
-                  </div>
-                </li>
-              ))}
-
               {/* Actividades académicas con distinción destacada de EXAMEN */}
               {filteredActivities?.map(a => {
                 const isExam = a.type === 'EXAMEN';
@@ -1082,6 +944,18 @@ function ActivitySheet({
                             Cuenta para PA
                           </span>
                         )}
+
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                            a.status === 'PUBLICADA'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : a.status === 'ANULADA'
+                                ? 'bg-neutral text-muted border-line line-through'
+                                : 'bg-white text-ink border-line'
+                          }`}
+                        >
+                          Estado: {academicActivityStatusLabels[a.status]}
+                        </span>
                       </div>
                     </div>
 
@@ -1091,7 +965,10 @@ function ActivitySheet({
                         type="button"
                         disabled={busy || !!editing}
                         className="p-2.5 rounded-xl border border-line bg-white hover:bg-neutral text-muted hover:text-accent transition-all shadow-xs group focus-visible:outline-2 focus-visible:outline-accent"
-                        onClick={() => setSelectedId(a.id)}
+                        onClick={() => {
+                          setConfirming(null);
+                          setSelectedId(a.id);
+                        }}
                         title="Ingresar a la actividad"
                         aria-label={`Ver detalle #${a.id}`}
                       >
@@ -1122,7 +999,15 @@ function ActivitySheet({
             <section className="p-4 border border-line rounded-xl bg-white shadow-sm mt-2" aria-label="Detalle de actividad">
               <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-line">
                 <h4 className="font-bold text-sm text-ink">Detalle de actividad</h4>
-                <button type="button" className={`${button} bg-white`} onClick={() => setSelectedId(null)}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  className={`${button} bg-white`}
+                  onClick={() => {
+                    setConfirming(null);
+                    setSelectedId(null);
+                  }}
+                >
                   Cerrar detalle
                 </button>
               </div>
@@ -1138,25 +1023,118 @@ function ActivitySheet({
                   </button>
                 </div>
               ) : detail.data ? (
-                <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs break-words">
-                  {Object.entries({
-                    Actividad: `#${detail.data.id} · ${detail.data.title}`,
-                    Descripción: detail.data.description ?? 'Sin descripción',
-                    Tipo: detail.data.type,
-                    Estado: detail.data.status,
-                    'Cuenta para PA': detail.data.cuentaParaPa ? 'Sí' : 'No',
-                    'Curso-sección': detail.data.sectionCourseId,
-                    Bimestre: detail.data.bimesterId,
-                    'ID docente creador': detail.data.createdByTeacherId,
-                    Creación: detail.data.createdAt,
-                    Actualización: detail.data.updatedAt ?? 'Sin actualización'
-                  }).map(([lbl, val]) => (
-                    <div key={lbl} className="p-2.5 bg-neutral/30 border border-line/60 rounded-lg">
-                      <dt className="font-bold text-muted text-[10px] uppercase tracking-wider">{lbl}</dt>
-                      <dd className="text-ink whitespace-pre-wrap mt-0.5">{val}</dd>
+                <>
+                  <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs break-words">
+                    {Object.entries({
+                      Actividad: `#${detail.data.id} · ${detail.data.title}`,
+                      Descripción: detail.data.description ?? 'Sin descripción',
+                      Tipo: detail.data.type,
+                      Estado: academicActivityStatusLabels[detail.data.status],
+                      'Cuenta para PA': detail.data.cuentaParaPa ? 'Sí' : 'No',
+                      'Curso-sección': detail.data.sectionCourseId,
+                      Bimestre: detail.data.bimesterId,
+                      'ID docente creador': detail.data.createdByTeacherId,
+                      Creación: detail.data.createdAt,
+                      Actualización: detail.data.updatedAt ?? 'Sin actualización',
+                      Publicación: detail.data.publishedAt ?? 'Sin publicar',
+                      ...(detail.data.status === 'ANULADA'
+                        ? { Anulación: detail.data.annulledAt, 'Motivo de anulación': detail.data.annulmentReason }
+                        : {})
+                    }).map(([lbl, val]) => (
+                      <div key={lbl} className="p-2.5 bg-neutral/30 border border-line/60 rounded-lg">
+                        <dt className="font-bold text-muted text-[10px] uppercase tracking-wider">{lbl}</dt>
+                        <dd className="text-ink whitespace-pre-wrap mt-0.5">{val}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  {detail.data.status !== 'ANULADA' && (
+                    <div className="mt-3 flex flex-col gap-2">
+                      {windowOpen ? (
+                        confirming?.activity.id === detail.data.id ? (
+                          <div
+                            role="group"
+                            aria-label={confirming.kind === 'publish' ? 'Confirmar publicación' : 'Confirmar anulación'}
+                            className="p-3 border border-amber-200 bg-amber-50 rounded-lg text-xs text-amber-900 flex flex-col gap-2"
+                          >
+                            <p>
+                              {confirming.kind === 'publish'
+                                ? `¿Publicar «${confirming.activity.title}»? Se habilitan sus notas y, si cuenta para PA, entra al cálculo. No se puede despublicar.`
+                                : `¿Anular «${confirming.activity.title}»? Sale del cálculo del PA y conserva sus notas. No se puede reactivar.`}
+                            </p>
+                            {confirming.kind === 'annul' && (
+                              <label className="font-bold">
+                                Motivo de anulación
+                                <textarea
+                                  aria-label="Motivo de anulación"
+                                  rows={2}
+                                  maxLength={1000}
+                                  className={input}
+                                  value={annulReason}
+                                  onChange={e => setAnnulReason(e.target.value)}
+                                />
+                              </label>
+                            )}
+                            {confirming.kind === 'annul' && annulReason && annulmentReasonError(annulReason) && (
+                              <p role="alert" className="text-rose-700">{annulmentReasonError(annulReason)}</p>
+                            )}
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={disabled || (confirming.kind === 'annul' && !!annulmentReasonError(annulReason))}
+                                className={`${button} ${confirming.kind === 'publish' ? 'bg-accent' : 'bg-rose-700'} text-white`}
+                                onClick={() => void transition()}
+                              >
+                                {confirming.kind === 'publish' ? 'Confirmar publicación' : 'Confirmar anulación'}
+                              </button>
+                              <button type="button" disabled={busy} className={`${button} bg-white`} onClick={() => setConfirming(null)}>
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {detail.data.status === 'PLANIFICADA' && (
+                              <button
+                                type="button"
+                                disabled={disabled || !!editing}
+                                className={`${button} bg-accent text-white`}
+                                onClick={() => detail.data && setConfirming({ kind: 'publish', activity: detail.data })}
+                              >
+                                Publicar actividad
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={disabled || !!editing}
+                              className={`${button} bg-white text-rose-700`}
+                              onClick={() => {
+                                setAnnulReason('');
+                                if (detail.data) setConfirming({ kind: 'annul', activity: detail.data });
+                              }}
+                            >
+                              Anular actividad
+                            </button>
+                          </div>
+                        )
+                      ) : (
+                        <p className="text-[11px] text-muted">Publicar o anular requiere el bimestre abierto.</p>
+                      )}
                     </div>
-                  ))}
-                </dl>
+                  )}
+
+                  {detail.data.status === 'PLANIFICADA' ? (
+                    <p className="mt-3 text-[11px] text-muted">Publica la actividad para registrar sus notas.</p>
+                  ) : (
+                    <NotasActividadDocente
+                      key={`${detail.data.id}:${detail.data.status}:${detailKey}`}
+                      context={context}
+                      activityId={detail.data.id}
+                      disabled={disabled}
+                      lockRef={lockRef}
+                    />
+                  )}
+                </>
               ) : null}
             </section>
           )}

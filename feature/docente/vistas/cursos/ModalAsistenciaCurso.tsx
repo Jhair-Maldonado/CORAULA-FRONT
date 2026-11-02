@@ -1,11 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, Check, CheckCircle2, Calendar, Loader2 } from 'lucide-react';
+import JustificacionAsistencia from '@/components/attendance/JustificacionAsistencia';
+import SelectorEstadoAsistencia from '@/components/attendance/SelectorEstadoAsistencia';
+import {
+  ATTENDANCE_REASON_MAX_LENGTH,
+  DEFAULT_CONTINGENCY_CAUSE,
+  REASON_REQUIRED_MESSAGE,
+  REASON_TOO_LONG_MESSAGE,
+  hasAttendanceChanges,
+  isFirstCapture as firstCaptureOf,
+  isReasonValid as reasonValid
+} from '@/lib/attendanceJustification';
 import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
 import { teacherAttendanceService, teacherAttendanceErrorMessage } from '@/services/teacher/teacherAttendanceService';
 import type { TeacherCourseStudentResponse } from '@/types/teacherCoursesApi';
-import type { TeacherAttendanceStatus } from '@/types/teacherAttendanceApi';
+import type { TeacherAttendanceStatus, TeacherContingencyCause, TeacherAttendanceSessionResponse } from '@/types/teacherAttendanceApi';
 
 interface ModalAsistenciaCursoProps {
   isOpen: boolean;
@@ -19,6 +30,9 @@ const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
+
+const NO_SESSION_TODAY_MESSAGE =
+  'Este curso no tiene una sesión de clase programada para hoy. La asistencia no se registró.';
 
 function getTodayInfo(): { iso: string; readable: string } {
   const now = new Date();
@@ -41,9 +55,18 @@ export default function ModalAsistenciaCurso({
   gradeSectionSubtitle
 }: ModalAsistenciaCursoProps) {
   const [students, setStudents] = useState<TeacherCourseStudentResponse[]>([]);
+  const [activeSession, setActiveSession] = useState<TeacherAttendanceSessionResponse | null>(null);
+  const [initialStatuses, setInitialStatuses] = useState<Record<number, TeacherAttendanceStatus | null>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [attendanceDraft, setAttendanceDraft] = useState<Record<number, TeacherAttendanceStatus>>({});
+  
+  // Sin integración con el lector biométrico, toda toma desde esta pantalla es manual:
+  // primera toma = contingencia (causa + motivo); corrección = solo motivo.
+  // Contingencia & Justificación (RF-16 / RF-42)
+  const [contingencyCause, setContingencyCause] = useState<TeacherContingencyCause>(DEFAULT_CONTINGENCY_CAUSE);
+  const [reason, setReason] = useState('');
+  
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -58,22 +81,42 @@ export default function ModalAsistenciaCurso({
     setError('');
     setSaveSuccess('');
     setSaveError('');
+    setReason('');
+    setContingencyCause(DEFAULT_CONTINGENCY_CAUSE);
 
-    teacherCoursesService
-      .getStudents(sectionCourseId)
-      .then(data => {
+    Promise.all([
+      teacherCoursesService.getStudents(sectionCourseId),
+      teacherAttendanceService.getAttendance(sectionCourseId, todayInfo.iso).catch(() => null)
+    ])
+      .then(([studentsData, attendanceData]) => {
         if (!active) return;
-        setStudents(data);
-        // Por defecto todos en PRESENTE si no están marcados aún
-        setAttendanceDraft(prev => {
-          const next = { ...prev };
-          data.forEach(s => {
-            if (!next[s.enrollmentId]) {
-              next[s.enrollmentId] = 'PRESENTE';
-            }
+        setStudents(studentsData);
+
+        const session = attendanceData?.sessions?.[0] || null;
+        setActiveSession(session);
+
+        const initialMap: Record<number, TeacherAttendanceStatus | null> = {};
+        const draftMap: Record<number, TeacherAttendanceStatus> = {};
+
+        if (session && session.students?.length > 0) {
+          session.students.forEach(st => {
+            initialMap[st.enrollmentId] = st.status;
+            // Se conserva el estado guardado; sin registro, PRESENTE como antes de #123
+            draftMap[st.enrollmentId] = st.status || 'PRESENTE';
           });
-          return next;
+        }
+
+        studentsData.forEach(s => {
+          if (initialMap[s.enrollmentId] === undefined) {
+            initialMap[s.enrollmentId] = null;
+          }
+          if (!draftMap[s.enrollmentId]) {
+            draftMap[s.enrollmentId] = 'PRESENTE';
+          }
         });
+
+        setInitialStatuses(initialMap);
+        setAttendanceDraft(draftMap);
       })
       .catch(err => {
         if (active) setError(teacherCoursesErrorMessage(err));
@@ -85,7 +128,22 @@ export default function ModalAsistenciaCurso({
     return () => {
       active = false;
     };
-  }, [isOpen, sectionCourseId]);
+  }, [isOpen, sectionCourseId, todayInfo.iso]);
+
+  // Determinar si es primera toma o corrección
+  const enrollmentIds = useMemo(() => students.map(s => s.enrollmentId), [students]);
+  const isFirstCapture = useMemo(() => firstCaptureOf(enrollmentIds, initialStatuses), [enrollmentIds, initialStatuses]);
+
+  // Determinar si hubo cambios con respecto a lo guardado
+  const hasChanges = useMemo(
+    () => hasAttendanceChanges(enrollmentIds, initialStatuses, attendanceDraft),
+    [enrollmentIds, initialStatuses, attendanceDraft]
+  );
+
+  // Primera toma: causa y motivo obligatorios. Corrección con cambios: solo motivo.
+  const isReasonRequired = isFirstCapture || hasChanges;
+  const trimmedReason = reason.trim();
+  const isReasonValid = reasonValid(reason, isReasonRequired);
 
   if (!isOpen) return null;
 
@@ -99,26 +157,44 @@ export default function ModalAsistenciaCurso({
 
   const handleSave = async () => {
     if (students.length === 0 || saving) return;
+    if (isReasonRequired && trimmedReason.length === 0) {
+      setSaveError(REASON_REQUIRED_MESSAGE);
+      return;
+    }
+    if (trimmedReason.length > ATTENDANCE_REASON_MAX_LENGTH) {
+      setSaveError(REASON_TOO_LONG_MESSAGE);
+      return;
+    }
+
     setSaving(true);
     setSaveError('');
     setSaveSuccess('');
 
     try {
-      try {
+      let targetSession = activeSession;
+      if (!targetSession) {
         const attendanceData = await teacherAttendanceService.getAttendance(sectionCourseId, todayInfo.iso);
-        const session = attendanceData?.sessions?.[0];
-        if (session) {
-          const records = students.map(s => ({
-            enrollmentId: s.enrollmentId,
-            status: attendanceDraft[s.enrollmentId] || 'PRESENTE'
-          }));
-          await teacherAttendanceService.saveAttendance(sectionCourseId, session.scheduleId, todayInfo.iso, { records });
-        }
-      } catch {
-        // En caso de que no exista sesión backend registrada para la fecha, se registra confirmación local
+        targetSession = attendanceData?.sessions?.[0] || null;
       }
 
-      setSaveSuccess(`Asistencia registrada exitosamente.`);
+      // Sin sesión programada no hay dónde guardar: nunca se anuncia un registro que no ocurrió.
+      if (!targetSession) {
+        setSaveError(NO_SESSION_TODAY_MESSAGE);
+        return;
+      }
+
+      const records = students.map(s => ({
+        enrollmentId: s.enrollmentId,
+        status: attendanceDraft[s.enrollmentId] || 'PRESENTE'
+      }));
+
+      await teacherAttendanceService.saveAttendance(sectionCourseId, targetSession.scheduleId, todayInfo.iso, {
+        records,
+        reason: trimmedReason || undefined,
+        contingencyCause: isFirstCapture ? contingencyCause : undefined
+      });
+
+      setSaveSuccess('Asistencia registrada exitosamente.');
       setTimeout(() => {
         onClose();
         setSaveSuccess('');
@@ -137,7 +213,7 @@ export default function ModalAsistenciaCurso({
       aria-label="Registrar asistencia"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-xs animate-in fade-in duration-200"
     >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[88vh] flex flex-col overflow-hidden border border-line animate-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden border border-line animate-in zoom-in-95 duration-150">
         {/* Cabecera Limpia */}
         <div className="p-4 sm:p-5 border-b border-line flex items-start justify-between gap-3 bg-white">
           <div className="min-w-0">
@@ -185,7 +261,6 @@ export default function ModalAsistenciaCurso({
             {saveError}
           </div>
         )}
-
         {/* Lista Compacta de Estudiantes */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2">
           {loading ? (
@@ -197,73 +272,43 @@ export default function ModalAsistenciaCurso({
           ) : students.length === 0 ? (
             <p className="text-center py-8 text-xs text-muted">No hay estudiantes matriculados en esta sección.</p>
           ) : (
-            students.map((student, idx) => {
-              const currentStatus = attendanceDraft[student.enrollmentId] || 'PRESENTE';
-              return (
-                <div
-                  key={student.enrollmentId}
-                  className="px-3.5 py-2.5 rounded-xl border border-line bg-white hover:bg-neutral/15 transition-colors flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-xs font-bold text-muted w-5 text-right shrink-0">
-                      {idx + 1}.
-                    </span>
-                    <span className="font-semibold text-xs sm:text-sm text-ink truncate">
-                      {student.fullName}
-                    </span>
-                  </div>
+            <>
+              {students.map((student, idx) => {
+                const currentStatus = attendanceDraft[student.enrollmentId] || 'PRESENTE';
+                return (
+                  <div
+                    key={student.enrollmentId}
+                    className="px-3.5 py-2.5 rounded-xl border border-line bg-white hover:bg-neutral/15 transition-colors flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-xs font-bold text-muted w-5 text-right shrink-0">
+                        {idx + 1}.
+                      </span>
+                      <span className="font-semibold text-xs sm:text-sm text-ink truncate">
+                        {student.fullName}
+                      </span>
+                    </div>
 
-                  {/* Selector P / T / F */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: 'PRESENTE' }))
-                      }
-                      className={`w-8 h-8 rounded-lg text-xs font-black transition-all flex items-center justify-center border-2 ${
-                        currentStatus === 'PRESENTE'
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-200'
-                          : 'bg-white text-slate-800 border-slate-300 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50'
-                      }`}
-                      title="Presente"
-                      aria-label={`Marcar Presente a ${student.fullName}`}
-                    >
-                      P
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: 'TARDANZA' }))
-                      }
-                      className={`w-8 h-8 rounded-lg text-xs font-black transition-all flex items-center justify-center border-2 ${
-                        currentStatus === 'TARDANZA'
-                          ? 'bg-amber-500 text-white border-amber-500 shadow-sm ring-2 ring-amber-200'
-                          : 'bg-white text-slate-800 border-slate-300 hover:border-amber-500 hover:text-amber-700 hover:bg-amber-50/50'
-                      }`}
-                      title="Tardanza"
-                      aria-label={`Marcar Tardanza a ${student.fullName}`}
-                    >
-                      T
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: 'INASISTENCIA' }))
-                      }
-                      className={`w-8 h-8 rounded-lg text-xs font-black transition-all flex items-center justify-center border-2 ${
-                        currentStatus === 'INASISTENCIA'
-                          ? 'bg-rose-600 text-white border-rose-600 shadow-sm ring-2 ring-rose-200'
-                          : 'bg-white text-slate-800 border-slate-300 hover:border-rose-500 hover:text-rose-700 hover:bg-rose-50/50'
-                      }`}
-                      title="Falta / Inasistencia"
-                      aria-label={`Marcar Falta a ${student.fullName}`}
-                    >
-                      F
-                    </button>
+                    {/* Selector P / T / F */}
+                    <SelectorEstadoAsistencia
+                      studentName={student.fullName}
+                      status={currentStatus}
+                      onChange={status => setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: status }))}
+                    />
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+
+              {/* Contingencia (primera toma) o corrección manual */}
+              <JustificacionAsistencia
+                firstCapture={isFirstCapture}
+                reasonRequired={isReasonRequired}
+                contingencyCause={contingencyCause}
+                onContingencyCauseChange={setContingencyCause}
+                reason={reason}
+                onReasonChange={setReason}
+              />
+            </>
           )}
         </div>
 
@@ -285,8 +330,8 @@ export default function ModalAsistenciaCurso({
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || students.length === 0}
-              className="px-4 py-2 rounded-lg bg-accent text-white text-xs font-bold hover:bg-accent/90 transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+              disabled={saving || students.length === 0 || !isReasonValid || (isReasonRequired && trimmedReason.length === 0)}
+              className="px-4 py-2 rounded-lg bg-accent text-white text-xs font-bold hover:bg-accent/90 transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? (
                 <>

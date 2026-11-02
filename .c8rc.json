@@ -1,0 +1,10 @@
+{
+  "all": true,
+  "src": ["."],
+  "include": ["src/**", "feature/**", "layout/**"],
+  "exclude": ["src/types/**", "**/*.d.ts"],
+  "extension": [".ts", ".tsx", ".js", ".jsx", ".mjs"],
+  "reporter": ["text-summary", "lcov"],
+  "reports-dir": "coverage",
+  "temp-directory": "coverage/tmp"
+}

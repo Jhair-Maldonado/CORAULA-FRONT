@@ -11,10 +11,12 @@ import StudentEditForm from './components/StudentEditForm';
 import WithdrawEnrollmentDialog from './components/WithdrawEnrollmentDialog';
 import EnrollStudentForm from './components/EnrollStudentForm';
 import AddGuardianDialog from './components/AddGuardianDialog';
+import StudentStateDialog from './components/StudentStateDialog';
+import { availableStudentStateActions, studentStateActionLabels, studentStateChangeReloads, studentStateErrorMessage, studentStateService, studentStateSuccessMessage } from '@/services/admin/studentStateService';
 import { AuthContext } from '@/contexts/AuthContext';
 import { enrollmentsService, enrollmentErrorMessage, enrollmentErrorStatus } from '@/services/admin/enrollmentsService';
 import type { WithdrawEnrollmentRequest } from '@/types/enrollmentApi';
-import type { CreateStudentGuardianRequest } from '@/types/studentApi';
+import type { ChangeStudentStateRequest, CreateStudentGuardianRequest, StudentStateAction } from '@/types/studentApi';
 import { Failure, SectionDialog, destructiveButtonClass, primaryButtonClass, secondaryButtonClass } from '../secciones/sectionUi';
 
 type DetailResult = { revision: number; student?: AdminStudentDetail; error?: string; notFound?: boolean };
@@ -51,6 +53,10 @@ function StudentProfile({ studentId }: { studentId: string }) {
   const [guardianBusy, setGuardianBusy] = useState(false);
   const [guardianError, setGuardianError] = useState('');
   const [guardianNotice, setGuardianNotice] = useState('');
+  const [stateAction, setStateAction] = useState<StudentStateAction | null>(null);
+  const [stateBusy, setStateBusy] = useState(false);
+  const [stateError, setStateError] = useState('');
+  const [stateNotice, setStateNotice] = useState('');
   const mutation = useRef(false);
   const target = useRef<number | null>(null);
   const verification = useRef<{ enrollmentId: number; accepted: boolean; message: string } | null>(null);
@@ -62,6 +68,9 @@ function StudentProfile({ studentId }: { studentId: string }) {
   const canEnroll = canWithdraw && student?.studentStatus === 'ACTIVE' && !student.tieneMatriculaActiva;
   // A profile reload unmounts every open dialog, so the guardian flow is mutually exclusive with withdrawal, enrollment and edition.
   const guardianLocked = addingGuardian || guardianBusy;
+  // Same exclusivity for the state change (ADMINISTRADOR only; DIRECTIVO only reads the state).
+  const stateLocked = stateAction !== null || stateBusy;
+  const stateActions = canWithdraw && student ? availableStudentStateActions(student.studentStatus) : [];
 
   useEffect(() => {
     const current = { active: true };
@@ -156,6 +165,31 @@ function StudentProfile({ studentId }: { studentId: string }) {
     }
   }
 
+  // Single PATCH without automatic retries; success, 404, 409 or an uncertain outcome closes the dialog and reloads the profile.
+  async function changeState(request: ChangeStudentStateRequest) {
+    const action = stateAction;
+    if (!action || !canWithdraw || !auth?.isSessionPhysicallyValid() || mutation.current || verification.current || !student
+      || !availableStudentStateActions(student.studentStatus).includes(action)) return;
+    const current = lifetime.current;
+    if (!current.active) return;
+    mutation.current = true;
+    setStateBusy(true);
+    setStateError('');
+    try {
+      const change = await studentStateService.change(Number(student.id), action, request);
+      if (!current.active) return;
+      setStateAction(null);
+      setStateNotice(studentStateSuccessMessage(change));
+      setRevision(n => n + 1);
+    } catch (error) {
+      if (!current.active) return;
+      setStateError(studentStateErrorMessage(error));
+      if (studentStateChangeReloads(error)) { setStateAction(null); setRevision(n => n + 1); }
+    } finally {
+      if (current.active) { mutation.current = false; setStateBusy(false); }
+    }
+  }
+
   useEffect(() => {
     let current = true;
     studentsService.getById(studentId)
@@ -176,6 +210,8 @@ function StudentProfile({ studentId }: { studentId: string }) {
         {enrollNotice && <p role="status" className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">{enrollNotice}</p>}
         {!addingGuardian && guardianError && <Failure message={guardianError} />}
         {guardianNotice && <p role="status" className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">{guardianNotice}</p>}
+        {!stateAction && stateError && <Failure message={stateError} />}
+        {stateNotice && <p role="status" className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">{stateNotice}</p>}
         {refreshRequired && !withdrawBusy && canWithdraw && <button className={secondaryButtonClass} onClick={() => void refreshWithdrawal()}>Actualizar matrícula</button>}
         {loading && <div role="status" className="bg-white rounded-2xl border border-line p-6 shadow-sm text-sm text-muted flex items-center gap-2"><Clock01Icon size={18} aria-hidden="true" className="text-accent" />Cargando alumno...</div>}
         {!loading && result?.error && <div role="alert" className="bg-rose-50 rounded-2xl border border-rose-200 p-6 shadow-sm">
@@ -189,7 +225,15 @@ function StudentProfile({ studentId }: { studentId: string }) {
               <div className="w-16 h-16 rounded-full border border-accent/20 bg-accent/10 text-accent font-bold flex items-center justify-center shrink-0">{student.nombres.charAt(0)}{student.apellidoPaterno.charAt(0)}</div>
               <div className="min-w-0"><h1 className="text-xl md:text-2xl font-bold tracking-tight text-ink break-words">{student.nombreCompleto}</h1><span className="text-[10px] font-bold text-ink bg-neutral border border-line px-2 py-1 rounded-full inline-block mt-2">{student.estadoLabel}</span></div>
             </div>
-            <button disabled={withdrawBusy || withdrawing || refreshRequired || guardianLocked} onClick={() => { setSaved(false); setEditing(true); }} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold min-h-10 shadow-sm hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><PencilEdit02Icon size={16} aria-hidden="true" />Editar alumno</button>
+            <div className="flex flex-wrap gap-2">
+              {stateActions.map(action => <button key={action} className={action === 'REACTIVATE' ? secondaryButtonClass : destructiveButtonClass}
+                disabled={withdrawBusy || withdrawing || refreshRequired || editing || enrolling || enrollBusy || guardianLocked || stateLocked} onClick={() => {
+                  if (mutation.current || verification.current) return;
+                  setSaved(false); setEnrollNotice(''); setWithdrawNotice(''); setWithdrawError(''); setGuardianNotice(''); setGuardianError('');
+                  setStateNotice(''); setStateError(''); setStateAction(action);
+                }}>{studentStateActionLabels[action].button}</button>)}
+              <button disabled={withdrawBusy || withdrawing || refreshRequired || guardianLocked || stateLocked} onClick={() => { setSaved(false); setEditing(true); }} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold min-h-10 shadow-sm hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><PencilEdit02Icon size={16} aria-hidden="true" />Editar alumno</button>
+            </div>
           </header>
           {saved && <p role="status" className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">Cambios guardados por el servidor.</p>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -223,12 +267,12 @@ function StudentProfile({ studentId }: { studentId: string }) {
                   <Info label="Sección" value={student.sectionName} />
                   <Info label="Fecha matrícula" value={student.enrollmentDate} />
                 </dl> : <p className="text-sm text-muted border border-dashed border-line rounded-xl p-4 bg-neutral/30 flex items-center gap-2"><BookOpen01Icon size={20} aria-hidden="true" className="shrink-0" />Sin matrícula activa</p>}
-                {canWithdraw && student.tieneMatriculaActiva && student.enrollmentId !== null && <button className={`${destructiveButtonClass} mt-4`} disabled={withdrawBusy || refreshRequired || editing || guardianLocked} onClick={() => {
+                {canWithdraw && student.tieneMatriculaActiva && student.enrollmentId !== null && <button className={`${destructiveButtonClass} mt-4`} disabled={withdrawBusy || refreshRequired || editing || guardianLocked || stateLocked} onClick={() => {
                   if (mutation.current || verification.current) return;
                   target.current = student.enrollmentId;
                   setWithdrawError(''); setWithdrawNotice(''); setWithdrawing(true);
                 }}>Retirar matrícula</button>}
-                {canEnroll && <button className={`${primaryButtonClass} mt-4`} disabled={withdrawBusy || withdrawing || refreshRequired || editing || guardianLocked} onClick={() => {
+                {canEnroll && <button className={`${primaryButtonClass} mt-4`} disabled={withdrawBusy || withdrawing || refreshRequired || editing || guardianLocked || stateLocked} onClick={() => {
                   if (mutation.current || verification.current) return;
                   setEnrollNotice(''); setWithdrawNotice(''); setEnrolling(true);
                 }}>Matricular en sección</button>}
@@ -249,7 +293,7 @@ function StudentProfile({ studentId }: { studentId: string }) {
                     </dl>
                   </article>)}
                 </div>
-                {canWithdraw && <button className={`${primaryButtonClass} mt-4`} disabled={withdrawBusy || withdrawing || refreshRequired || editing || enrolling || enrollBusy || guardianLocked} onClick={() => {
+                {canWithdraw && <button className={`${primaryButtonClass} mt-4`} disabled={withdrawBusy || withdrawing || refreshRequired || editing || enrolling || enrollBusy || guardianLocked || stateLocked} onClick={() => {
                   if (mutation.current || verification.current) return;
                   setSaved(false); setEnrollNotice(''); setWithdrawNotice(''); setWithdrawError(''); setGuardianNotice(''); setGuardianError('');
                   setAddingGuardian(true);
@@ -259,6 +303,8 @@ function StudentProfile({ studentId }: { studentId: string }) {
           </div>
           {withdrawing && canWithdraw && student.enrollmentId !== null && <WithdrawEnrollmentDialog name={student.nombreCompleto} enrollmentId={student.enrollmentId} enrollmentDate={student.enrollmentDate} busy={withdrawBusy} error={withdrawError}
             onCancel={() => { if (!mutation.current) { target.current = null; setWithdrawing(false); } }} onConfirm={request => void withdraw(request)} />}
+          {stateAction && canWithdraw && <StudentStateDialog action={stateAction} name={student.nombreCompleto} busy={stateBusy} error={stateError}
+            onCancel={() => { if (!mutation.current) { setStateAction(null); setStateError(''); } }} onConfirm={request => void changeState(request)} />}
           {addingGuardian && canWithdraw && <AddGuardianDialog name={student.nombreCompleto} guardians={student.guardians} busy={guardianBusy} error={guardianError}
             onCancel={() => { if (!mutation.current) { setAddingGuardian(false); setGuardianError(''); } }} onConfirm={request => void addGuardian(request)} />}
           {enrolling && canEnroll && <SectionDialog title="Matricular en sección" busy={enrollBusy} onClose={() => { setEnrolling(false); setRevision(n => n + 1); }}>

@@ -1,5 +1,6 @@
 export type StudentLevel = 'PRIMARY' | 'SECONDARY';
-export type StudentStatus = 'ACTIVE' | 'WITHDRAWN' | 'GRADUATED';
+// SUSPENDED and DEACTIVATED (permanent) come from BACK #41; WITHDRAWN/GRADUATED keep their meaning.
+export type StudentStatus = 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'WITHDRAWN' | 'GRADUATED';
 export type EnrollmentStatus = 'ACTIVE' | 'WITHDRAWN' | 'COMPLETED';
 export type GuardianRelationship = 'FATHER' | 'MOTHER' | 'TUTOR' | 'GUARDIAN' | 'OTHER';
 
@@ -95,4 +96,30 @@ export interface CreateStudentGuardianRequest {
   primary: boolean;
   authorizedPickup: boolean;
   reason: string;
+}
+
+// PATCH /students/{id}/suspend | reactivate | deactivate (BACK #41); ADMINISTRADOR only.
+export type StudentStateAction = 'SUSPEND' | 'REACTIVATE' | 'DEACTIVATE';
+export type StudentStateReasonCode =
+  | 'ADMINISTRATIVE_REVIEW' | 'GUARDIAN_REQUEST'
+  | 'SUSPENSION_RESOLVED' | 'ADMINISTRATIVE_CORRECTION'
+  | 'VOLUNTARY_WITHDRAWAL' | 'TRANSFER' | 'DUPLICATE_RECORD' | 'ERRONEOUS_RECORD'
+  | 'OTHER';
+
+export interface ChangeStudentStateRequest {
+  reasonCode: StudentStateReasonCode;
+  // Not blank, up to 1000 characters.
+  justification: string;
+}
+
+export interface StudentStateChangeResponse {
+  studentId: number;
+  previousStatus: StudentStatus;
+  studentStatus: StudentStatus;
+  reasonCode: StudentStateReasonCode;
+  justification: string;
+  changedBy: number;
+  changedAt: string;
+  // null when the student has no linked account.
+  accountEnabled: boolean | null;
 }

@@ -351,3 +351,23 @@ test('an empty period catalog explains where to create periods', async () => {
     assert.equal(h.button('Consultar bimestres')?.props.disabled, true);
   }, false, async () => []);
 });
+
+test('ANULADO (#43) shows «Anulado» without actions and its number can be reused; occupied numbers cannot', async () => {
+  const writes: unknown[] = [];
+  await view({ getBimesters: async id => [bimester(1, 'ABIERTO', id), bimester(2, 'ANULADO', id)], createBimester: async (id, data) => { writes.push(data); return bimester(3, 'PLANIFICADO', id); } }, async h => {
+    assert.ok(h.renderer.root.findAllByType('span').some(n => text(n) === 'Anulado'));
+    assert.equal(h.button('Editar'), undefined); assert.equal(h.button('Abrir bimestre'), undefined);
+    assert.equal(h.renderer.root.findAllByType('button').filter(b => /Anular/.test(text(b))).length, 0, 'annul action arrives with the FRONT #43 node');
+    await h.click('Crear bimestre');
+    const number = () => h.renderer.root.findAllByType('input').find(n => n.props.type === 'number')!;
+    assert.equal(number().props.value, 2, 'suggested number ignores annulled rows');
+    const name = h.renderer.root.findAllByType('input').find(n => n.props.maxLength === 100)!;
+    await act(async () => { name.props.onChange({ target: { value: 'Bimestre 2' } }); });
+    await act(async () => { number().props.onChange({ target: { value: '1' } }); });
+    await act(async () => { await h.renderer.root.findAllByType('form')[1].props.onSubmit({ preventDefault() {} }); });
+    assert.match(text(h.renderer.root), /Ya existe un bimestre con ese número/); assert.equal(writes.length, 0);
+    await act(async () => { number().props.onChange({ target: { value: '2' } }); });
+    await act(async () => { await h.renderer.root.findAllByType('form')[1].props.onSubmit({ preventDefault() {} }); });
+    assert.deepEqual(writes, [{ number: 2, name: 'Bimestre 2', startDate: '', endDate: '' }]);
+  });
+});

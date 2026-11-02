@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BackendRole } from '@/types';
 import { GlobalLoader } from '@/components/GlobalLoader';
+import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -54,6 +55,12 @@ export const AuthGuard = ({ children, allowedRoles }: AuthGuardProps) => {
       return;
     }
 
+    // El cambio obligatorio de contraseña precede a cualquier vista del portal.
+    if (authContext.passwordChangeRequired) {
+      router.replace(CHANGE_PASSWORD_ROUTE);
+      return;
+    }
+
     if (authContext.status === 'authenticated') {
       const userRole = authContext.role;
       if (!userRole || !allowedRoles.includes(userRole)) {
@@ -96,6 +103,7 @@ export const AuthGuard = ({ children, allowedRoles }: AuthGuardProps) => {
     !authContext.token ||
     !authContext.role ||
     !authContext.isSessionPhysicallyValid() ||
+    authContext.passwordChangeRequired ||
     !allowedRoles.includes(authContext.role)
   ) {
     return null;

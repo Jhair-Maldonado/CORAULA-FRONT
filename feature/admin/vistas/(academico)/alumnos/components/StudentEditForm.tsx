@@ -5,7 +5,7 @@ import { AlertCircleIcon } from 'hugeicons-react';
 import type { AdminStudentDetail, StudentEditValues } from '@/types/adminStudent';
 import type { UpdateStudentRequest } from '@/types/studentApi';
 import { studentEditValidation, toStudentEditValues, toUpdateStudent } from '@/adapters/studentAdapter';
-import { studentErrorMessage } from '@/services/admin/studentsService';
+import { studentUpdateErrorMessage } from '@/services/admin/studentsService';
 
 const fields: { key: Exclude<keyof StudentEditValues, 'reason'>; label: string; maxLength?: number; required?: boolean; type?: string }[] = [
   { key: 'studentCode', label: 'Código estudiante', maxLength: 50 },
@@ -39,7 +39,7 @@ export default function StudentEditForm({ student, onSave, onCancel }: {
       setSaving(true);
       setError('');
       try { await onSave(patch); }
-      catch (failure) { setError(studentErrorMessage(failure)); }
+      catch (failure) { setError(studentUpdateErrorMessage(failure)); }
       finally { savingRef.current = false; setSaving(false); }
     }}>
       <fieldset disabled={saving} className="grid grid-cols-1 sm:grid-cols-2 gap-3 disabled:opacity-70">

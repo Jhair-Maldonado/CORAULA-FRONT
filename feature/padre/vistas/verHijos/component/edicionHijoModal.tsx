@@ -107,8 +107,8 @@ export function EdicionHijoModal({ hijo, onClose, onSave }: EdicionHijoModalProp
             <div className="text-center sm:text-left flex-1">
               <h3 className="text-lg font-black text-ink leading-tight">{hijo.nombreCompleto}</h3>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-[10px] font-bold text-muted mt-2">
-                <span className="bg-neutral px-2.5 py-1 rounded">DNI: {hijo.dni}</span>
-                <span className="bg-neutral px-2.5 py-1 rounded">{hijo.grado} &quot;{hijo.seccion}&quot; - {hijo.nivel}</span>
+                <span className="bg-neutral px-2.5 py-1 rounded">DNI: {hijo.dni || 'Sin datos'}</span>
+                <span className="bg-neutral px-2.5 py-1 rounded">{hijo.grado || hijo.seccion ? `${hijo.grado} "${hijo.seccion}"` : 'Sin sección'}{hijo.nivel ? ` - ${hijo.nivel}` : ''}</span>
               </div>
               <p className="text-[9px] font-bold text-accent uppercase tracking-wider mt-2">
                 * Nombres y grado solo pueden ser modificados por Secretaría.

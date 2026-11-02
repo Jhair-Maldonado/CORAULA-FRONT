@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { AuthContext } from '@/contexts/AuthContext';
 
 export interface AlumnoSession {
   id: string;
@@ -107,6 +108,15 @@ export const AlumnoSessionProvider: React.FC<{ children: React.ReactNode }> = ({
       {children}
     </AlumnoSessionContext.Provider>
   );
+};
+
+/**
+ * True only with a real JWT session for ESTUDIANTE. The simulated alumno session
+ * (localStorage mock) has no backend account, so password change does not apply.
+ */
+export const useHasRealStudentSession = (): boolean => {
+  const auth = useContext(AuthContext);
+  return auth?.status === 'authenticated' && auth.role === 'ESTUDIANTE';
 };
 
 export const useAlumnoSession = (): AlumnoSessionContextType => {

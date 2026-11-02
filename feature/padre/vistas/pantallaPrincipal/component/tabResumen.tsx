@@ -208,8 +208,14 @@ export function TabResumen({ resumen }: TabResumenProps) {
             <div className="min-w-0">
               <p className="text-[9px] font-bold text-muted uppercase tracking-wider mb-0.5">Promedio</p>
               <p className="text-xs font-black text-ink truncate">
-                {hijo.promedio.toFixed(1)}{' '}
-                <span className="text-[9px] font-semibold text-muted">/ 20</span>
+                {hijo.promedio != null ? (
+                  <>
+                    {hijo.promedio.toFixed(1)}{' '}
+                    <span className="text-[9px] font-semibold text-muted">/ 20</span>
+                  </>
+                ) : (
+                  'Sin datos'
+                )}
               </p>
               <p
                 className={`text-[8px] font-bold mt-0.5 ${
@@ -228,7 +234,7 @@ export function TabResumen({ resumen }: TabResumenProps) {
             </div>
             <div className="min-w-0">
               <p className="text-[9px] font-bold text-muted uppercase tracking-wider mb-0.5">Asistencia</p>
-              <p className="text-xs font-black text-ink">{hijo.asistencia}%</p>
+              <p className="text-xs font-black text-ink">{hijo.asistencia != null ? `${hijo.asistencia}%` : 'Sin datos'}</p>
               <p className="text-[8px] font-bold text-muted mt-0.5">Este bimestre</p>
             </div>
           </div>

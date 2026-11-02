@@ -3,6 +3,44 @@
 Estructura y catálogo de pruebas y evidencias del Frontend de CORAULA.
 Aquí documentamos los flujos críticos funcionales, de integración y no funcionales, marcando el estatus y evidencia.
 
+## 0. Cómo se ejecutan las pruebas
+
+- Framework: `node:test` ejecutado con `tsx` (TypeScript/TSX sin compilación previa) y `react-test-renderer` para componentes. No hay Jest ni Vitest.
+- Ubicación: `tests/*.test.mjs` y `tests/*.test.tsx` (35 archivos, 421 casos a 2026-10-28).
+- `npm test`: ejecuta todas las pruebas. CI la corre en el job `build-and-lint` junto a `lint` y `build`.
+- `npm run test:coverage`: ejecuta `npm test` bajo `c8` (configuración en `.c8rc.json`). Mide `src/`, `feature/` y `layout/` con `all: true`, es decir, también los archivos que ninguna prueba carga; excluye `src/types/**` y `*.d.ts`. Salidas en `coverage/` (ignorada por Git): resumen en consola, `coverage/lcov.info` y HTML en `coverage/lcov-report/index.html`. No hay umbral obligatorio.
+- CI: el job `coverage` corre en paralelo a `build-and-lint`, publica el resumen en la pestaña Summary del workflow y sube `lcov.info` y el HTML como artefacto `coverage-report` (14 días).
+
+### Cómo leer la cobertura
+
+La cifra principal es **Lines del proyecto completo**. Branches y Functions salen infladas con `all: true`, porque cada archivo sin pruebas cuenta como una sola función y una sola rama. La cobertura V8 también cuenta como cubiertas las líneas no ejecutables (imports, tipos, comentarios) dentro de bloques ejecutados, así que el porcentaje por archivo es algo optimista.
+
+Medición inicial (2026-10-28, 421 pruebas):
+
+| Medición | Archivos | Lines | Branches | Functions |
+|---|---|---|---|---|
+| Solo archivos cargados por las pruebas (cobertura nativa de Node) | 125 de 277 | 85.84 % | 88.49 % | 76.11 % |
+| Proyecto completo (`npm run test:coverage`) | 244 (sin `src/types` ni `.d.ts`) | **58.03 %** | 84.56 % (inflada) | 77.22 % (inflada) |
+
+La diferencia se debe a los archivos que ninguna prueba importa: todo `feature/padre`, casi todas las páginas de `src/app`, gran parte de `feature/alumno` y `src/data`.
+
+Archivos importantes de `src/` con menos cobertura (punto de partida):
+
+| # | Archivo | Lines | Branches |
+|---|---|---|---|
+| 1 | `src/app/login/page.tsx` | 0 % (0/438) | sin cargar |
+| 2 | `src/app/page.tsx` | 0 % (0/148) | sin cargar |
+| 3 | `src/services/padres/padreService.ts` | 33.3 % | 13/15 |
+| 4 | `src/components/ui/Button.tsx` | 36.4 % | 5/9 |
+| 5 | `src/lib/api.ts` | 37.0 % (326/880) | 16/31 |
+| 6 | `src/services/admin/coursesService.ts` | 37.8 % | 10/15 |
+| 7 | `src/services/admin/studentImportService.ts` | 41.5 % | 11/17 |
+| 8 | `src/components/AuthGuard.tsx` | 59.3 % | 18/24 |
+| 9 | `src/components/padres/PadreContext.tsx` | 75.7 % | 14/21 |
+| 10 | `src/contexts/AuthContext.tsx` | 90.6 % | 36/54 (66.7 %) |
+
+`src/services/httpClient.ts` está cubierto al 100 % de líneas (ramas 27/30).
+
 ## 1. Pruebas Funcionales (De Flujo de Identidad)
 
 ### ✅ EXISTENTES (Probadas y Confirmadas)
@@ -51,7 +89,7 @@ Aquí documentamos los flujos críticos funcionales, de integración y no funcio
 - 400/409 con preview reemplaza el resultado y conserva File, muestra nuevos errores y requiere nueva validación antes de confirmar. 400 estructural y 409 simple/concurrente muestran message; 401 sigue en infraestructura global sin logout local; 403 muestra acceso denegado sin cerrar sesión; 500/red muestran error reintentable, conservando message si está disponible.
 - Éxito de confirm usa los siete contadores de la respuesta, distinguiendo apoderados creados y reutilizados por relación (no únicos). Bloqueo síncrono y estado de éxito evitan doble confirm; el resumen se conserva y Cargar otro archivo permite iniciar explícitamente otro flujo.
 - Auditoría V2: se eliminó `src/types/matricula.ts` porque todas sus interfaces de importación legacy carecían de consumidores. Se eliminó `public/plantillas/plantilla_matricula.csv`, incompatible con el backend; no tenía enlaces activos. No existe todavía una plantilla XLSX V2 oficial y no se ofrece una descarga incompatible.
-- No hay framework frontend de tests establecido. No se agregaron librerías ni mocks. Comprobaciones puntuales ejecutadas con Node: 12 casos sobre la expresión real canConfirm (incluye warnings, invalidRows, validRows cero, totalRows cero, filas inválidas/con errores, identidad File, request activo, éxito, error con preview actualizado y estados ausentes); 5 casos del filtro real de extensión; identidad del File y key única file en FormData; transformRequest de Axios conserva FormData al anular su encabezado JSON. Todas pasaron.
+- (Situación a 2026-10-07; hoy ver §0) No hay framework frontend de tests establecido. No se agregaron librerías ni mocks. Comprobaciones puntuales ejecutadas con Node: 12 casos sobre la expresión real canConfirm (incluye warnings, invalidRows, validRows cero, totalRows cero, filas inválidas/con errores, identidad File, request activo, éxito, error con preview actualizado y estados ausentes); 5 casos del filtro real de extensión; identidad del File y key única file en FormData; transformRequest de Axios conserva FormData al anular su encabezado JSON. Todas pasaron.
 - Inspección adicional: endpoints, llamadas preview/confirm con File conservado, recuperación de previews en 400/409, interceptor solo 401, render de contadores reales y ausencia de payload JSON/éxito simulado. Esto no equivale a pruebas de interacción en navegador ni contra backend real.
 - `npm run lint`: exit 0, cero errores y 16 advertencias existentes fuera del cambio.
 - Antes del build se comprobó que `git ls-files .next` no devolvía archivos; se eliminó únicamente ese directorio generado, con ruta absoluta verificada dentro del workspace. Webpack usa fallback WASM por bloqueo de SWC nativo de Windows Application Control.

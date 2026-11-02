@@ -24,8 +24,11 @@ import {
   Menu01Icon,
   BookOpen01Icon,
   Logout01Icon,
-  FingerPrintIcon
+  FingerPrintIcon,
+  SquareLockPasswordIcon,
+  UserMultiple02Icon
 } from 'hugeicons-react';
+import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
 
 type SubItem = {
   name: string;
@@ -62,7 +65,7 @@ const MENU_SECTIONS: MenuSection[] = [
       { name: 'Alumnos', path: '/administrador/alumnos', icon: UserGroupIcon },
       { name: 'Cursos', path: '/administrador/cursos', icon: BookOpen01Icon },
       { name: 'Secciones', path: '/administrador/secciones', icon: GridViewIcon },
-      { name: 'Periodos', path: '/administrador/periodos', icon: Calendar03Icon, roles: ['ADMINISTRADOR'] },
+      { name: 'Periodos', path: '/administrador/periodos', icon: Calendar03Icon, roles: ['ADMINISTRADOR', 'DIRECTIVO'] },
       { name: 'Bimestres', path: '/administrador/bimestres', icon: Calendar01Icon },
       { name: 'Notas', path: '/administrador/notas', icon: Task01Icon },
     ]
@@ -78,6 +81,7 @@ const MENU_SECTIONS: MenuSection[] = [
   {
     sectionTitle: 'Sistema',
     items: [
+      { name: 'Personal', path: '/administrador/personal', icon: UserMultiple02Icon, roles: ['ADMINISTRADOR'] },
       { name: 'Huella Digital', path: '/administrador/registroHuella', icon: FingerPrintIcon },
       { name: 'Auditoría', path: '/administrador/auditoria', icon: Shield01Icon },
       { name: 'Chat', path: '/administrador/mensajeria', icon: Comment01Icon, badge: 3 },
@@ -253,16 +257,34 @@ export const AdminSidebar = () => {
               </div>
             </div>
 
-            <button
-              onClick={handleLogout}
-              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors shrink-0 cursor-pointer"
-              title="Cerrar sesión"
-            >
-              <Logout01Icon size={16} />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Link
+                href={CHANGE_PASSWORD_ROUTE}
+                className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-neutral transition-colors shrink-0"
+                title="Cambiar contraseña"
+                aria-label="Cambiar contraseña"
+              >
+                <SquareLockPasswordIcon size={16} />
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors shrink-0 cursor-pointer"
+                title="Cerrar sesión"
+              >
+                <Logout01Icon size={16} />
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="relative group flex justify-center">
+          <div className="relative group flex flex-col items-center gap-2">
+            <Link
+              href={CHANGE_PASSWORD_ROUTE}
+              title="Cambiar contraseña"
+              aria-label="Cambiar contraseña"
+              className="w-8 h-8 rounded-xl bg-white border border-line text-muted flex items-center justify-center hover:text-ink hover:bg-neutral transition-colors"
+            >
+              <SquareLockPasswordIcon size={16} />
+            </Link>
             <button
               onClick={handleLogout}
               title="Cerrar sesión"

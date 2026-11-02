@@ -7,7 +7,7 @@ import { AxiosError, type AxiosResponse } from 'axios';
 import PerfilDelAlumno from '../feature/admin/vistas/(academico)/alumnos/perfilDelAlumno';
 import { AuthContext } from '../src/contexts/AuthContext';
 import { studentsService } from '../src/services/admin/studentsService';
-import { enrollmentsService, formatWithdrawalReason, localToday, maxWithdrawalReasonLength, withdrawalReasons, withdrawalValidation } from '../src/services/admin/enrollmentsService';
+import { enrollmentErrorMessage, enrollmentsService, formatWithdrawalReason, localToday, maxWithdrawalReasonLength, withdrawalReasons, withdrawalValidation } from '../src/services/admin/enrollmentsService';
 import httpClient from '../src/services/httpClient';
 import type { StudentDetailResponse } from '../src/types/studentApi';
 import type { EnrollmentDetailResponse } from '../src/types/enrollmentApi';
@@ -31,8 +31,8 @@ function deferred<T>() {
   const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
   return { promise, resolve, reject };
 }
-const httpError = (status?: number) => new AxiosError('PRIVATE DETAIL', 'ERR_TEST', undefined, undefined,
-  status ? { status, data: { message: 'PRIVATE DETAIL' } } as AxiosResponse : undefined);
+const httpError = (status?: number, code?: unknown) => new AxiosError('PRIVATE DETAIL', 'ERR_TEST', undefined, undefined,
+  status ? { status, data: { message: 'PRIVATE DETAIL', ...(code === undefined ? {} : { code }) } } as AxiosResponse : undefined);
 function text(node: ReactTestInstance): string { return node.children.map(child => typeof child === 'string' ? child : text(child)).join(''); }
 type Auth = NonNullable<React.ContextType<typeof AuthContext>>;
 
@@ -228,4 +228,22 @@ test('HTTP consumer sends exact existing fields and rejects inconsistent accepte
     const count = calls;
     await assert.rejects(enrollmentsService.withdraw(0, 10, request())); assert.equal(calls, count);
   } finally { httpClient.defaults.adapter = original; }
+});
+
+test('withdrawal codes name the cause while the flow keeps branching on HTTP', async () => {
+  assert.equal(enrollmentErrorMessage(httpError(409, 'ENROLLMENT_STATUS_CONFLICT')), 'La matrícula ya no está activa. Se consultará su estado actual.');
+  assert.equal(enrollmentErrorMessage(httpError(409, 'ENROLLMENT_NOT_OF_STUDENT')), 'La matrícula no pertenece a este alumno. Se consultará su estado actual.');
+  assert.equal(enrollmentErrorMessage(httpError(404, 'ENROLLMENT_NOT_FOUND')), 'La matrícula ya no existe.');
+  assert.equal(enrollmentErrorMessage(httpError(400, 'WITHDRAWAL_DATE_REQUIRED')), 'Ingresa la fecha de retiro.');
+  for (const code of [undefined, 'UNKNOWN_CODE', 409, 'VALIDATION_ERROR', 'WITHDRAWAL_DATE_REQUIRED']) assert.equal(enrollmentErrorMessage(httpError(409, code)), enrollmentErrorMessage(httpError(409)), String(code));
+  assert.match(enrollmentErrorMessage(httpError(500, 'INTERNAL_ERROR')), /sin repetir la solicitud/);
+  for (const [status, code, message] of [[400, 'WITHDRAWAL_DATE_BEFORE_ENROLLMENT', /no puede ser anterior a la fecha de matrícula/], [409, 'ENROLLMENT_STATUS_CONFLICT', /ya no está activa\. Se consultará/]] as const) {
+    let reads = 0, patches = 0;
+    await view({ read: async () => { reads++; return detail(); }, withdraw: async () => { patches++; throw httpError(status, code); } }, async h => {
+      await h.click('Retirar matrícula'); await h.fill(); await h.submit();
+      assert.equal(patches, 1); assert.equal(reads, status === 400 ? 1 : 2);
+      assert.match(h.text(), message); assert.doesNotMatch(h.text(), /PRIVATE DETAIL/);
+      if (status === 400) assert.equal(h.button('Confirmar retiro de matrícula')?.props.disabled, false);
+    });
+  }
 });

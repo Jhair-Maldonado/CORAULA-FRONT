@@ -32,17 +32,44 @@ cp .env.example .env.local
 
 | Variable | Valor local | Descripción |
 | --- | --- | --- |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8080/api` | URL base del backend, **incluyendo `/api`**. `src/services/httpClient.ts` agrega rutas como `/v1/management/...`. Si falta, usa `http://localhost:8080/api`. |
-| `NEXT_PUBLIC_USE_MOCKS` | `false` | Solo el valor exacto `false` usa el backend real. Si falta o tiene otro valor, se activan los datos simulados (`src/lib/mockMode.ts`). |
+| `NEXT_PUBLIC_APP_MODE` | (vacía) | `MOCK`, `LOCAL` o `PRODUCTION`. Los scripts la fijan; sin valor: `LOCAL` en `next dev` y `PRODUCTION` en `next build`. Un valor inválido detiene el arranque. |
+| `NEXT_PUBLIC_LOCAL_API_URL` | `http://localhost:8080/api` | Modo `LOCAL`: URL del backend local, **incluyendo `/api`**. Si falta, usa `http://localhost:8080/api`. |
+| `NEXT_PUBLIC_API_URL` | (no definir en local) | Modo `PRODUCTION`, obligatoria: URL del backend desplegado, incluyendo `/api`. |
+| `NEXT_PUBLIC_MOCK_LATENCY_MS` | `300` | Modo `MOCK`: latencia simulada de cada respuesta, para ver los estados de carga. |
+| `NEXT_PUBLIC_USE_MOCKS` | — | **Obsoleta.** Sin `NEXT_PUBLIC_APP_MODE`, `true` equivale a `MOCK` y `false` a un modo no simulado. Junto con `NEXT_PUBLIC_APP_MODE=MOCK`, `false` es una contradicción y detiene el arranque: elimínala de tu `.env.local`. |
 
 - Las variables `NEXT_PUBLIC_*` se leen al arrancar: **reinicia `npm run dev`** después de cambiarlas.
-- El CORS del backend de producción solo acepta el dominio de Vercel, así que desde `localhost` las peticiones a producción fallarán. Para trabajar en local, levanta el backend local (`coraula-backend` en el puerto 8080).
-- Pendiente: `src/lib/api.ts` (portales Alumno y parte de Docente) reutiliza `NEXT_PUBLIC_API_URL`, pero espera que termine en `/api/v1` (valor por defecto `http://localhost:8000/api/v1`). Hoy esas vistas operan con mocks; la unificación con `httpClient` queda pendiente.
+- Configuración central: `src/config/appConfig.ts` (`APP_MODE`, `API_BASE_URL`, `API_TIMEOUT`, `ENV_INFO`, `buildURL`).
+
+## Modos de ejecución
+
+| Modo | Cómo activarlo | Backend | Timeout | Indicador |
+| --- | --- | --- | --- | --- |
+| `MOCK` | `npm run dev:mock` | Ninguno: el adaptador de `src/mocks/http` responde sin salir a la red | 10 s | Banda inferior «MODO SIMULADO» |
+| `LOCAL` | `npm run dev` | `NEXT_PUBLIC_LOCAL_API_URL` o `http://localhost:8080/api` | 10 s | Etiqueta «LOCAL» abajo a la derecha |
+| `PRODUCTION` | `npm run build` + `npm run start` (Vercel) | `NEXT_PUBLIC_API_URL` (obligatoria) | 20 s (arranque en frío de Render) | Ninguno |
+
+- **El frontend local no debe apuntar a producción.** No existe un script para ello: el CORS del backend de producción solo acepta el dominio de Vercel y los datos son reales. Para trabajar en local, levanta el backend local (`coraula-backend` en el puerto 8080) o usa `MOCK`.
+- En Vercel (producción), `next.config.mjs` detiene el build si `NEXT_PUBLIC_APP_MODE` no es `PRODUCTION`.
+
+### Modo MOCK
+- Usuarios de demostración (cualquier contraseña de 8 o más caracteres): `admin@demo.local` (ADMINISTRADOR), `secretaria@demo.local` (DIRECTIVO), `docente@demo.local` (DOCENTE) y `padre@demo.local` (APODERADO). `bloqueado@demo.local` responde 423; cualquier otro correo, 401. Estos usuarios solo existen en `MOCK`: fuera de ese modo el adaptador no se incluye en el bundle.
+- El token es un JWT sin firma válida, decodificable, con el rol y una expiración de 8 h.
+- Datos sintéticos y coherentes entre portales (el mismo alumno aparece en gestión, docente y apoderado). Las escrituras se aplican en memoria y se pierden al recargar la página.
+- Una ruta sin datos simulados responde 501 `MOCK_NOT_IMPLEMENTED` y deja un aviso en la consola con la ruta.
+- Rutas cubiertas: `src/mocks/http/mockAuth.ts` y `src/mocks/http/fixtures/{admin,docente,apoderado}.ts`.
+
+### Deuda técnica
+- `src/lib/api.ts` (portal Alumno y chat del docente) queda fuera de los modos: usa `fetch` con su propia `API_URL` (espera `/api/v1`, por defecto `http://localhost:8000/api/v1`) y sus mocks antiguos (`src/lib/mocks/*`). El adaptador de axios no lo cubre; su unificación con `httpClient` queda pendiente.
 
 ## Ejecución Local
-Para arrancar el servidor de desarrollo en `http://localhost:3000`:
+Para arrancar el servidor de desarrollo en `http://localhost:3000` contra el backend local:
 ```bash
 npm run dev
+```
+Sin backend, con datos simulados:
+```bash
+npm run dev:mock
 ```
 
 ## Validaciones y Build

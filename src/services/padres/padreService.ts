@@ -1,6 +1,5 @@
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
-import { isMockDataEnabled } from '@/lib/mockMode';
 import type { GuardianStudentResponse } from '@/types/guardianApi';
 import {
   PadrePerfil,
@@ -19,7 +18,6 @@ import { ContactoChat } from '@/types/chat';
 
 import {
   MOCK_PADRE_PERFIL,
-  MOCK_HIJOS,
   MOCK_CALIFICACIONES_SOFIA,
   MOCK_CALIFICACIONES_MATEO,
   MOCK_ASISTENCIA_SOFIA,
@@ -78,11 +76,8 @@ export function mapGuardianStudent(s: GuardianStudentResponse): HijoResumen {
   };
 }
 
+// Módulo 'hijos' registrado (guardianModules.ts): siempre el servicio real; en MOCK lo responde el adaptador simulado.
 export async function getHijos(): Promise<HijoResumen[]> {
-  if (isMockDataEnabled()) {
-    await mockDelay(250);
-    return [...MOCK_HIJOS];
-  }
   let data: unknown;
   try {
     data = (await httpClient.get<GuardianStudentResponse[]>('/v1/guardian/students')).data;

@@ -62,27 +62,34 @@ async function render(node: React.ReactNode, pathname = '/padre'): Promise<React
 
 test('registro: hijos, asistencia e incidencias están conectados en el frontend', () => {
   assert.deepEqual([...GUARDIAN_MODULOS_CON_BACKEND].sort(), ['asistencia', 'hijos', 'incidencias']);
-  assert.equal(guardianModuloUsaBackend('hijos', false), true);
-  assert.equal(guardianModuloUsaBackend('incidencias', false), true);
-  assert.equal(guardianModuloUsaBackend('libreta', false), false);
-  assert.equal(guardianModuloUsaBackend('hijos', true), false, 'con mocks activos ningún servicio llama al backend');
+  assert.equal(guardianModuloUsaBackend('hijos'), true);
+  assert.equal(guardianModuloUsaBackend('incidencias'), true);
+  assert.equal(guardianModuloUsaBackend('libreta'), false);
 });
 
-test('aviso por ruta con mocks apagados: oculto solo en módulos con backend', () => {
+test('MOCK: los módulos registrados usan sus servicios reales (los responde el adaptador simulado)', () => {
+  const original = process.env.NEXT_PUBLIC_USE_MOCKS;
+  process.env.NEXT_PUBLIC_USE_MOCKS = 'true';
+  try {
+    assert.equal(guardianModuloUsaBackend('hijos'), true);
+    assert.equal(guardianModuloUsaBackend('libreta'), false);
+  } finally {
+    process.env.NEXT_PUBLIC_USE_MOCKS = original;
+  }
+});
+
+test('aviso por ruta: oculto solo en módulos registrados', () => {
   for (const ruta of ['/padre/hijos', '/padre/asistencia', '/padre/incidencias', '/padre/hijos/57']) {
-    assert.equal(rutaPadreMuestraAvisoSimulado(ruta, false), false, ruta);
+    assert.equal(rutaPadreMuestraAvisoSimulado(ruta), false, ruta);
   }
   for (const ruta of ['/padre', '/padre/libreta', '/padre/justificacion', '/padre/avisos', '/padre/mensajeria', '/padre/hijosx', null]) {
-    assert.equal(rutaPadreMuestraAvisoSimulado(ruta, false), true, String(ruta));
+    assert.equal(rutaPadreMuestraAvisoSimulado(ruta), true, String(ruta));
   }
 });
 
-test('aviso por ruta: con mocks activos aparece siempre; al registrar un módulo se oculta en su ruta', () => {
-  for (const ruta of ['/padre/hijos', '/padre/asistencia', '/padre/libreta']) {
-    assert.equal(rutaPadreMuestraAvisoSimulado(ruta, true), true, ruta);
-  }
+test('aviso por ruta: al registrar un módulo se oculta en su ruta', () => {
   const conLibreta = new Set([...GUARDIAN_MODULOS_CON_BACKEND, 'libreta' as const]);
-  assert.equal(rutaPadreMuestraAvisoSimulado('/padre/libreta', false, conLibreta), false);
+  assert.equal(rutaPadreMuestraAvisoSimulado('/padre/libreta', conLibreta), false);
 });
 
 test('PadreSimulationNotice usa el registro por ruta', async () => {

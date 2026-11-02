@@ -152,19 +152,21 @@ test('rangos inválidos no hacen peticiones; sin hijos no se consulta nada', asy
   }, []);
 });
 
-test('la página usa la vista conectada con mocks apagados y no consulta nada con mocks activos', async () => {
+// Modos de ejecución (D1): el módulo está registrado, así que en MOCK y fuera de MOCK la página usa la vista
+// conectada; en MOCK, el adaptador simulado de httpClient responde el servicio.
+test('la página usa la vista conectada en cualquier modo; en MOCK el servicio lo responde el adaptador', async () => {
   process.env.NEXT_PUBLIC_USE_MOCKS = 'true';
-  const original = httpClient.defaults.adapter;
-  let calls = 0;
-  httpClient.defaults.adapter = async config => { calls++; throw new Error(`unexpected ${config.url}`); };
-  let renderer!: ReactTestRenderer;
   try {
-    await act(async () => { renderer = create(<IncidenciasPage />); });
-    assert.match(text(renderer.root), /no hay información para mostrar/); assert.equal(calls, 0);
-    await act(async () => { renderer.unmount(); });
+    await view(() => ({ status: 200, data: pageOf([incident(1)]) }), async h => {
+      await act(async () => { h.renderer.update(<PadreProvider><IncidenciasPage /></PadreProvider>); });
+      // En MOCK, PadreContext también carga el perfil simulado del apoderado (250 ms) antes de exponer los hijos.
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 400)); });
+      assert.match(h.text(), /Incidencias del estudiante/); assert.doesNotMatch(h.text(), /no hay información para mostrar/);
+      assert.match(h.text(), /Gravedad: Leve/);
+      assert.ok(h.incidentCalls().length > 0);
+    });
   } finally {
     process.env.NEXT_PUBLIC_USE_MOCKS = 'false';
-    httpClient.defaults.adapter = original;
   }
   await view(() => ({ status: 200, data: pageOf([]) }), async h => {
     await act(async () => { h.renderer.update(<PadreProvider><IncidenciasPage /></PadreProvider>); });

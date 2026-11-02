@@ -22,7 +22,6 @@ import { PadreNavbar, padreTituloDeRuta } from '../layout/padre/padreNavbar';
 import { MENU_ITEMS } from '../layout/padre/padreSidebar';
 import { ACCESOS_HIJO, TarjetaHijoVinculado } from '../feature/padre/vistas/verHijos/component/tarjetaHijoVinculado';
 import LibretaPage from '../src/app/padre/libreta/page';
-import IncidenciasPage from '../src/app/padre/incidencias/page';
 import type { GuardianStudentResponse } from '../src/types/guardianApi';
 
 // APOD-FRONT-CORRECCION — PR A (base del portal del apoderado).
@@ -61,18 +60,19 @@ async function render(node: React.ReactNode, pathname = '/padre'): Promise<React
   return r;
 }
 
-test('registro: en PR A solo hijos y asistencia están conectados en el frontend', () => {
-  assert.deepEqual([...GUARDIAN_MODULOS_CON_BACKEND].sort(), ['asistencia', 'hijos']);
+test('registro: hijos, asistencia e incidencias están conectados en el frontend', () => {
+  assert.deepEqual([...GUARDIAN_MODULOS_CON_BACKEND].sort(), ['asistencia', 'hijos', 'incidencias']);
   assert.equal(guardianModuloUsaBackend('hijos', false), true);
-  assert.equal(guardianModuloUsaBackend('incidencias', false), false);
+  assert.equal(guardianModuloUsaBackend('incidencias', false), true);
+  assert.equal(guardianModuloUsaBackend('libreta', false), false);
   assert.equal(guardianModuloUsaBackend('hijos', true), false, 'con mocks activos ningún servicio llama al backend');
 });
 
 test('aviso por ruta con mocks apagados: oculto solo en módulos con backend', () => {
-  for (const ruta of ['/padre/hijos', '/padre/asistencia', '/padre/hijos/57']) {
+  for (const ruta of ['/padre/hijos', '/padre/asistencia', '/padre/incidencias', '/padre/hijos/57']) {
     assert.equal(rutaPadreMuestraAvisoSimulado(ruta, false), false, ruta);
   }
-  for (const ruta of ['/padre', '/padre/libreta', '/padre/incidencias', '/padre/justificacion', '/padre/avisos', '/padre/mensajeria', '/padre/hijosx', null]) {
+  for (const ruta of ['/padre', '/padre/libreta', '/padre/justificacion', '/padre/avisos', '/padre/mensajeria', '/padre/hijosx', null]) {
     assert.equal(rutaPadreMuestraAvisoSimulado(ruta, false), true, String(ruta));
   }
 });
@@ -86,7 +86,7 @@ test('aviso por ruta: con mocks activos aparece siempre; al registrar un módulo
 });
 
 test('PadreSimulationNotice usa el registro por ruta', async () => {
-  for (const [ruta, visible] of [['/padre/hijos', false], ['/padre/asistencia', false], ['/padre/libreta', true], ['/padre/incidencias', true]] as const) {
+  for (const [ruta, visible] of [['/padre/hijos', false], ['/padre/asistencia', false], ['/padre/libreta', true], ['/padre/incidencias', false]] as const) {
     const r = await render(<PadreSimulationNotice />, ruta);
     assert.equal(r.root.findAll(n => n.props.role === 'status').length > 0, visible, ruta);
     act(() => r.unmount());
@@ -101,8 +101,8 @@ test('rutas del registro, del menú y de los accesos de la tarjeta existen en sr
   assert.ok(paths.includes('/padre/libreta') && paths.includes('/padre/incidencias'));
 });
 
-test('Libreta e Incidencias muestran el estado pendiente sin datos y con aviso', async () => {
-  for (const [Page, ruta] of [[LibretaPage, '/padre/libreta'], [IncidenciasPage, '/padre/incidencias']] as const) {
+test('Libreta muestra el estado pendiente sin datos y con aviso', async () => {
+  for (const [Page, ruta] of [[LibretaPage, '/padre/libreta']] as const) {
     const r = await render(<><PadreSimulationNotice /><Page /></>, ruta);
     const out = text(r.root);
     assert.ok(out.includes('Módulo en construcción'), out);

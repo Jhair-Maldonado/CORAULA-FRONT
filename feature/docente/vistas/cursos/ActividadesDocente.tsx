@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import type { MutableRefObject } from 'react';
 import {
   Calendar,
@@ -392,7 +392,12 @@ function ActivitySheet({
   const [notice, setNotice] = useState<string | null>(null);
   const [ambiguous, setAmbiguous] = useState(false);
   const [refreshRequired, setRefreshRequired] = useState(false);
-  const [editing, setEditing] = useState<{ original: AcademicActivity; values: CreateAcademicActivityRequest } | null>(null);
+  const [editing, setEditing] = useState<{
+    original: AcademicActivity;
+    values: CreateAcademicActivityRequest;
+    startDate?: string;
+    endDate?: string;
+  } | null>(null);
   const editRef = useRef<AcademicActivity | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
@@ -439,6 +444,20 @@ function ActivitySheet({
         if (current) {
           setList({ key, data });
           setRefreshRequired(false);
+          if (typeof window !== 'undefined' && data) {
+            const loaded: Record<number, { startDate?: string; endDate?: string }> = {};
+            for (const act of data) {
+              const saved = localStorage.getItem(`coraula_act_dates_${act.id}`);
+              if (saved) {
+                try {
+                  loaded[act.id] = JSON.parse(saved);
+                } catch {}
+              }
+            }
+            if (Object.keys(loaded).length > 0) {
+              setActivityDates(prev => ({ ...loaded, ...prev }));
+            }
+          }
         }
       })
       .catch(error => {
@@ -550,6 +569,10 @@ function ActivitySheet({
         setError(`La actividad ya está ${academicActivityStatusLabels[original.status].toLowerCase()} y no admite esta edición. Actualiza la lista.`);
         return;
       }
+      const custom = activityDates[original.id];
+      const startD = custom?.startDate || (original.createdAt ? original.createdAt.slice(0, 10) : '');
+      const endD = custom?.endDate || startD;
+
       editRef.current = original;
       setEditing({
         original,
@@ -558,7 +581,9 @@ function ActivitySheet({
           description: original.description,
           type: original.type,
           cuentaParaPa: original.cuentaParaPa
-        }
+        },
+        startDate: startD,
+        endDate: endD
       });
     } catch (err) {
       if (mounted.current && generationRef.current === epoch) setError(teacherActivitiesErrorMessage(err));
@@ -573,7 +598,12 @@ function ActivitySheet({
   let changed = false;
   if (editing) {
     try {
-      changed = Object.keys(activityChanges(editing.original, editing.values)).length > 0;
+      const fieldChanges = activityChanges(editing.original, editing.values);
+      const custom = activityDates[editing.original.id];
+      const origStart = custom?.startDate || (editing.original.createdAt ? editing.original.createdAt.slice(0, 10) : '');
+      const origEnd = custom?.endDate || origStart;
+      const datesChanged = (editing.startDate && editing.startDate !== origStart) || (editing.endDate && editing.endDate !== origEnd);
+      changed = Object.keys(fieldChanges).length > 0 || !!datesChanged;
     } catch {
       editError = 'Revisa el título (obligatorio, hasta 255 caracteres), tipo y configuración.';
     }
@@ -593,6 +623,23 @@ function ActivitySheet({
       return;
     const original = editing.original;
     const changes = activityChanges(original, editing.values);
+    const hasFieldChanges = Object.keys(changes).length > 0;
+
+    if (editing.startDate || editing.endDate) {
+      const newDates = { startDate: editing.startDate, endDate: editing.endDate };
+      setActivityDates(prev => ({ ...prev, [original.id]: newDates }));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`coraula_act_dates_${original.id}`, JSON.stringify(newDates));
+      }
+    }
+
+    if (!hasFieldChanges) {
+      editRef.current = null;
+      setEditing(null);
+      setNotice('Fechas de la actividad actualizadas correctamente.');
+      return;
+    }
+
     lockRef.current = true;
     setBusy(true);
     setParentBusy(true);
@@ -700,10 +747,10 @@ function ActivitySheet({
   }
 
   // Determinación de mes coherente para actividades
-  function getActivityMonth(a: AcademicActivity): number {
+  const getActivityMonth = useCallback((a: AcademicActivity): number => {
     const { start } = getEffectiveActivityDate(a, activityDates, bimester);
     return start.getMonth();
-  }
+  }, [activityDates, bimester]);
 
   // Filtrado compuesto: Mes seleccionado + Búsqueda por nombre en tiempo real (onChange)
   const filteredActivities = useMemo(() => {
@@ -716,7 +763,7 @@ function ActivitySheet({
       }
       return true;
     });
-  }, [list?.data, selectedMonth, searchQuery, activityDates, bimester]);
+  }, [list?.data, selectedMonth, searchQuery, getActivityMonth]);
 
   // Agrupamiento semanal estilo Google Classroom (coherente con las semanas del bimestre)
   const weeklyGroups = useMemo(() => {
@@ -919,6 +966,29 @@ function ActivitySheet({
                     onChange={e => setEditing({ ...editing, values: { ...editing.values, description: e.target.value || null } })}
                   />
                 </label>
+
+                {/* Fechas de inicio y finalización editables */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label>
+                    Fecha de inicio
+                    <input
+                      type="date"
+                      className={input}
+                      value={editing.startDate ?? ''}
+                      onChange={e => setEditing({ ...editing, startDate: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    Fecha de finalización
+                    <input
+                      type="date"
+                      className={input}
+                      value={editing.endDate ?? ''}
+                      min={editing.startDate}
+                      onChange={e => setEditing({ ...editing, endDate: e.target.value })}
+                    />
+                  </label>
+                </div>
                 <label>
                   Tipo
                   <select
@@ -1240,6 +1310,7 @@ function ActivitySheet({
                         isSelected={isSelected}
                         onSelect={() => {
                           if (typeof window !== 'undefined' && window.location) {
+                            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
                             window.location.assign(`/docente/cursos/${sectionCourseId}/detallesDelCurso/${a.id}?bimesterId=${bimester.id}`);
                           }
                           setConfirming(null);

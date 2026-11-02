@@ -104,7 +104,7 @@ function ActivityDetailContainer({
     } else {
       setDeliveryMode('revisa_en_clase');
     }
-  }, [activity?.id, activity?.description, activity?.title]);
+  }, [activity]);
 
   const toggleDeliveryMode = () => {
     if (!activity) return;
@@ -127,6 +127,8 @@ function ActivityDetailContainer({
 
   // Estados para Edición de Actividad
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
   const [editForm, setEditForm] = useState<{
     title: string;
     description: string;
@@ -278,6 +280,24 @@ function ActivityDetailContainer({
       type: activity.type,
       cuentaParaPa: activity.cuentaParaPa
     });
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`coraula_act_dates_${activity.id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setEditStartDate(parsed.startDate || '');
+          setEditEndDate(parsed.endDate || '');
+        } catch {
+          const d = activity.createdAt ? activity.createdAt.slice(0, 10) : '';
+          setEditStartDate(d);
+          setEditEndDate(d);
+        }
+      } else {
+        const d = activity.createdAt ? activity.createdAt.slice(0, 10) : '';
+        setEditStartDate(d);
+        setEditEndDate(d);
+      }
+    }
     setEditError(null);
     setIsEditModalOpen(true);
   }
@@ -297,6 +317,13 @@ function ActivityDetailContainer({
     setEditError(null);
     setError(null);
     setNotice(null);
+
+    if (typeof window !== 'undefined' && (editStartDate || editEndDate)) {
+      localStorage.setItem(
+        `coraula_act_dates_${activity.id}`,
+        JSON.stringify({ startDate: editStartDate, endDate: editEndDate })
+      );
+    }
 
     const context: ActivityContext = { sectionCourseId, bimesterId: resolvedBimester.id };
     try {
@@ -625,6 +652,29 @@ function ActivityDetailContainer({
                             onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
                           />
                         </label>
+
+                        {/* Fechas de inicio y finalización editables */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <label>
+                            Fecha de inicio
+                            <input
+                              type="date"
+                              className={input}
+                              value={editStartDate}
+                              onChange={e => setEditStartDate(e.target.value)}
+                            />
+                          </label>
+                          <label>
+                            Fecha de finalización
+                            <input
+                              type="date"
+                              className={input}
+                              value={editEndDate}
+                              min={editStartDate}
+                              onChange={e => setEditEndDate(e.target.value)}
+                            />
+                          </label>
+                        </div>
 
                         <label className="flex items-center gap-2 min-h-8 cursor-pointer select-none">
                           <input

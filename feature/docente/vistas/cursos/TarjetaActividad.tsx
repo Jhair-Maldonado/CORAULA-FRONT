@@ -54,7 +54,7 @@ export default function TarjetaActividad({
 
   useEffect(() => {
     setDeliveryMode(getInitialDeliveryMode(activity));
-  }, [activity.id, activity.description, activity.title]);
+  }, [activity]);
 
   const toggleDeliveryMode = (e: React.MouseEvent) => {
     e.stopPropagation();

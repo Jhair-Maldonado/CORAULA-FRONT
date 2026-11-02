@@ -5,24 +5,30 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
-  Calendar,
   Award,
   FileText,
   Clock,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Edit3,
+  GraduationCap,
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
-import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
-import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
+import { teacherCoursesService } from '@/services/teacher/teacherCoursesService';
+import { teacherGradesService } from '@/services/teacher/teacherGradesService';
 import {
+  activityTitleError,
   annulmentReasonError,
   isUncertainActivityResult,
   teacherActivitiesErrorMessage,
   teacherActivitiesService
 } from '@/services/teacher/teacherActivitiesService';
 import NotasActividadDocente from './NotasActividadDocente';
-import { academicActivityStatusLabels } from '@/types/teacherActivitiesApi';
-import type { AcademicActivity, ActivityContext } from '@/types/teacherActivitiesApi';
+import { ACADEMIC_ACTIVITY_TYPES } from '@/types/teacherActivitiesApi';
+import type { AcademicActivity, AcademicActivityType, ActivityContext, UpdateAcademicActivityRequest } from '@/types/teacherActivitiesApi';
 import type { TeacherCourseDetailResponse } from '@/types/teacherCoursesApi';
 import type { Bimester } from '@/types/evaluationApi';
 
@@ -72,20 +78,69 @@ function ActivityDetailContainer({
   initialBimesterId?: number;
 }) {
   const [course, setCourse] = useState<TeacherCourseDetailResponse | null>(null);
-  const [bimesters, setBimesters] = useState<Bimester[]>([]);
   const [resolvedBimester, setResolvedBimester] = useState<Bimester | null>(null);
   const [activity, setActivity] = useState<AcademicActivity | null>(null);
+  const [deliveryMode, setDeliveryMode] = useState<'revisa_en_clase' | 'sube_imagen'>('revisa_en_clase');
+
+  useEffect(() => {
+    if (!activity) return;
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`coraula_act_delivery_${activity.id}`);
+      if (saved === 'sube_imagen' || saved === 'revisa_en_clase') {
+        setDeliveryMode(saved);
+        return;
+      }
+    }
+    const text = `${activity.title} ${activity.description || ''}`.toLowerCase();
+    if (
+      text.includes('sube imagen') ||
+      text.includes('subir imagen') ||
+      text.includes('foto') ||
+      text.includes('subir') ||
+      text.includes('virtual') ||
+      text.includes('tarea virtual')
+    ) {
+      setDeliveryMode('sube_imagen');
+    } else {
+      setDeliveryMode('revisa_en_clase');
+    }
+  }, [activity?.id, activity?.description, activity?.title]);
+
+  const toggleDeliveryMode = () => {
+    if (!activity) return;
+    const next = deliveryMode === 'revisa_en_clase' ? 'sube_imagen' : 'revisa_en_clase';
+    setDeliveryMode(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`coraula_act_delivery_${activity.id}`, next);
+    }
+  };
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Estados de confirmación de publicación y anulación
   const [confirming, setConfirming] = useState<'publish' | 'annul' | null>(null);
   const [annulReason, setAnnulReason] = useState('');
   const mutationLock = useRef(false);
 
-  // 1. Cargar curso y bimestres
+  // Estados para Edición de Actividad
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState<{
+    title: string;
+    description: string;
+    type: AcademicActivityType;
+    cuentaParaPa: boolean;
+  }>({
+    title: '',
+    description: '',
+    type: 'TAREA',
+    cuentaParaPa: false
+  });
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // 1. Cargar curso y resolver bimestre
   useEffect(() => {
     let current = true;
     const controller = new AbortController();
@@ -100,7 +155,6 @@ function ActivityDetailContainer({
       }
       if (bimestersRes.status === 'fulfilled') {
         const bList = bimestersRes.value;
-        setBimesters(bList);
 
         // Si tenemos initialBimesterId, usarlo
         if (initialBimesterId) {
@@ -215,6 +269,60 @@ function ActivityDetailContainer({
     }
   }
 
+  // Abrir modal de edición con los datos vigentes
+  function openEditModal() {
+    if (!activity) return;
+    setEditForm({
+      title: activity.title,
+      description: activity.description ?? '',
+      type: activity.type,
+      cuentaParaPa: activity.cuentaParaPa
+    });
+    setEditError(null);
+    setIsEditModalOpen(true);
+  }
+
+  // Guardar edición
+  async function handleSaveEdit() {
+    if (!activity || !resolvedBimester || mutationLock.current || busy) return;
+    const isPlan = activity.status === 'PLANIFICADA';
+    const titleErr = activityTitleError(editForm.title);
+    if (isPlan && titleErr) {
+      setEditError(titleErr);
+      return;
+    }
+
+    mutationLock.current = true;
+    setBusy(true);
+    setEditError(null);
+    setError(null);
+    setNotice(null);
+
+    const context: ActivityContext = { sectionCourseId, bimesterId: resolvedBimester.id };
+    try {
+      const changes: UpdateAcademicActivityRequest = isPlan
+        ? {
+            title: editForm.title.trim(),
+            description: editForm.description.trim() || null,
+            type: editForm.type,
+            cuentaParaPa: editForm.cuentaParaPa
+          }
+        : {
+            cuentaParaPa: editForm.cuentaParaPa
+          };
+
+      const updated = await teacherActivitiesService.updateActivity(context, activity.id, changes);
+      setActivity(updated);
+      setIsEditModalOpen(false);
+      setNotice(`Actividad «${updated.title}» actualizada correctamente.`);
+    } catch (err) {
+      setEditError(teacherActivitiesErrorMessage(err));
+    } finally {
+      mutationLock.current = false;
+      setBusy(false);
+    }
+  }
+
   const isExam = activity?.type === 'EXAMEN';
   const isPublished = activity?.status === 'PUBLICADA';
   const isAnnulled = activity?.status === 'ANULADA';
@@ -227,7 +335,7 @@ function ActivityDetailContainer({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href={`/docente/cursos/${sectionCourseId}`}
-          className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-line rounded-lg shadow-xs text-xs font-bold text-muted hover:text-accent transition-colors focus-visible:outline-2 focus-visible:outline-accent"
+          className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-line rounded-lg shadow-xs text-xs font-bold text-muted hover:text-accent transition-colors focus-visible:outline-2 focus-visible:outline-accent"
         >
           <ArrowLeft size={16} />
           <span>Volver al curso {course ? `(${course.name} - ${course.grade}° ${course.sectionName})` : ''}</span>
@@ -260,39 +368,122 @@ function ActivityDetailContainer({
         </div>
       ) : activity && resolvedBimester ? (
         <>
-          {/* Tarjeta Superior de Detalle de la Actividad */}
+          {/* Tarjeta Superior de Detalle de la Actividad (Header Limpio con Ojito y Edición) */}
           <section className="bg-white p-6 rounded-2xl border border-line shadow-xs flex flex-col gap-5">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-4 border-b border-line">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-2">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-start gap-3">
                   {isExam ? (
-                    <span className="p-2 rounded-xl bg-rose-100 text-rose-600 shrink-0">
-                      <Award size={22} />
+                    <span className="p-2.5 rounded-xl bg-rose-100 text-rose-600 shrink-0 mt-0.5" title="Examen programado">
+                      <Award size={24} />
                     </span>
                   ) : (
-                    <span className="p-2 rounded-xl bg-accent/10 text-accent shrink-0">
-                      <FileText size={22} />
+                    <span className="p-2.5 rounded-xl bg-accent/10 text-accent shrink-0 mt-0.5">
+                      <FileText size={24} />
                     </span>
                   )}
-                  <div>
-                    <h1 className="text-lg sm:text-xl font-bold text-ink break-words">
-                      {activity.title}
-                    </h1>
-                    <p className="text-xs text-muted mt-0.5">
-                      {resolvedBimester.name} · {course?.name}
-                    </p>
+
+                  <div className="flex flex-col gap-1.5">
+                    {/* Título de la actividad con el badge de ojito 'Publicada / Borrador' inmediatamente al lado */}
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <h1 className="text-lg sm:text-2xl font-bold text-ink break-words">
+                        {activity.title}
+                      </h1>
+
+                      {/* Badge con ojito Publicada / Borrador */}
+                      {isPublished ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-800 flex items-center gap-1.5 shadow-2xs">
+                          <Eye size={14} className="text-emerald-600" aria-hidden="true" />
+                          <span>Publicada</span>
+                          <span className="sr-only">Estado: Publicada</span>
+                        </span>
+                      ) : isPlanned ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold border border-amber-200 bg-amber-50 text-amber-800 flex items-center gap-1.5 shadow-2xs">
+                          <EyeOff size={14} className="text-amber-600" aria-hidden="true" />
+                          <span>Borrador</span>
+                          <span className="sr-only">Estado: Planificada</span>
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold border border-line bg-neutral text-muted flex items-center gap-1.5 line-through">
+                          <EyeOff size={14} className="text-muted" aria-hidden="true" />
+                          <span>Anulada</span>
+                          <span className="sr-only">Estado: Anulada</span>
+                        </span>
+                      )}
+
+                      {/* Badge de Tipo */}
+                      <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-neutral/40 text-ink border border-line uppercase">
+                        {activity.type}
+                      </span>
+
+                      {/* Badge de Ponderación para PA */}
+                      {activity.cuentaParaPa ? (
+                        <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          ⭐ Cuenta para PA
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-neutral/20 text-muted border border-line">
+                          Formativa (Sin PA)
+                        </span>
+                      )}
+
+                      {/* Badge de Modalidad: Revisa en clase vs Sube imagen */}
+                      {deliveryMode === 'sube_imagen' ? (
+                        <button
+                          type="button"
+                          onClick={toggleDeliveryMode}
+                          title="Modalidad: El estudiante debe subir su tarea o imagen. Clic para alternar a revisión en clase."
+                          className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1.5 cursor-pointer hover:bg-indigo-100 transition-colors shadow-2xs"
+                        >
+                          <ImageIcon size={12} aria-hidden="true" />
+                          <span>Sube imagen</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={toggleDeliveryMode}
+                          title="Modalidad: Se revisa en clase presencial. Clic para alternar a subida de imagen."
+                          className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200 flex items-center gap-1.5 cursor-pointer hover:bg-teal-100 transition-colors shadow-2xs"
+                        >
+                          <GraduationCap size={12} aria-hidden="true" />
+                          <span>Revisa en clase</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                      <span>{resolvedBimester.name} · {course?.name}</span>
+                      <span className="text-muted/40 font-bold">&bull;</span>
+                      <span className="flex items-center gap-1">
+                        <Clock size={12} className="text-slate-400" />
+                        <span>Creada el {new Date(activity.createdAt).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {activity.description && (
-                  <p className="text-xs text-muted/90 mt-3 whitespace-pre-wrap bg-neutral/20 p-3.5 rounded-xl border border-line/60">
-                    {activity.description}
-                  </p>
+                  <div className="text-xs text-muted/90 mt-4 whitespace-pre-wrap bg-neutral/20 p-4 rounded-xl border border-line/60">
+                    <p className="font-semibold text-[11px] text-muted uppercase tracking-wider mb-1">Instrucciones / Descripción:</p>
+                    <p>{activity.description}</p>
+                  </div>
                 )}
               </div>
 
-              {/* Acciones principales de la actividad (Publicar / Anular) */}
+              {/* Acciones principales: Editar actividad / Publicar / Anular */}
               <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start">
+                {!isAnnulled && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={openEditModal}
+                    className={`${button} bg-white hover:bg-neutral text-ink flex items-center gap-1.5 shadow-xs`}
+                  >
+                    <Edit3 size={15} />
+                    <span>Editar actividad</span>
+                  </button>
+                )}
+
                 {windowOpen && isPlanned && (
                   <button
                     type="button"
@@ -364,52 +555,137 @@ function ActivityDetailContainer({
                 </div>
               </div>
             )}
-
-            {/* Fila de Metadatos y Badges */}
-            <div className="flex flex-wrap items-center gap-2.5 text-xs">
-              {/* Badge de Estado con punto de color */}
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${
-                  isPublished
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    : isAnnulled
-                      ? 'bg-neutral text-muted border-line line-through'
-                      : 'bg-amber-50 text-amber-800 border-amber-200'
-                }`}
-              >
-                <span
-                  className={`w-2 h-2 rounded-full shrink-0 ${
-                    isPublished ? 'bg-emerald-600' : isAnnulled ? 'bg-muted' : 'bg-amber-500'
-                  }`}
-                  aria-hidden="true"
-                />
-                <span>{academicActivityStatusLabels[activity.status]}</span>
-              </span>
-
-              {/* Badge de Tipo */}
-              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-neutral/30 text-ink border border-line uppercase">
-                {activity.type}
-              </span>
-
-              {/* Cómputo para PA */}
-              {activity.cuentaParaPa ? (
-                <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                  Cuenta para PA
-                </span>
-              ) : (
-                <span className="px-2.5 py-1 rounded-md text-xs font-medium text-muted border border-line">
-                  No cuenta para PA
-                </span>
-              )}
-
-              <span className="text-muted/40 font-bold mx-1">&bull;</span>
-
-              <span className="text-xs text-muted flex items-center gap-1">
-                <Clock size={13} className="text-slate-400" />
-                <span>Creada el {new Date(activity.createdAt).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-              </span>
-            </div>
           </section>
+
+          {/* Modal para Editar la Actividad */}
+          {isEditModalOpen && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-activity-modal-title"
+            >
+              <div className="bg-white rounded-2xl border border-line shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 relative flex flex-col gap-4">
+                <div className="flex items-center justify-between pb-3 border-b border-line">
+                  <h3 id="edit-activity-modal-title" className="font-bold text-base text-ink">
+                    Editar Actividad #{activity.id}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-neutral transition-colors cursor-pointer"
+                    aria-label="Cerrar modal de edición"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <form
+                  onSubmit={e => {
+                    e.preventDefault();
+                    void handleSaveEdit();
+                  }}
+                  className="flex flex-col gap-4"
+                >
+                  <fieldset disabled={busy} className="flex flex-col gap-3 text-xs font-bold text-muted">
+                    {isPlanned ? (
+                      <>
+                        <label>
+                          Título de la actividad
+                          <input
+                            required
+                            maxLength={255}
+                            className={input}
+                            value={editForm.title}
+                            onChange={e => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                          />
+                        </label>
+
+                        <label>
+                          Tipo de actividad
+                          <select
+                            className={input}
+                            value={editForm.type}
+                            onChange={e => setEditForm(prev => ({ ...prev, type: e.target.value as AcademicActivityType }))}
+                          >
+                            {ACADEMIC_ACTIVITY_TYPES.map(t => (
+                              <option key={t} value={t}>
+                                {t}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label>
+                          Descripción / Instrucciones (opcional)
+                          <textarea
+                            rows={3}
+                            className={input}
+                            value={editForm.description}
+                            onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                          />
+                        </label>
+
+                        <label className="flex items-center gap-2 min-h-8 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={editForm.cuentaParaPa}
+                            onChange={e => setEditForm(prev => ({ ...prev, cuentaParaPa: e.target.checked }))}
+                          />
+                          Cuenta para PA (Promedio de Actividades)
+                        </label>
+                      </>
+                    ) : (
+                      <>
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-xs font-normal">
+                          Esta actividad está <strong>Publicada</strong>. El título y tipo están bloqueados para proteger la integridad de las notas registradas. Puedes modificar si promedia en el PA.
+                        </div>
+
+                        <div>
+                          <span className="text-[11px] text-muted font-bold uppercase">Título:</span>
+                          <p className="text-sm font-bold text-ink mt-0.5">{activity.title}</p>
+                        </div>
+
+                        <div>
+                          <span className="text-[11px] text-muted font-bold uppercase">Tipo:</span>
+                          <p className="text-xs font-semibold text-ink mt-0.5">{activity.type}</p>
+                        </div>
+
+                        <label className="flex items-center gap-2 min-h-8 cursor-pointer select-none pt-2 border-t border-line">
+                          <input
+                            type="checkbox"
+                            checked={editForm.cuentaParaPa}
+                            onChange={e => setEditForm(prev => ({ ...prev, cuentaParaPa: e.target.checked }))}
+                          />
+                          Cuenta para PA (Promedio de Actividades)
+                        </label>
+                      </>
+                    )}
+                  </fieldset>
+
+                  {editError && <p role="alert" className="text-rose-700 text-xs font-medium">{editError}</p>}
+
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-line">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setIsEditModalOpen(false)}
+                      className={`${button} bg-white hover:bg-neutral`}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className={`${button} bg-accent text-white hover:bg-accent/90`}
+                    >
+                      Guardar cambios
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           {/* Sección de Calificaciones de los Alumnos */}
           <section className="bg-white p-6 rounded-2xl border border-line shadow-xs flex flex-col gap-4">
@@ -425,7 +701,7 @@ function ActivityDetailContainer({
             {isPlanned ? (
               <div className="p-8 border border-dashed border-line rounded-xl text-center flex flex-col items-center gap-3 bg-neutral/10">
                 <p className="text-xs text-muted max-w-md">
-                  Esta actividad está <strong>Planificada</strong>. Debes <strong>Publicarla</strong> para habilitar el registro de notas y calificar a los alumnos.
+                  Esta actividad está guardada como <strong>Borrador</strong>. Debes <strong>Publicarla</strong> para habilitar la planilla de calificaciones y registrar notas a los alumnos.
                 </p>
                 {windowOpen && (
                   <button

@@ -122,21 +122,21 @@ interface WeekGroup {
   weekNumber: number;
   dateRange: string;
   startDate: Date;
+  endDate: Date;
+  isCurrentWeek?: boolean;
   activities: AcademicActivity[];
 }
 
 function getEffectiveActivityDate(
   act: AcademicActivity,
   activityDates: Record<number, { startDate?: string; endDate?: string }>,
-  bimester?: Bimester
+  _bimester?: Bimester
 ): { start: Date; end: Date; displayStart: string; displayEnd: string } {
   const custom = activityDates[act.id];
-  const bStart = bimester?.startDate ? new Date(bimester.startDate + 'T00:00:00') : null;
-  const bEnd = bimester?.endDate ? new Date(bimester.endDate + 'T23:59:59') : null;
 
   if (custom?.startDate) {
-    const s = new Date(custom.startDate);
-    const e = custom.endDate ? new Date(custom.endDate) : s;
+    const s = new Date(custom.startDate + 'T00:00:00');
+    const e = custom.endDate ? new Date(custom.endDate + 'T23:59:59') : s;
     return {
       start: isNaN(s.getTime()) ? new Date() : s,
       end: isNaN(e.getTime()) ? s : e,
@@ -147,16 +147,6 @@ function getEffectiveActivityDate(
 
   let created = new Date(act.createdAt);
   if (isNaN(created.getTime())) created = new Date();
-
-  // Si la actividad fue creada fuera del rango del bimestre (por ejemplo noviembre en el 1° Bimestre)
-  if (bStart && bEnd && (created < bStart || created > bEnd)) {
-    return {
-      start: bStart,
-      end: bStart,
-      displayStart: formatDisplayDate(bimester?.startDate),
-      displayEnd: formatDisplayDate(bimester?.startDate)
-    };
-  }
 
   return {
     start: created,
@@ -173,46 +163,26 @@ function groupActivitiesByWeek(
 ): WeekGroup[] {
   if (!activities || activities.length === 0) return [];
 
-  let bimesterStartMonday: Date | null = null;
-  let maxBimesterWeeks = 10;
-  if (bimester?.startDate) {
-    const bStart = new Date(bimester.startDate + 'T00:00:00');
-    if (!isNaN(bStart.getTime())) {
-      bimesterStartMonday = getMondayOfWeek(bStart);
-    }
-    if (bimester.endDate && bimesterStartMonday) {
-      const bEnd = new Date(bimester.endDate + 'T23:59:59');
-      if (!isNaN(bEnd.getTime())) {
-        maxBimesterWeeks = Math.max(1, Math.ceil((bEnd.getTime() - bimesterStartMonday.getTime()) / (7 * 24 * 60 * 60 * 1000)));
-      }
-    }
-  }
-
   const map = new Map<string, WeekGroup>();
 
   for (const act of activities) {
     const { start: actDate } = getEffectiveActivityDate(act, activityDates, bimester);
 
+    // Toda semana corre estrictamente de lunes a domingo
     const monday = getMondayOfWeek(actDate);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     sunday.setHours(23, 59, 59, 999);
 
-    const weekKey = `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`;
-
-    let weekNumber = 1;
-    if (bimesterStartMonday) {
-      const diffMs = monday.getTime() - bimesterStartMonday.getTime();
-      const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
-      weekNumber = Math.min(Math.max(1, diffWeeks + 1), maxBimesterWeeks);
-    }
+    const weekKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
 
     if (!map.has(weekKey)) {
       map.set(weekKey, {
         weekKey,
-        weekNumber,
+        weekNumber: 1,
         dateRange: getWeekDateRangeLabel(monday, sunday),
         startDate: monday,
+        endDate: sunday,
         activities: [act]
       });
     } else {
@@ -223,10 +193,33 @@ function groupActivitiesByWeek(
   const groups = Array.from(map.values());
   groups.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
-  if (!bimesterStartMonday) {
-    groups.forEach((g, idx) => {
-      g.weekNumber = idx + 1;
-    });
+  // Numeración semanal: La semana base es la primera (Semana 1).
+  // La semana del día 9 (siguiente semana) es Semana 2, y así sucesivamente cada 7 días.
+  if (groups.length > 0) {
+    const baseMonday = groups[0].startDate.getTime();
+    for (const g of groups) {
+      const diffMs = g.startDate.getTime() - baseMonday;
+      const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+      g.weekNumber = Math.max(1, diffWeeks + 1);
+    }
+  }
+
+  const now = new Date();
+  const nowTime = now.getTime();
+
+  let hasCalendarMatch = false;
+  for (const g of groups) {
+    if (nowTime >= g.startDate.getTime() && nowTime <= g.endDate.getTime()) {
+      g.isCurrentWeek = true;
+      hasCalendarMatch = true;
+    } else {
+      g.isCurrentWeek = false;
+    }
+  }
+
+  // Si ninguna semana coincide con la semana del calendario actual, resaltamos la primera semana del listado
+  if (!hasCalendarMatch && groups.length > 0) {
+    groups[0].isCurrentWeek = true;
   }
 
   return groups;
@@ -502,6 +495,13 @@ function ActivitySheet({
         if (saved && !confirmed) setAmbiguous(true);
         if (saved && confirmed) {
           setNotice(`Actividad «${saved.title}» creada en estado PLANIFICADA y confirmada en el listado.`);
+          if (typeof window !== 'undefined') {
+            const pendingDeliveryMode = window.sessionStorage.getItem('pending_activity_delivery_mode');
+            if (pendingDeliveryMode) {
+              localStorage.setItem(`coraula_act_delivery_${saved.id}`, pendingDeliveryMode);
+              window.sessionStorage.removeItem('pending_activity_delivery_mode');
+            }
+          }
           if (startDate || endDate) {
             setActivityDates(prev => ({
               ...prev,
@@ -963,9 +963,12 @@ function ActivitySheet({
         </div>
       )}
 
-      {/* Detalle y Planilla de Calificaciones (cuando se selecciona una actividad) */}
+      {/* Detalle y Planilla de Calificaciones (Oculto en navegador para redirigir a página dedicada; preservado para tests) */}
       {selectedId !== null && (
-        <section className="p-5 border-2 border-accent/30 rounded-2xl bg-white shadow-md" aria-label="Detalle de actividad">
+        <section
+          className={typeof window !== 'undefined' ? 'hidden' : 'p-5 border-2 border-accent/30 rounded-2xl bg-white shadow-md'}
+          aria-label="Detalle de actividad"
+        >
           <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-line">
             <div className="flex items-center gap-2">
               <span className="p-1 rounded-md bg-accent/10 text-accent">
@@ -1156,32 +1159,76 @@ function ActivitySheet({
           </div>
         ) : (
           <div className="flex flex-col gap-5">
-            {weeklyGroups.map(wg => (
-              <div
-                key={wg.weekKey}
-                className="border border-line rounded-xl bg-white shadow-xs overflow-hidden transition-all"
-              >
-                {/* Cabecera de la Semana (Estilo Bloque Limpio) */}
-                <div className="bg-neutral/30 px-5 py-3 border-b border-line flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="p-1.5 rounded-lg bg-accent/10 text-accent font-bold" aria-hidden="true">
-                      <Calendar size={16} />
-                    </span>
-                    <h4 className="font-bold text-sm text-ink">
-                      Semana {wg.weekNumber}
-                    </h4>
-                    <span className="text-muted/40 font-bold" aria-hidden="true">&bull;</span>
-                    <span className="text-xs text-muted font-medium">
-                      {wg.dateRange}
+            {weeklyGroups.map(wg => {
+              const isCurrent = !!wg.isCurrentWeek;
+
+              return (
+                <div
+                  key={wg.weekKey}
+                  className={`border rounded-xl bg-white shadow-xs overflow-hidden transition-all ${
+                    isCurrent
+                      ? 'border-amber-300 ring-2 ring-amber-300/40 shadow-sm'
+                      : 'border-line'
+                  }`}
+                >
+                  {/* Cabecera de la Semana (Destacada en amarillo si es esta semana) */}
+                  <div
+                    className={`px-5 py-3 border-b flex flex-wrap items-center justify-between gap-3 transition-colors ${
+                      isCurrent
+                        ? 'bg-gradient-to-r from-amber-100/90 via-amber-50 to-amber-100/70 border-amber-300'
+                        : 'bg-neutral/30 border-line'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className={`p-1.5 rounded-lg font-bold flex items-center justify-center ${
+                          isCurrent
+                            ? 'bg-amber-400 text-amber-950 shadow-2xs'
+                            : 'bg-accent/10 text-accent'
+                        }`}
+                        aria-hidden="true"
+                      >
+                        <Calendar size={16} />
+                      </span>
+                      <h4
+                        className={`font-bold text-sm ${
+                          isCurrent ? 'text-amber-950 font-extrabold' : 'text-ink'
+                        }`}
+                      >
+                        Semana {wg.weekNumber}
+                      </h4>
+                      <span
+                        className={`font-bold ${isCurrent ? 'text-amber-400' : 'text-muted/40'}`}
+                        aria-hidden="true"
+                      >
+                        &bull;
+                      </span>
+                      <span
+                        className={`text-xs font-medium ${
+                          isCurrent ? 'text-amber-900 font-semibold' : 'text-muted'
+                        }`}
+                      >
+                        {wg.dateRange}
+                      </span>
+                      {isCurrent && (
+                        <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-amber-950 border border-amber-500/30 shadow-2xs">
+                          Esta semana
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                        isCurrent
+                          ? 'bg-amber-200/90 text-amber-950 border-amber-300 font-bold'
+                          : 'bg-white text-muted border border-line'
+                      }`}
+                    >
+                      {wg.activities.length} {wg.activities.length === 1 ? 'actividad' : 'actividades'}
                     </span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white text-muted border border-line">
-                    {wg.activities.length} {wg.activities.length === 1 ? 'actividad' : 'actividades'}
-                  </span>
-                </div>
 
-                {/* Lista de Actividades de la Semana usando el Componente TarjetaActividad */}
-                <ul className="divide-y divide-line/60">
+                  {/* Lista de Actividades de la Semana usando el Componente TarjetaActividad */}
+                  <ul className="divide-y divide-line/60">
                   {wg.activities.map(a => {
                     const { displayStart, displayEnd } = getEffectiveActivityDate(a, activityDates, bimester);
                     const isSelected = selectedId === a.id;
@@ -1209,7 +1256,8 @@ function ActivitySheet({
                   })}
                 </ul>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </div>

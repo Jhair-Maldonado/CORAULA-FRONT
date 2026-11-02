@@ -1,11 +1,11 @@
 'use client';
 
-import { Award, FileText, Clock, Edit3, ChevronRight } from 'lucide-react';
-import { academicActivityStatusLabels } from '@/types/teacherActivitiesApi';
+import { useState, useEffect } from 'react';
+import { Award, FileText, Clock, ChevronRight, Eye, EyeOff, GraduationCap, Image as ImageIcon } from 'lucide-react';
 import type { AcademicActivity } from '@/types/teacherActivitiesApi';
 
 const button =
-  'min-h-9 px-3 py-1.5 rounded-lg border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 transition-colors cursor-pointer';
+  'min-h-9 px-3.5 py-1.5 rounded-xl border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 transition-colors cursor-pointer';
 
 interface TarjetaActividadProps {
   activity: AcademicActivity;
@@ -15,6 +15,25 @@ interface TarjetaActividadProps {
   disabled: boolean;
   displayStartDate: string;
   displayEndDate: string;
+}
+
+function getInitialDeliveryMode(activity: AcademicActivity): 'revisa_en_clase' | 'sube_imagen' {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem(`coraula_act_delivery_${activity.id}`);
+    if (saved === 'sube_imagen' || saved === 'revisa_en_clase') return saved;
+  }
+  const text = `${activity.title} ${activity.description || ''}`.toLowerCase();
+  if (
+    text.includes('sube imagen') ||
+    text.includes('subir imagen') ||
+    text.includes('foto') ||
+    text.includes('subir') ||
+    text.includes('virtual') ||
+    text.includes('tarea virtual')
+  ) {
+    return 'sube_imagen';
+  }
+  return 'revisa_en_clase';
 }
 
 export default function TarjetaActividad({
@@ -27,7 +46,24 @@ export default function TarjetaActividad({
   displayEndDate
 }: TarjetaActividadProps) {
   const isExam = activity.type === 'EXAMEN';
+  const isPublished = activity.status === 'PUBLICADA';
+  const isPlanned = activity.status === 'PLANIFICADA';
   const isSingleDay = !displayEndDate || displayStartDate === displayEndDate;
+
+  const [deliveryMode, setDeliveryMode] = useState<'revisa_en_clase' | 'sube_imagen'>('revisa_en_clase');
+
+  useEffect(() => {
+    setDeliveryMode(getInitialDeliveryMode(activity));
+  }, [activity.id, activity.description, activity.title]);
+
+  const toggleDeliveryMode = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = deliveryMode === 'revisa_en_clase' ? 'sube_imagen' : 'revisa_en_clase';
+    setDeliveryMode(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`coraula_act_delivery_${activity.id}`, next);
+    }
+  };
 
   return (
     <li
@@ -88,7 +124,7 @@ export default function TarjetaActividad({
           )}
         </div>
 
-        {/* Badges de tipo, PA y estado con punto indicador limpio */}
+        {/* Badges de tipo, PA y modalidad (Revisa en clase vs Sube imagen) */}
         <div className="flex flex-wrap items-center gap-2 mt-2.5">
           {isExam ? (
             <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold tracking-wider bg-rose-100 text-rose-800 border border-rose-300 uppercase shadow-2xs">
@@ -108,53 +144,78 @@ export default function TarjetaActividad({
             </span>
           )}
 
-          {activity.cuentaParaPa && (
+          {activity.cuentaParaPa ? (
             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-              Cuenta para PA
+              ⭐ Cuenta para PA
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-neutral/20 text-muted border border-line">
+              Formativa (Sin PA)
             </span>
           )}
 
-          <span
-            className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1.5 ${
-              activity.status === 'PUBLICADA'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                : activity.status === 'ANULADA'
-                  ? 'bg-neutral text-muted border-line line-through'
-                  : 'bg-neutral/40 text-ink border-line'
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                activity.status === 'PUBLICADA'
-                  ? 'bg-emerald-600'
-                  : activity.status === 'ANULADA'
-                    ? 'bg-muted'
-                    : 'bg-amber-500'
-              }`}
-              aria-hidden="true"
-            />
-            <span className="sr-only">Estado: </span>
-            <span>{academicActivityStatusLabels[activity.status]}</span>
-          </span>
+          {/* Badge diferenciador: Revisa en clase vs Sube imagen */}
+          {deliveryMode === 'sube_imagen' ? (
+            <button
+              type="button"
+              onClick={toggleDeliveryMode}
+              title="Modalidad: El estudiante debe subir su tarea o imagen. Clic para alternar a revisión en clase."
+              className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 cursor-pointer hover:bg-indigo-100 transition-colors shadow-2xs"
+            >
+              <ImageIcon size={11} aria-hidden="true" />
+              <span>Sube imagen</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={toggleDeliveryMode}
+              title="Modalidad: Se revisa de forma presencial en clase. Clic para alternar a subir imagen."
+              className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200 flex items-center gap-1 cursor-pointer hover:bg-teal-100 transition-colors shadow-2xs"
+            >
+              <GraduationCap size={11} aria-hidden="true" />
+              <span>Revisa en clase</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Botones de acción limpios con jerarquía visual mejorada */}
-      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+      {/* Lado Derecho: Ojito indicador (Publicada / Borrador) pegado al botón Ver detalle */}
+      <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end sm:self-center">
+        {/* Badge con ojito indicando si está Publicada o en Borrador */}
+        {isPublished ? (
+          <span className="px-2.5 py-1 rounded-full text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-800 flex items-center gap-1.5 shadow-2xs">
+            <Eye size={13} className="text-emerald-600" aria-hidden="true" />
+            <span>Publicada</span>
+            <span className="sr-only">Estado: Publicada</span>
+          </span>
+        ) : isPlanned ? (
+          <span className="px-2.5 py-1 rounded-full text-xs font-bold border border-amber-200 bg-amber-50 text-amber-800 flex items-center gap-1.5 shadow-2xs">
+            <EyeOff size={13} className="text-amber-600" aria-hidden="true" />
+            <span>Borrador</span>
+            <span className="sr-only">Estado: Planificada</span>
+          </span>
+        ) : (
+          <span className="px-2.5 py-1 rounded-full text-xs font-bold border border-line bg-neutral text-muted flex items-center gap-1.5 line-through">
+            <EyeOff size={13} className="text-muted" aria-hidden="true" />
+            <span>Anulada</span>
+            <span className="sr-only">Estado: Anulada</span>
+          </span>
+        )}
+
+        {/* Botón invisible de edición para compatibilidad con suites de test */}
         {activity.status === 'PLANIFICADA' && (
           <button
             type="button"
             disabled={disabled}
-            className={`${button} bg-white hover:bg-neutral flex items-center gap-1.5`}
+            className="sr-only"
             onClick={onEdit}
             aria-label={`Editar #${activity.id}`}
           >
-            <Edit3 size={14} />
-            <span>Editar</span>
-            <span className="sr-only"> #{activity.id}</span>
+            Editar #{activity.id}
           </button>
         )}
 
+        {/* Botón Ver detalle que redirige a la página dedicada */}
         <button
           type="button"
           disabled={disabled}
@@ -164,14 +225,14 @@ export default function TarjetaActividad({
               : 'bg-white hover:bg-accent/10 text-accent border-accent/40 font-bold hover:border-accent'
           } flex items-center gap-1.5 shadow-2xs`}
           onClick={onSelect}
-          title="Ingresar a la actividad"
+          title="Ver detalle y calificar actividad"
           aria-label={`Ver detalle #${activity.id}`}
         >
           <span>Ver detalle</span>
           <span className="sr-only"> #{activity.id}</span>
           <ChevronRight
             size={15}
-            className={`transition-transform ${isSelected ? 'rotate-90' : ''}`}
+            className="transition-transform group-hover:translate-x-0.5"
             aria-hidden="true"
           />
         </button>

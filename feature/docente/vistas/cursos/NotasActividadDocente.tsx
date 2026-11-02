@@ -15,7 +15,7 @@ import type { ActivityContext, ActivityGradesSheet, ActivityGradesSheetRow, Save
 import { bimesterStatusLabels } from '@/types/evaluationApi';
 
 const button =
-  'min-h-10 px-3 py-2 rounded-lg border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 transition-colors';
+  'min-h-10 px-3 py-2 rounded-lg border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 transition-colors cursor-pointer';
 const input =
   'w-full p-2 rounded-lg border border-line bg-white text-ink focus-visible:outline-accent text-xs';
 
@@ -139,7 +139,7 @@ export default function NotasActividadDocente({
     <section className="mt-4 pt-4 border-t border-line flex flex-col gap-3 min-w-0" aria-label="Notas de la actividad">
       <div className="flex flex-wrap justify-between items-center gap-2">
         <h5 className="font-bold text-sm text-ink">Notas por actividad</h5>
-        <button type="button" disabled={busy || loading} className={`${button} bg-white`} onClick={() => setRevision(n => n + 1)}>
+        <button type="button" disabled={busy || loading} className={`${button} bg-white hover:bg-neutral`} onClick={() => setRevision(n => n + 1)}>
           Recargar planilla
         </button>
       </div>
@@ -158,7 +158,8 @@ export default function NotasActividadDocente({
       ) : data ? (
         <>
           <p className="text-[11px] text-muted">
-            Actividad {academicActivityStatusLabels[data.activity.status]} · Bimestre {bimesterStatusLabels[data.bimester.status]}.{' '}
+            <span className="sr-only">Actividad {academicActivityStatusLabels[data.activity.status]} · </span>
+            Actividad {data.activity.status === 'PLANIFICADA' ? 'Borrador' : academicActivityStatusLabels[data.activity.status]} · Bimestre {bimesterStatusLabels[data.bimester.status]}.{' '}
             {editable
               ? 'Registra notas de 0 a 20 con hasta dos decimales. Una corrección exige motivo. «Sin nota» no equivale a 0.'
               : data.activity.status !== 'PUBLICADA'
@@ -174,10 +175,10 @@ export default function NotasActividadDocente({
                 <thead className="text-[10px] uppercase tracking-wider text-muted">
                   <tr>
                     <th className="p-2">Estudiante</th>
-                    <th className="p-2">Elegible PA</th>
+                    <th className="p-2">{data.activity.cuentaParaPa ? 'Elegible PA' : 'Ponderación'}</th>
                     <th className="p-2">Nota vigente</th>
-                    <th className="p-2">Versión</th>
-                    <th className="p-2">PA</th>
+                    <th className="p-2 sr-only">Versión</th>
+                    <th className="p-2">Promedio Bimestral (PA)</th>
                     {editable && <th className="p-2">Nueva nota</th>}
                     {editable && <th className="p-2">Motivo de corrección</th>}
                     {editable && <th className="p-2"><span className="sr-only">Acción</span></th>}
@@ -190,11 +191,28 @@ export default function NotasActividadDocente({
                     return (
                       <tr key={row.enrollmentId} className="border-t border-line align-top">
                         <td className="p-2 font-semibold text-ink">{row.fullName}</td>
-                        <td className="p-2">{row.eligibleForPa ? 'Sí' : 'No'}</td>
+                        <td className="p-2">
+                          {data.activity.cuentaParaPa ? (
+                            <span className={row.eligibleForPa ? 'text-emerald-700 font-semibold' : 'text-rose-600'}>
+                              {row.eligibleForPa ? 'Sí' : 'No'}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-neutral/40 text-muted">
+                              Formativa
+                              <span className="sr-only"> {row.eligibleForPa ? 'Sí' : 'No'}</span>
+                            </span>
+                          )}
+                        </td>
                         <td className="p-2">{row.grade ? row.grade.grade.toFixed(2) : <span className="text-muted">Sin nota</span>}</td>
-                        <td className="p-2">{row.grade ? row.grade.version : '—'}</td>
+                        <td className="p-2 sr-only">{row.grade ? row.grade.version : '—'}</td>
                         <td className="p-2" title={`${row.gradedActivities} de ${row.assignedActivities} actividades elegibles calificadas`}>
-                          {row.pa === null ? '—' : row.pa.toFixed(1)}
+                          {row.pa === null ? (
+                            <span className="text-muted/60" title={!data.activity.cuentaParaPa ? 'Actividad formativa (excluida de PA)' : 'Sin cálculo de PA'}>
+                              — {!data.activity.cuentaParaPa && <span className="text-[10px] text-muted font-normal">(Formativa)</span>}
+                            </span>
+                          ) : (
+                            <strong className="text-ink font-semibold">{row.pa.toFixed(1)}</strong>
+                          )}
                         </td>
                         {editable && (
                           <td className="p-2 w-28">

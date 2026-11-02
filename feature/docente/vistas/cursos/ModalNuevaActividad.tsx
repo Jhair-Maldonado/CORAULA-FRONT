@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import MaterialesDocente from './MaterialesDocente';
 import { ACADEMIC_ACTIVITY_TYPES } from '@/types/teacherActivitiesApi';
 import type { CreateAcademicActivityRequest } from '@/types/teacherActivitiesApi';
@@ -44,6 +44,7 @@ export default function ModalNuevaActividad({
   titleError
 }: ModalNuevaActividadProps) {
   const [creationMode, setCreationMode] = useState<'actividad' | 'material'>('actividad');
+  const [sePresentaraEnClase, setSePresentaraEnClase] = useState(true);
 
   return (
     <div
@@ -112,6 +113,9 @@ export default function ModalNuevaActividad({
           <form
             onSubmit={e => {
               e.preventDefault();
+              if (typeof window !== 'undefined') {
+                window.sessionStorage.setItem('pending_activity_delivery_mode', sePresentaraEnClase ? 'revisa_en_clase' : 'sube_imagen');
+              }
               void onSubmit();
             }}
             className="flex flex-col gap-4"
@@ -133,7 +137,7 @@ export default function ModalNuevaActividad({
               </label>
               {form.title && titleError && <p role="alert" className="text-rose-700 text-xs">{titleError}</p>}
 
-              {/* Fechas de inicio y finalización limitadas al rango del bimestre */}
+              {/* Fechas de inicio y finalización de la actividad */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label>
                   Fecha de inicio
@@ -141,8 +145,6 @@ export default function ModalNuevaActividad({
                     type="date"
                     className={input}
                     value={startDate}
-                    min={bimester?.startDate}
-                    max={bimester?.endDate}
                     onChange={e => setStartDate(e.target.value)}
                   />
                 </label>
@@ -152,8 +154,7 @@ export default function ModalNuevaActividad({
                     type="date"
                     className={input}
                     value={endDate}
-                    min={startDate || bimester?.startDate}
-                    max={bimester?.endDate}
+                    min={startDate}
                     onChange={e => setEndDate(e.target.value)}
                   />
                 </label>
@@ -192,6 +193,53 @@ export default function ModalNuevaActividad({
                 />
               </label>
 
+              {/* Switch: ¿Se presentará en clase? */}
+              <div className="flex flex-col gap-2 p-3 rounded-xl border border-line bg-neutral/20">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-ink">¿Se presentará en clase?</span>
+                    <span className="text-[11px] font-normal text-muted">
+                      {sePresentaraEnClase
+                        ? 'La actividad se expondrá, entregará o evaluará de manera presencial en el aula.'
+                        : 'No se presentará en clase presencial.'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={sePresentaraEnClase}
+                    aria-label="¿Se presentará en clase?"
+                    onClick={() => setSePresentaraEnClase(prev => !prev)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                      sePresentaraEnClase ? 'bg-emerald-600' : 'bg-neutral border-line'
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                        sePresentaraEnClase ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Alerta condicional si NO se presentará en clase */}
+                {!sePresentaraEnClase && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 text-xs animate-in fade-in duration-200 mt-1"
+                  >
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-bold text-amber-950">Entrega virtual requerida</span>
+                      <p className="text-[11px] text-amber-900/90 font-normal leading-relaxed">
+                        En esta actividad el estudiante debe subir su tarea a la plataforma para su revisión.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <label className="flex items-center gap-2 min-h-8 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -202,7 +250,7 @@ export default function ModalNuevaActividad({
               </label>
 
               <p className="font-normal text-[11px] text-muted">
-                La actividad se crea PLANIFICADA. Publícala desde su detalle para registrar notas; no recibe entregas de estudiantes.
+                La actividad se crea en estado Borrador. Publícala desde su detalle para registrar notas.
               </p>
             </fieldset>
 

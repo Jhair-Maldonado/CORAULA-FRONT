@@ -3,17 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import {
-  Upload,
-  FileText,
-  Clock,
-  X,
   Calendar,
   Award,
-  ChevronRight,
-  AlertCircle
+  ChevronRight
 } from 'lucide-react';
-import { validateMaterialFile } from '@/services/materialesService';
-import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
+import MaterialesDocente from './MaterialesDocente';
 import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
 import {
   activityTitleError,
@@ -36,16 +30,6 @@ const input =
   'w-full mt-1.5 p-2.5 rounded-lg border border-line bg-neutral/30 text-ink focus-visible:outline-accent text-xs';
 
 type Result<T> = { key: string; data?: T; error?: string };
-
-interface MaterialSubmission {
-  id: string;
-  title: string;
-  date: string;
-  fileName?: string;
-  fileSize?: string;
-  status: 'EN_PROCESO';
-  createdAt: string;
-}
 
 const emptyForm: CreateAcademicActivityRequest = {
   title: '',
@@ -283,13 +267,6 @@ function ActivitySheet({
   const [creationMode, setCreationMode] = useState<'actividad' | 'material'>('actividad');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [materialTitle, setMaterialTitle] = useState('');
-  const [materialDate, setMaterialDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [materialFile, setMaterialFile] = useState<File | null>(null);
-  const [materialFileSize, setMaterialFileSize] = useState<string | null>(null);
-  const [materialFileError, setMaterialFileError] = useState<string | null>(null);
-  const [materials, setMaterials] = useState<MaterialSubmission[]>([]);
-  const [toastNotice, setToastNotice] = useState<string | null>(null);
 
   // Fechas personalizadas de actividades por ID
   const [activityDates, setActivityDates] = useState<Record<number, { startDate?: string; endDate?: string }>>({});
@@ -403,55 +380,6 @@ function ActivitySheet({
       setParentBusy(false);
       if (mounted.current) setBusy(false);
     }
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] || null;
-    if (!file) {
-      setMaterialFile(null);
-      setMaterialFileSize(null);
-      setMaterialFileError(null);
-      return;
-    }
-    const result = validateMaterialFile(file);
-    if (!result.valid) {
-      setMaterialFile(null);
-      setMaterialFileSize(null);
-      setMaterialFileError(result.error);
-    } else {
-      setMaterialFile(file);
-      setMaterialFileSize(result.formattedSize);
-      setMaterialFileError(null);
-    }
-  }
-
-  function handleMaterialSubmit() {
-    if (!materialTitle.trim() || disabled) return;
-    if (!materialFile) {
-      setMaterialFileError('Debe adjuntar un archivo para el material de clase.');
-      return;
-    }
-    const validation = validateMaterialFile(materialFile);
-    if (!validation.valid) {
-      setMaterialFileError(validation.error);
-      return;
-    }
-    const newSubmission: MaterialSubmission = {
-      id: `mat-${materials.length + 1}-${materialTitle.trim().toLowerCase().slice(0, 10).replace(/\s+/g, '_')}`,
-      title: materialTitle.trim(),
-      date: materialDate || new Date().toISOString().slice(0, 10),
-      fileName: materialFile.name,
-      fileSize: validation.formattedSize,
-      status: 'EN_PROCESO',
-      createdAt: new Date().toISOString()
-    };
-    setMaterials(prev => [newSubmission, ...prev]);
-    // La subida de material es siempre local hasta BACK #53.
-    setToastNotice('Simulación: el material no se subió (módulo en construcción).');
-    setMaterialTitle('');
-    setMaterialFile(null);
-    setMaterialFileSize(null);
-    setMaterialFileError(null);
   }
 
   function cancelEdit() {
@@ -639,40 +567,11 @@ function ActivitySheet({
     return getActivityMonth(a) === selectedMonth;
   });
 
-  const filteredMaterials = materials.filter(m => {
-    if (selectedMonth === 'ALL') return true;
-    const d = new Date(m.date);
-    return isNaN(d.getTime()) ? true : d.getMonth() === selectedMonth;
-  });
-
-  const hasAnyItems = (list?.data && list.data.length > 0) || materials.length > 0;
-  const hasFilteredItems = (filteredActivities && filteredActivities.length > 0) || filteredMaterials.length > 0;
+  const hasAnyItems = !!list?.data && list.data.length > 0;
+  const hasFilteredItems = !!filteredActivities && filteredActivities.length > 0;
 
   return (
     <div className="flex flex-col gap-5 mt-5">
-      {/* Toast Alert para confirmación de solicitud de material */}
-      {toastNotice && (
-        <div
-          role="status"
-          className="p-4 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl flex items-start justify-between gap-3 shadow-sm animate-in fade-in"
-        >
-          <div className="flex items-start gap-2.5">
-            <Clock size={18} className="text-amber-700 shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider">Solicitud de aprobación</p>
-              <p className="text-xs mt-0.5">{toastNotice}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setToastNotice(null)}
-            className="text-amber-700 hover:text-amber-950 p-1"
-            aria-label="Cerrar alerta"
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
-        </div>
-      )}
 
       {annulled && <p role="status" className="text-xs font-medium text-amber-800 p-3 bg-amber-50 border border-amber-200 rounded-lg">Este bimestre está anulado. Solo puedes consultar sus actividades; no se pueden crear ni editar.</p>}
       {notice && <p role="status" className="text-xs font-medium text-emerald-700 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">{notice}</p>}
@@ -803,21 +702,18 @@ function ActivitySheet({
                 </button>
               </div>
 
-              {/* Formulario Unificado */}
+              {/* FRONT #52: materiales reales del curso (BACK #53); la pestaña ya no simula envíos */}
+              {creationMode === 'material' ? <MaterialesDocente sectionCourseId={sectionCourseId} /> : (
               <form
                 onSubmit={e => {
                   e.preventDefault();
-                  if (creationMode === 'actividad') {
-                    void createActivity();
-                  } else {
-                    handleMaterialSubmit();
-                  }
+                  void createActivity();
                 }}
                 className="flex flex-col gap-4"
                 aria-label="Crear actividad académica"
               >
                 <fieldset disabled={disabled} className="flex flex-col gap-3 text-xs font-bold text-muted">
-                  {creationMode === 'actividad' ? (
+                  {(
                     <>
                       <label>
                         Título
@@ -899,86 +795,18 @@ function ActivitySheet({
                         La actividad se crea PLANIFICADA. Publícala desde su detalle para registrar notas; no recibe entregas de estudiantes.
                       </p>
                     </>
-                  ) : (
-                    <>
-                      <AvisoModuloSimulado className="mb-0" detalle="la subida de materiales aún no está conectada; los materiales son de demostración y no se guardan." />
-                      <label>
-                        Título del material
-                        <input
-                          required
-                          maxLength={255}
-                          className={input}
-                          placeholder="Ej. Diapositivas - Módulo 2"
-                          value={materialTitle}
-                          onChange={e => setMaterialTitle(e.target.value)}
-                        />
-                      </label>
-
-                      <label>
-                        Fecha
-                        <input
-                          type="date"
-                          required
-                          className={input}
-                          value={materialDate}
-                          onChange={e => setMaterialDate(e.target.value)}
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className="text-xs font-bold text-muted">Subir documento</span>
-                        <div className={`mt-1.5 flex justify-center px-4 pt-4 pb-5 border-2 border-dashed rounded-lg bg-white transition-colors ${
-                          materialFileError ? 'border-rose-300 bg-rose-50/20' : 'border-line hover:border-accent/50'
-                        }`}>
-                          <div className="space-y-1 text-center">
-                            <Upload className={`mx-auto h-7 w-7 ${materialFileError ? 'text-rose-500' : 'text-muted'}`} aria-hidden="true" />
-                            <div className="text-xs text-muted">
-                              <label className="relative cursor-pointer rounded-md font-bold text-accent hover:underline">
-                                <span>Seleccionar archivo</span>
-                                <input
-                                  type="file"
-                                  className="sr-only"
-                                  accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.zip,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.*"
-                                  onChange={handleFileChange}
-                                />
-                              </label>
-                              {materialFile ? (
-                                <p className="text-xs text-ink font-semibold mt-1 truncate max-w-xs">
-                                  {materialFile.name} <span className="text-muted font-normal">({materialFileSize})</span>
-                                </p>
-                              ) : (
-                                <p className="text-[11px] text-muted">PDF, Word, PowerPoint, Excel o ZIP (Máx. 15 MB)</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        {materialFileError && (
-                          <div role="alert" className="mt-2 flex items-start gap-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
-                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                            <span>{materialFileError}</span>
-                          </div>
-                        )}
-                      </label>
-
-                      <p className="font-normal text-[11px] text-muted">
-                        Al enviar la solicitud, pasará por aprobación administrativa y se listará con estado en proceso.
-                      </p>
-                    </>
                   )}
                 </fieldset>
 
                 <button
                   type="submit"
-                  disabled={
-                    creationMode === 'actividad'
-                      ? disabled || !!titleError
-                      : !materialTitle.trim() || !materialFile || !!materialFileError || disabled
-                  }
+                  disabled={disabled || !!titleError}
                   className={`${button} bg-accent text-white disabled:bg-neutral/60 disabled:text-muted disabled:border-line disabled:opacity-100 w-full sm:w-auto mt-1`}
                 >
-                  {creationMode === 'actividad' ? 'Crear actividad' : 'Enviar solicitud'}
+                  Crear actividad
                 </button>
               </form>
+              )}
             </div>
           )}
         </div>
@@ -1048,33 +876,6 @@ function ActivitySheet({
             </p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {/* Materiales en proceso de aprobación */}
-              {filteredMaterials.map(m => (
-                <li
-                  key={m.id}
-                  className="p-4 bg-amber-50/50 border border-amber-200 rounded-lg flex flex-wrap justify-between items-start gap-3 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <FileText size={16} className="text-amber-700 shrink-0" aria-hidden="true" />
-                      <p className="font-bold text-sm text-ink break-words">{m.title}</p>
-                    </div>
-                    <div className="text-xs text-muted mt-1.5 flex flex-wrap items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                        En proceso
-                      </span>
-                      <span>Material pedagógico</span>
-                      <span>· Fecha: {formatDisplayDate(m.date)}</span>
-                    </div>
-                    {m.fileName && (
-                      <p className="text-[11px] text-muted mt-1 font-mono">
-                        Archivo: {m.fileName} {m.fileSize && `· ${m.fileSize}`}
-                      </p>
-                    )}
-                  </div>
-                </li>
-              ))}
-
               {/* Actividades académicas con distinción destacada de EXAMEN */}
               {filteredActivities?.map(a => {
                 const isExam = a.type === 'EXAMEN';

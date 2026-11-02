@@ -6,6 +6,7 @@ import { AxiosError, type AxiosResponse } from 'axios';
 import ActividadesDocente from '../feature/docente/vistas/cursos/ActividadesDocente';
 import { teacherActivitiesService, activityTitleError, activityChanges, teacherActivitiesErrorMessage } from '../src/services/teacher/teacherActivitiesService';
 import { teacherGradesService } from '../src/services/teacher/teacherGradesService';
+import { teacherMaterialsService } from '../src/services/teacher/teacherMaterialsService';
 import httpClient from '../src/services/httpClient';
 import type { AcademicActivity, CreateAcademicActivityRequest, UpdateAcademicActivityRequest } from '../src/types/teacherActivitiesApi';
 import type { Bimester } from '../src/types/evaluationApi';
@@ -329,7 +330,7 @@ test('bimester change invalidates captured edit submit before render, and late e
   });
 });
 
-test('ANULADO (#43) is selectable to consult, but creation, materials and edits are blocked', async () => {
+test('ANULADO (#43) is selectable to consult, but creation and edits are blocked; materials stay course-level (#52)', async () => {
   let posts = 0, patches = 0;
   await view({ getActivities: async c => [activity(1, c)], createActivity: async () => { posts++; return activity(); }, updateActivity: async () => { patches++; return activity(); } }, async h => {
     const options = h.renderer.root.findByProps({ 'aria-label': 'Bimestre de actividades' }).findAllByType('option');
@@ -345,8 +346,14 @@ test('ANULADO (#43) is selectable to consult, but creation, materials and edits 
     assert.equal(h.button('Editar #1')?.props.disabled, true);
     await act(async () => { h.button('Editar #1')!.props.onClick(); });
     assert.equal(h.button('Guardar cambios'), undefined);
-    await h.click('Subir material');
-    assert.equal(h.button('Enviar solicitud')?.props.disabled, true);
+    const originalMaterials = teacherMaterialsService.list;
+    teacherMaterialsService.list = async () => [];
+    try {
+      await h.click('Subir material');
+      assert.match(text(h.renderer.root), /Este curso aún no tiene materiales publicados/);
+      assert.equal(h.button('Enviar solicitud'), undefined);
+      assert.equal(h.button('Publicar material')?.props.disabled, true);
+    } finally { teacherMaterialsService.list = originalMaterials; }
     assert.equal(posts, 0); assert.equal(patches, 0);
   }, async () => [bimester(1), { ...bimester(2), status: 'ANULADO' }]);
 });

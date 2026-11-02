@@ -8,6 +8,7 @@ import VistaMaterialesAlumno from '../feature/alumno/vistas/materiales/vistaMate
 import VistaDetalleMateriales from '../feature/alumno/vistas/materiales/vistaDetalleMateriales';
 import { teacherActivitiesService } from '../src/services/teacher/teacherActivitiesService';
 import { teacherGradesService } from '../src/services/teacher/teacherGradesService';
+import { teacherMaterialsService } from '../src/services/teacher/teacherMaterialsService';
 import httpClient from '../src/services/httpClient';
 
 // Stubs confined to tests: no network, no real writes.
@@ -17,7 +18,7 @@ if (typeof globalThis.self === 'undefined') Object.assign(globalThis, { self: gl
 if (typeof globalThis.document === 'undefined') Object.assign(globalThis, { document: { addEventListener() {}, removeEventListener() {} } });
 httpClient.defaults.adapter = async () => { throw new Error('sin red en pruebas'); };
 
-const MATERIAL_DOCENTE = 'Módulo en construcción: la subida de materiales aún no está conectada; los materiales son de demostración y no se guardan.';
+const MATERIAL_DOCENTE = 'Módulo en construcción: los materiales todavía no se guardan en el servidor; los que envíes aquí son de demostración y se pierden al recargar.';
 const MATERIAL_ALUMNO = 'Módulo en construcción: los materiales de estudio son de demostración y no pueden descargarse.';
 const MATERIAL_SIMULADO = 'Simulación: el material no se subió (módulo en construcción).';
 const router ={ push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} } as unknown as AppRouterInstance;
@@ -32,12 +33,14 @@ async function withEnv(value: string | undefined, fn: () => Promise<void>) {
   try { await fn(); } finally { if (original === undefined) delete process.env.NEXT_PUBLIC_USE_MOCKS; else process.env.NEXT_PUBLIC_USE_MOCKS = original; }
 }
 
-test('teacher material tab shows the notice only while NEXT_PUBLIC_USE_MOCKS enables mocks', async () => {
-  const original = { getActivities: teacherActivitiesService.getActivities, getBimesters: teacherGradesService.getBimesters };
+// FRONT #52 connected the teacher upload to BACK #53: the tab has no notice and no simulated material in any mode.
+test('teacher material tab is real: no notice and no simulated material, whatever NEXT_PUBLIC_USE_MOCKS says', async () => {
+  const original = { getActivities: teacherActivitiesService.getActivities, getBimesters: teacherGradesService.getBimesters, listMaterials: teacherMaterialsService.list };
   teacherActivitiesService.getActivities = async () => [];
+  teacherMaterialsService.list = async () => [];
   teacherGradesService.getBimesters = async () => [{ id: 1, academicPeriodId: 30, number: 1, name: 'Bimestre 1', startDate: '2026-03-01', endDate: '2026-04-30', status: 'PLANIFICADO' }];
   try {
-    for (const [value, shown] of [[undefined, true], ['true', true], ['false', false]] as const) {
+    for (const value of [undefined, 'true', 'false'] as const) {
       await withEnv(value, async () => {
         let r!: ReactTestRenderer;
         await act(async () => { r = create(<ActividadesDocente sectionCourseId={10} />); });
@@ -47,21 +50,21 @@ test('teacher material tab shows the notice only while NEXT_PUBLIC_USE_MOCKS ena
           const tab = r.root.findAllByType('button').find(b => text(b).trim() === 'Subir material');
           assert.ok(tab);
           await act(async () => { tab.props.onClick(); });
-          assert.deepEqual(notices(r), shown ? [MATERIAL_DOCENTE] : [], `material, value=${value}`);
-          // La subida es local: el toast dice que es una simulación, nunca éxito.
-          await act(async () => { r.root.findByProps({ 'aria-label': 'Crear actividad académica' }).findByProps({ maxLength: 255 }).props.onChange({ target: { value: 'Separata 1' } }); });
-          await act(async () => { r.root.findByProps({ type: 'file' }).props.onChange({ target: { files: [{ name: 'separata.pdf', size: 2048, type: 'application/pdf' }] } }); });
-          await act(async () => { r.root.findByType('form').props.onSubmit({ preventDefault() {} }); });
+          assert.deepEqual(notices(r), [], `material, value=${value}`);
           const body = text(r.root);
-          assert.ok(body.includes(MATERIAL_SIMULADO), `toast, value=${value}`);
-          assert.doesNotMatch(body, /enviada con éxito/);
+          assert.ok(!body.includes(MATERIAL_DOCENTE) && !body.includes(MATERIAL_SIMULADO), `simulation, value=${value}`);
+          assert.match(body, /Este curso aún no tiene materiales publicados/);
+          assert.ok(r.root.findAllByType('button').some(b => text(b) === 'Publicar material'));
         } finally { await act(async () => { r.unmount(); }); }
       });
     }
-  } finally { Object.assign(teacherActivitiesService, { getActivities: original.getActivities }); teacherGradesService.getBimesters = original.getBimesters; }
+  } finally {
+    Object.assign(teacherActivitiesService, { getActivities: original.getActivities }); teacherGradesService.getBimesters = original.getBimesters;
+    teacherMaterialsService.list = original.listMaterials;
+  }
 });
 
-test('student materials views show the notice with mocks and the detail never downloads a fake file', async () => {
+test('student materials views always show the notice and the detail never downloads a fake file', async () => {
   await withEnv(undefined, async () => {
     let r!: ReactTestRenderer;
     await act(async () => { r = create(<AppRouterContext.Provider value={router}><VistaMaterialesAlumno /></AppRouterContext.Provider>); });
@@ -84,7 +87,7 @@ test('student materials views show the notice with mocks and the detail never do
   await withEnv('false', async () => {
     let r!: ReactTestRenderer;
     await act(async () => { r = create(<AppRouterContext.Provider value={router}><VistaMaterialesAlumno /></AppRouterContext.Provider>); });
-    await wait(0);
-    try { assert.deepEqual(notices(r), []); } finally { await act(async () => { r.unmount(); }); }
+    await waitFor(() => notices(r).length > 0);
+    try { assert.deepEqual(notices(r), [MATERIAL_ALUMNO]); } finally { await act(async () => { r.unmount(); }); }
   });
 });

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   DashboardSquare01Icon,
   UserGroupIcon,
+  Calendar01Icon,
   Notification01Icon,
   Comment01Icon,
   Logout01Icon,
@@ -15,6 +16,7 @@ import {
 import { usePadre } from '@/components/padres/PadreContext';
 import { AuthContext } from '@/contexts/AuthContext';
 import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
+import { isMockDataEnabled } from '@/lib/mockMode';
 
 type MenuItem = {
   name: string;
@@ -26,6 +28,7 @@ type MenuItem = {
 const MENU_ITEMS: MenuItem[] = [
   { name: 'Ficha', path: '/padre', icon: DashboardSquare01Icon },
   { name: 'Hijos', path: '/padre/hijos', icon: UserGroupIcon },
+  { name: 'Asistencia', path: '/padre/asistencia', icon: Calendar01Icon },
   { name: 'Chats', path: '/padre/mensajeria', icon: Comment01Icon, badge: 1 },
   { name: 'Justificar', path: '/padre/justificacion', icon: AlertCircleIcon, badge: '1' },
   { name: 'Avisos', path: '/padre/avisos', icon: Notification01Icon, badge: 2 },
@@ -35,6 +38,8 @@ export const PadreSidebar: React.FC = () => {
   const pathname = usePathname();
   const { padre } = usePadre();
   const authContext = useContext(AuthContext);
+  // Badges fijos y perfil del apoderado (getPadrePerfil) son simulados: solo en modo demostración.
+  const mocksActivos = isMockDataEnabled();
 
   const handleLogout = () => {
     authContext?.logout();
@@ -68,7 +73,7 @@ export const PadreSidebar: React.FC = () => {
               >
                 <div className="relative">
                   <item.icon size={20} className={isActive ? 'text-white' : 'text-muted group-hover:text-ink'} />
-                  {item.badge && (
+                  {mocksActivos && item.badge && (
                     <span className="absolute -top-1 -right-2 w-4 h-4 bg-accent text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-white shadow-sm">
                       {item.badge}
                     </span>
@@ -84,7 +89,7 @@ export const PadreSidebar: React.FC = () => {
 
         {/* User / Logout */}
         <div className="p-2 border-t border-line flex flex-col gap-2">
-          {padre && (
+          {mocksActivos && padre && (
             <div className="flex flex-col items-center justify-center gap-1 p-2">
               <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs uppercase overflow-hidden">
                 {padre.nombres.charAt(0)}{padre.apellidos.charAt(0)}

@@ -1,7 +1,18 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X, Check, CheckCircle2, Calendar, Loader2, ShieldAlert, FileText, Fingerprint } from 'lucide-react';
+import { X, Check, CheckCircle2, Calendar, Loader2 } from 'lucide-react';
+import JustificacionAsistencia from '@/components/attendance/JustificacionAsistencia';
+import SelectorEstadoAsistencia from '@/components/attendance/SelectorEstadoAsistencia';
+import {
+  ATTENDANCE_REASON_MAX_LENGTH,
+  DEFAULT_CONTINGENCY_CAUSE,
+  REASON_REQUIRED_MESSAGE,
+  REASON_TOO_LONG_MESSAGE,
+  hasAttendanceChanges,
+  isFirstCapture as firstCaptureOf,
+  isReasonValid as reasonValid
+} from '@/lib/attendanceJustification';
 import { teacherCoursesService, teacherCoursesErrorMessage } from '@/services/teacher/teacherCoursesService';
 import { teacherAttendanceService, teacherAttendanceErrorMessage } from '@/services/teacher/teacherAttendanceService';
 import type { TeacherCourseStudentResponse } from '@/types/teacherCoursesApi';
@@ -20,12 +31,8 @@ const MONTH_NAMES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
-const CONTINGENCY_CAUSES: { value: TeacherContingencyCause; label: string }[] = [
-  { value: 'LECTOR_NO_DISPONIBLE', label: 'Lector biométrico no disponible' },
-  { value: 'FALLA_CONECTIVIDAD', label: 'Falla de conectividad' },
-  { value: 'HUELLA_NO_RECONOCIDA', label: 'Huella no reconocida' },
-  { value: 'CAIDA_SISTEMA', label: 'Caída del sistema' }
-];
+const NO_SESSION_TODAY_MESSAGE =
+  'Este curso no tiene una sesión de clase programada para hoy. La asistencia no se registró.';
 
 function getTodayInfo(): { iso: string; readable: string } {
   const now = new Date();
@@ -54,24 +61,10 @@ export default function ModalAsistenciaCurso({
   const [error, setError] = useState('');
   const [attendanceDraft, setAttendanceDraft] = useState<Record<number, TeacherAttendanceStatus>>({});
   
-  // =========================================================================
-  // CONTROL DEL LECTOR BIOMÉTRICO (RF-16 / RF-42)
-  // =========================================================================
-  // - En una sesión nueva, todos los alumnos inician en INASISTENCIA (Falta).
-  // - Si isBiometricActive === true:
-  //   El lector está encendido. En producción conectará al Webhook / WebSocket
-  //   del hardware biométrico de huellas. Al detectar la huella de un alumno,
-  //   su estado pasa inmediatamente a 'PRESENTE'.
-  //   *REGLA BACKEND FUTURA*: Cuando el hardware biométrico esté implementado,
-  //   la persistencia se registrará con method = BIOMETRICO y no solicitará causa.
-  // - Si isBiometricActive === false (Modo Contingencia):
-  //   Se activa el flujo manual por contingencia con causa y motivo obligatorio.
-  // =========================================================================
-  const [isBiometricActive, setIsBiometricActive] = useState(false);
-  const [biometricFeedback, setBiometricFeedback] = useState<string | null>(null);
-
+  // Sin integración con el lector biométrico, toda toma desde esta pantalla es manual:
+  // primera toma = contingencia (causa + motivo); corrección = solo motivo.
   // Contingencia & Justificación (RF-16 / RF-42)
-  const [contingencyCause, setContingencyCause] = useState<TeacherContingencyCause>('LECTOR_NO_DISPONIBLE');
+  const [contingencyCause, setContingencyCause] = useState<TeacherContingencyCause>(DEFAULT_CONTINGENCY_CAUSE);
   const [reason, setReason] = useState('');
   
   const [saving, setSaving] = useState(false);
@@ -89,9 +82,7 @@ export default function ModalAsistenciaCurso({
     setSaveSuccess('');
     setSaveError('');
     setReason('');
-    setContingencyCause('LECTOR_NO_DISPONIBLE');
-    setIsBiometricActive(false);
-    setBiometricFeedback(null);
+    setContingencyCause(DEFAULT_CONTINGENCY_CAUSE);
 
     Promise.all([
       teacherCoursesService.getStudents(sectionCourseId),
@@ -110,8 +101,8 @@ export default function ModalAsistenciaCurso({
         if (session && session.students?.length > 0) {
           session.students.forEach(st => {
             initialMap[st.enrollmentId] = st.status;
-            // Si ya tiene estado guardado se conserva; si era null, por defecto Falta (INASISTENCIA)
-            draftMap[st.enrollmentId] = st.status || 'INASISTENCIA';
+            // Se conserva el estado guardado; sin registro, PRESENTE como antes de #123
+            draftMap[st.enrollmentId] = st.status || 'PRESENTE';
           });
         }
 
@@ -119,9 +110,8 @@ export default function ModalAsistenciaCurso({
           if (initialMap[s.enrollmentId] === undefined) {
             initialMap[s.enrollmentId] = null;
           }
-          // Regla solicitada: al iniciar la toma, todos tienen FALTA (INASISTENCIA) por defecto
           if (!draftMap[s.enrollmentId]) {
-            draftMap[s.enrollmentId] = 'INASISTENCIA';
+            draftMap[s.enrollmentId] = 'PRESENTE';
           }
         });
 
@@ -141,27 +131,19 @@ export default function ModalAsistenciaCurso({
   }, [isOpen, sectionCourseId, todayInfo.iso]);
 
   // Determinar si es primera toma o corrección
-  const isFirstCapture = useMemo(() => {
-    if (students.length === 0) return true;
-    // Si algún estudiante no tenía registro guardado previo, es primera toma
-    return students.some(s => initialStatuses[s.enrollmentId] == null);
-  }, [students, initialStatuses]);
+  const enrollmentIds = useMemo(() => students.map(s => s.enrollmentId), [students]);
+  const isFirstCapture = useMemo(() => firstCaptureOf(enrollmentIds, initialStatuses), [enrollmentIds, initialStatuses]);
 
   // Determinar si hubo cambios con respecto a lo guardado
-  const hasChanges = useMemo(() => {
-    return students.some(s => {
-      const prev = initialStatuses[s.enrollmentId] ?? null;
-      const cur = attendanceDraft[s.enrollmentId] ?? 'INASISTENCIA';
-      return prev !== cur;
-    });
-  }, [students, initialStatuses, attendanceDraft]);
+  const hasChanges = useMemo(
+    () => hasAttendanceChanges(enrollmentIds, initialStatuses, attendanceDraft),
+    [enrollmentIds, initialStatuses, attendanceDraft]
+  );
 
-  // Si no hay cambios en corrección, no se requiere motivo
-  // En primera toma con contingencia (lector apagado), se requiere causa y motivo
-  // En corrección con cambios, se requiere motivo
-  const isReasonRequired = !isBiometricActive && (isFirstCapture || hasChanges);
+  // Primera toma: causa y motivo obligatorios. Corrección con cambios: solo motivo.
+  const isReasonRequired = isFirstCapture || hasChanges;
   const trimmedReason = reason.trim();
-  const isReasonValid = !isReasonRequired || (trimmedReason.length > 0 && trimmedReason.length <= 255);
+  const isReasonValid = reasonValid(reason, isReasonRequired);
 
   if (!isOpen) return null;
 
@@ -173,28 +155,14 @@ export default function ModalAsistenciaCurso({
     setAttendanceDraft(updated);
   };
 
-  /**
-   * Simulación del Lector Biométrico en Vivo:
-   * Al hacer clic en un alumno con el biométrico encendido,
-   * simula el pase de huella cambiando su estado a 'PRESENTE'.
-   */
-  const handleSimulateBiometricScan = (enrollmentId: number, studentName: string) => {
-    if (!isBiometricActive) return;
-    setAttendanceDraft(prev => ({ ...prev, [enrollmentId]: 'PRESENTE' }));
-    setBiometricFeedback(`Huella reconocida: ${studentName} marcado como PRESENTE.`);
-    setTimeout(() => {
-      setBiometricFeedback(null);
-    }, 2500);
-  };
-
   const handleSave = async () => {
     if (students.length === 0 || saving) return;
     if (isReasonRequired && trimmedReason.length === 0) {
-      setSaveError('El motivo es obligatorio al registrar o corregir asistencia manualmente.');
+      setSaveError(REASON_REQUIRED_MESSAGE);
       return;
     }
-    if (trimmedReason.length > 255) {
-      setSaveError('El motivo no puede superar los 255 caracteres.');
+    if (trimmedReason.length > ATTENDANCE_REASON_MAX_LENGTH) {
+      setSaveError(REASON_TOO_LONG_MESSAGE);
       return;
     }
 
@@ -209,20 +177,22 @@ export default function ModalAsistenciaCurso({
         targetSession = attendanceData?.sessions?.[0] || null;
       }
 
+      // Sin sesión programada no hay dónde guardar: nunca se anuncia un registro que no ocurrió.
+      if (!targetSession) {
+        setSaveError(NO_SESSION_TODAY_MESSAGE);
+        return;
+      }
+
       const records = students.map(s => ({
         enrollmentId: s.enrollmentId,
-        status: attendanceDraft[s.enrollmentId] || 'INASISTENCIA'
+        status: attendanceDraft[s.enrollmentId] || 'PRESENTE'
       }));
 
-      if (targetSession) {
-        // Enviar con motivo y causa si estamos en modo contingencia (isBiometricActive === false)
-        // O con los datos mínimos según la regla actual del backend
-        await teacherAttendanceService.saveAttendance(sectionCourseId, targetSession.scheduleId, todayInfo.iso, {
-          records,
-          reason: trimmedReason ? trimmedReason : (isBiometricActive ? 'Registro biométrico en aula' : undefined),
-          contingencyCause: isFirstCapture ? contingencyCause : undefined
-        });
-      }
+      await teacherAttendanceService.saveAttendance(sectionCourseId, targetSession.scheduleId, todayInfo.iso, {
+        records,
+        reason: trimmedReason || undefined,
+        contingencyCause: isFirstCapture ? contingencyCause : undefined
+      });
 
       setSaveSuccess('Asistencia registrada exitosamente.');
       setTimeout(() => {
@@ -279,7 +249,7 @@ export default function ModalAsistenciaCurso({
           </div>
         </div>
 
-        {/* Notificaciones de Éxito, Error o Biométrico en Vivo */}
+        {/* Notificaciones de Éxito o Error */}
         {saveSuccess && (
           <div className="mx-4 mt-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
             <CheckCircle2 size={16} className="shrink-0" />
@@ -291,13 +261,6 @@ export default function ModalAsistenciaCurso({
             {saveError}
           </div>
         )}
-        {biometricFeedback && (
-          <div className="mx-4 mt-3 p-2.5 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-            <Fingerprint size={16} className="text-blue-600 shrink-0" />
-            <span>{biometricFeedback}</span>
-          </div>
-        )}
-
         {/* Lista Compacta de Estudiantes */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2">
           {loading ? (
@@ -311,7 +274,7 @@ export default function ModalAsistenciaCurso({
           ) : (
             <>
               {students.map((student, idx) => {
-                const currentStatus = attendanceDraft[student.enrollmentId] || 'INASISTENCIA';
+                const currentStatus = attendanceDraft[student.enrollmentId] || 'PRESENTE';
                 return (
                   <div
                     key={student.enrollmentId}
@@ -324,178 +287,27 @@ export default function ModalAsistenciaCurso({
                       <span className="font-semibold text-xs sm:text-sm text-ink truncate">
                         {student.fullName}
                       </span>
-                      {/* Botón de Huella en Vivo cuando el Biométrico está encendido */}
-                      {isBiometricActive && (
-                        <button
-                          type="button"
-                          onClick={() => handleSimulateBiometricScan(student.enrollmentId, student.fullName)}
-                          title="Simular lectura de huella"
-                          className="p-1 rounded-md text-blue-600 hover:bg-blue-50 transition-colors shrink-0"
-                        >
-                          <Fingerprint size={16} />
-                        </button>
-                      )}
                     </div>
 
                     {/* Selector P / T / F */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: 'PRESENTE' }))
-                        }
-                        className={`w-8 h-8 rounded-lg text-xs font-black transition-all flex items-center justify-center border-2 ${
-                          currentStatus === 'PRESENTE'
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-200'
-                            : 'bg-white text-slate-800 border-slate-300 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50'
-                        }`}
-                        title="Presente"
-                        aria-label={`Marcar Presente a ${student.fullName}`}
-                      >
-                        P
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: 'TARDANZA' }))
-                        }
-                        className={`w-8 h-8 rounded-lg text-xs font-black transition-all flex items-center justify-center border-2 ${
-                          currentStatus === 'TARDANZA'
-                            ? 'bg-amber-500 text-white border-amber-500 shadow-sm ring-2 ring-amber-200'
-                            : 'bg-white text-slate-800 border-slate-300 hover:border-amber-500 hover:text-amber-700 hover:bg-amber-50/50'
-                        }`}
-                        title="Tardanza"
-                        aria-label={`Marcar Tardanza a ${student.fullName}`}
-                      >
-                        T
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: 'INASISTENCIA' }))
-                        }
-                        className={`w-8 h-8 rounded-lg text-xs font-black transition-all flex items-center justify-center border-2 ${
-                          currentStatus === 'INASISTENCIA'
-                            ? 'bg-rose-600 text-white border-rose-600 shadow-sm ring-2 ring-rose-200'
-                            : 'bg-white text-slate-800 border-slate-300 hover:border-rose-500 hover:text-rose-700 hover:bg-rose-50/50'
-                        }`}
-                        title="Falta / Inasistencia"
-                        aria-label={`Marcar Falta a ${student.fullName}`}
-                      >
-                        F
-                      </button>
-                    </div>
+                    <SelectorEstadoAsistencia
+                      studentName={student.fullName}
+                      status={currentStatus}
+                      onChange={status => setAttendanceDraft(prev => ({ ...prev, [student.enrollmentId]: status }))}
+                    />
                   </div>
                 );
               })}
 
-              {/* =========================================================================
-                  SECCIÓN: SWITCH DE REGISTRO BIOMÉTRICO (ON / OFF)
-                 ========================================================================= */}
-              <div className="mt-4 p-3.5 rounded-xl border border-line bg-white shadow-2xs">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className={`p-2 rounded-lg ${isBiometricActive ? 'bg-blue-100 text-blue-700' : 'bg-neutral text-muted'}`}>
-                      <Fingerprint size={18} />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-ink block">Registro biométrico</span>
-                      <span className="text-[10px] text-muted block">
-                        {isBiometricActive
-                          ? 'Lector activo: Los alumnos marcan con su huella en vivo'
-                          : 'Lector inactivo / desconectado: Modo contingencia activado'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Switch Toggle */}
-                  <label htmlFor="biometric-switch" className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      id="biometric-switch"
-                      type="checkbox"
-                      checked={isBiometricActive}
-                      onChange={e => setIsBiometricActive(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-              </div>
-
-              {/* =========================================================================
-                  SECCIÓN: MODAL / CAMPOS DE CONTINGENCIA (CUANDO EL BIOMÉTRICO ESTÁ EN OFF)
-                 ========================================================================= */}
-              {!isBiometricActive && (
-                <div className="mt-2 pt-3 border-t border-line space-y-3 bg-neutral/10 p-3 rounded-xl animate-in fade-in duration-150">
-                  {isFirstCapture ? (
-                    <div>
-                      <label
-                        htmlFor="contingency-cause-select"
-                        className="flex items-center gap-1.5 text-xs font-bold text-ink mb-1.5"
-                      >
-                        <ShieldAlert size={14} className="text-amber-600 shrink-0" />
-                        <span>Causa de contingencia</span>
-                        <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        id="contingency-cause-select"
-                        value={contingencyCause}
-                        onChange={e => setContingencyCause(e.target.value as TeacherContingencyCause)}
-                        className="w-full text-xs font-semibold text-ink bg-white border border-line rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-accent focus:outline-none"
-                      >
-                        {CONTINGENCY_CAUSES.map(c => (
-                          <option key={c.value} value={c.value}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                      <ShieldAlert size={14} className="text-blue-500 shrink-0" />
-                      <span>Modo corrección de asistencia (se conserva causa original de contingencia)</span>
-                    </div>
-                  )}
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label
-                        htmlFor="attendance-reason-input"
-                        className="flex items-center gap-1.5 text-xs font-bold text-ink"
-                      >
-                        <FileText size={14} className="text-accent shrink-0" />
-                        <span>Motivo / Justificación</span>
-                        {isReasonRequired && <span className="text-rose-500">*</span>}
-                      </label>
-                      <span className={`text-[10px] font-bold ${reason.length > 255 ? 'text-rose-600' : 'text-muted'}`}>
-                        {reason.length}/255
-                      </span>
-                    </div>
-                    <input
-                      id="attendance-reason-input"
-                      type="text"
-                      maxLength={255}
-                      value={reason}
-                      onChange={e => setReason(e.target.value)}
-                      placeholder={
-                        isFirstCapture
-                          ? 'Ej. Registro regular de asistencia en aula por falta de lector'
-                          : 'Ej. Corrección por ingreso justificado del estudiante'
-                      }
-                      className={`w-full text-xs text-ink bg-white border rounded-lg px-2.5 py-2 placeholder:text-muted/70 focus:outline-none focus:ring-2 ${
-                        reason.length > 255
-                          ? 'border-rose-400 focus:ring-rose-400'
-                          : 'border-line focus:ring-accent'
-                      }`}
-                    />
-                    {isReasonRequired && trimmedReason.length === 0 && (
-                      <p className="text-[10px] text-muted mt-1">
-                        El motivo es obligatorio cuando el lector biométrico está inactivo.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* Contingencia (primera toma) o corrección manual */}
+              <JustificacionAsistencia
+                firstCapture={isFirstCapture}
+                reasonRequired={isReasonRequired}
+                contingencyCause={contingencyCause}
+                onContingencyCauseChange={setContingencyCause}
+                reason={reason}
+                onReasonChange={setReason}
+              />
             </>
           )}
         </div>

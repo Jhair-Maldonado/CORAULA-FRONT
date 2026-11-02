@@ -8,6 +8,7 @@ import {
   dailyAttendanceErrorMessage, dailyAttendanceService, defaultAcademicPeriod, defaultAttendanceDate, formatAttendancePercentage, limaToday,
 } from '@/services/admin/dailyAttendanceService';
 import { sectionsService } from '@/services/admin/sectionsService';
+import IndicadoresPeriodo from './component/IndicadoresPeriodo';
 import type { AcademicPeriod } from '@/types/academicPeriodApi';
 import type { DailyAttendanceIndicator, DailyAttendanceStatus } from '@/types/dailyAttendanceApi';
 import type { SectionResponse } from '@/types/sectionApi';
@@ -143,10 +144,7 @@ function Dashboard() {
         </>}
     </section>
 
-    <section aria-labelledby="general-average-title" className={card}>
-      <h2 id="general-average-title" className="text-base font-bold text-ink">Promedio general</h2>
-      <p className="text-xs text-muted mt-2">Disponible próximamente: aún no existe un indicador aprobado.</p>
-    </section>
+    {!periodsLoading && <IndicadoresPeriodo period={defaultAcademicPeriod(periods)} today={today} />}
   </div>;
 }
 

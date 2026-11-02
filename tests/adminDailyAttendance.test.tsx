@@ -12,6 +12,9 @@ import {
   dailyAttendanceErrorMessage, dailyAttendanceService, defaultAcademicPeriod, defaultAttendanceDate, formatAttendancePercentage, limaToday, parseDailyAttendance,
 } from '../src/services/admin/dailyAttendanceService';
 import { sectionsService } from '../src/services/admin/sectionsService';
+import { dashboardIndicatorsService } from '../src/services/admin/dashboardIndicatorsService';
+import { evaluationService } from '../src/services/admin/evaluationService';
+import { managementEarlyAlertsService } from '../src/services/admin/managementEarlyAlertsService';
 import httpClient from '../src/services/httpClient';
 import type { AcademicPeriod } from '../src/types/academicPeriodApi';
 import type { DailyAttendanceIndicator, DailyAttendanceParams } from '../src/types/dailyAttendanceApi';
@@ -51,7 +54,15 @@ type Harness = { renderer: ReactTestRenderer; text: () => string; field: (label:
   click: (label: string) => Promise<void>; gets: DailyAttendanceParams[]; sectionCalls: SectionListParams[] };
 
 async function view(options: Mocks, run: (h: Harness) => Promise<void>) {
-  const old = { list: academicPeriodsService.list, sections: sectionsService.list, get: dailyAttendanceService.get };
+  const old = { list: academicPeriodsService.list, sections: sectionsService.list, get: dailyAttendanceService.get,
+    bimesters: evaluationService.getBimesters, alerts: managementEarlyAlertsService.list, vacancies: dashboardIndicatorsService.vacancies };
+  // The period indicator cards stay offline here; their own behaviour is covered in adminDashboardIndicators.
+  evaluationService.getBimesters = async () => [];
+  managementEarlyAlertsService.list = async () => { throw new Error('unexpected early alerts request'); };
+  dashboardIndicatorsService.vacancies = async () => ({ totalCapacity: 0, activeEnrollmentCount: 0, availableVacancies: 0, grades: 0 });
+  // next/link in those cards reads `self`.
+  const oldSelf = Object.getOwnPropertyDescriptor(globalThis, 'self');
+  Object.defineProperty(globalThis, 'self', { configurable: true, value: globalThis });
   const gets: DailyAttendanceParams[] = []; const sectionCalls: SectionListParams[] = [];
   const get = options.get ?? echo();
   academicPeriodsService.list = options.periods ?? (async () => [period(1, { current: true }), period(2)]);
@@ -72,6 +83,8 @@ async function view(options: Mocks, run: (h: Harness) => Promise<void>) {
   } finally {
     if (renderer) await act(async () => { renderer.unmount(); });
     academicPeriodsService.list = old.list; sectionsService.list = old.sections; dailyAttendanceService.get = old.get;
+    evaluationService.getBimesters = old.bimesters; managementEarlyAlertsService.list = old.alerts; dashboardIndicatorsService.vacancies = old.vacancies;
+    if (oldSelf) Object.defineProperty(globalThis, 'self', oldSelf); else Reflect.deleteProperty(globalThis, 'self');
   }
 }
 const last = <T,>(list: T[]) => list[list.length - 1];
@@ -153,7 +166,7 @@ test('PARTIAL shows the provisional percentage; COMPLETE shows the final one, ev
     assert.match(page, new RegExp(`Fecha: ${today.split('-').reverse().join('/')}`));
     assert.match(page, /Ámbito: Todas las secciones/); assert.match(page, /100 estudiantes esperados/); assert.match(page, /4 secciones con clase · 1 sin clase/);
     assert.match(page, /Presentes80Tardanzas5Inasistencias10Sin registro5/);
-    assert.match(page, /Promedio general.*Disponible próximamente/); assert.doesNotMatch(page, /Bienvenido Administrador/);
+    assert.doesNotMatch(page, /Promedio general|próximamente/); assert.doesNotMatch(page, /Bienvenido Administrador/);
   });
   await view({ get: echo({ status: 'COMPLETE', present: 0, late: 0, absent: 100, unrecorded: 0, attendancePercentage: 0 }) }, async h => {
     assert.match(h.text(), /0\.00 %/); assert.match(h.text(), /registrada para todos/); assert.doesNotMatch(h.text(), /Provisional/);

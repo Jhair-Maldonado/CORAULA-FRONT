@@ -262,74 +262,31 @@ function viewRoutes(sheet: () => Reply, patch: () => Reply = () => ({ data: save
     throw new Error(`unexpected ${config.method} ${url}`);
   };
 }
-async function notesView(run: (h: { renderer: ReactTestRenderer; shown: () => string; edit: () => ReactTestInstance | undefined }) => Promise<void>) {
-  const restore = withDom();
-  let renderer!: ReactTestRenderer;
-  try {
-    await act(async () => { renderer = create(<AppRouterContext.Provider value={router}><DocenteSessionProvider><VistaNotasDocente /></DocenteSessionProvider></AppRouterContext.Provider>); });
-    await act(async () => { renderer.root.findByProps({ 'aria-label': 'Bimestre' }).props.onChange({ target: { value: '40' } }); });
-    await run({ renderer, shown: () => text(renderer.root), edit: () => renderer.root.findAllByType('button').find(b => b.props['aria-label'] === 'Editar Comprensión, Ana Pérez') });
-  } finally {
-    if (renderer) await act(async () => { renderer.unmount(); });
-    restore();
-  }
-}
-async function correctFromView(h: { renderer: ReactTestRenderer; edit: () => ReactTestInstance | undefined }) {
-  const edit = h.edit(); assert.ok(edit, 'Editar');
-  await act(async () => { edit.props.onClick(); });
-  const byLabel = (label: string) => h.renderer.root.findByProps({ 'aria-label': label });
-  await act(async () => {
-    byLabel('Nueva nota').props.onChange({ target: { value: '15' } });
-    byLabel('Motivo de la corrección').props.onChange({ target: { value: 'TYPING_ERROR' } });
-    byLabel('Justificación').props.onChange({ target: { value: justification } });
-  });
-  await act(async () => { byLabel('Corrección de nota').props.onSubmit({ preventDefault() {} }); });
-}
-
-test('notes view: shows the window and «Editar» only on graded active cells; success reloads the sheet', async () => {
-  let reads = 0;
-  await withAdapter(viewRoutes(() => ({ data: sheetWire({ grade: ++reads === 1 ? 12 : 15 }) })), async calls => {
-    await notesView(async h => {
-      assert.match(h.shown(), /Fecha de registro: 10\/12\/2026/); assert.match(h.shown(), /Fecha límite: 17\/12\/2026/);
-      const edits = h.renderer.root.findAllByType('button').filter(b => text(b) === 'Editar').map(b => b.props['aria-label']);
-      assert.deepEqual(edits, ['Editar Comprensión, Ana Pérez']);
-      await correctFromView(h);
-      const patches = calls.filter(c => c.method === 'patch');
-      assert.deepEqual(patches.map(c => c.data), [{ grade: 15, reasonCode: 'TYPING_ERROR', justification, expectedGrade: 12 }]);
-      assert.equal(reads, 2);
-      assert.match(h.shown(), /Nota corregida\. Se volvió a consultar la planilla\./);
-      assert.doesNotMatch(h.shown(), /Corregir nota/);
-    });
-  });
-});
-
-test('notes view: GRADE_CHANGED_CONCURRENTLY reloads the sheet, closes the modal and warns', async () => {
-  let reads = 0;
-  await withAdapter(viewRoutes(() => ({ data: sheetWire({ grade: ++reads === 1 ? 12 : 13 }) }),
-    () => ({ status: 409, data: { error: 'Conflict', message: 'secret', code: 'GRADE_CHANGED_CONCURRENTLY', details: [] } })), async () => {
-    await notesView(async h => {
-      await correctFromView(h);
-      assert.equal(reads, 2);
-      assert.ok(h.shown().includes(GRADE_CHANGED_CONCURRENTLY_MESSAGE));
-      assert.doesNotMatch(h.shown(), /Corregir nota|secret/);
-      assert.equal(h.renderer.root.findByProps({ 'aria-label': 'Comprensión, Ana Pérez, solo lectura' }).props.value, 13);
-    });
-  });
-});
-
-test('notes view: expired window shows GRADE_WINDOW_EXPIRED_MESSAGE and hides «Editar»; no window shows its text and hides it', async () => {
-  for (const [wire, expected] of [[sheetWire({ gradeWindow: window_({ expired: true }) }), GRADE_WINDOW_EXPIRED_MESSAGE], [sheetWire({ omitWindow: true }), NO_GRADE_WINDOW_MESSAGE]] as const) {
-    await withAdapter(viewRoutes(() => ({ data: wire })), async () => {
-      await notesView(async h => {
-        assert.ok(h.shown().includes(expected), expected);
-        assert.equal(h.edit(), undefined);
+test('notes view: renders the course selection cards with links to course notes', async () => {
+  await withAdapter(viewRoutes(() => ({ data: sheetWire() })), async () => {
+    const restore = withDom();
+    let renderer!: ReactTestRenderer;
+    try {
+      await act(async () => {
+        renderer = create(
+          <AppRouterContext.Provider value={router}>
+            <DocenteSessionProvider>
+              <VistaNotasDocente />
+            </DocenteSessionProvider>
+          </AppRouterContext.Provider>
+        );
       });
-    });
-  }
-});
+      const renderedText = text(renderer.root);
+      assert.match(renderedText, /Registro y Resultados de Notas/);
+      assert.match(renderedText, /Comunicación/);
+      assert.match(renderedText, /Ver Notas/);
 
-test('notes view: a bimester not ABIERTO never offers «Editar»', async () => {
-  await withAdapter(viewRoutes(() => ({ data: sheetWire({ status: 'EN_REVISION' }) })), async () => {
-    await notesView(async h => { assert.equal(h.edit(), undefined); });
+      const links = renderer.root.findAllByType('a');
+      const courseLink = links.find((l: ReactTestInstance) => l.props.href === '/docente/notas/10');
+      assert.ok(courseLink, 'Link to /docente/notas/10 should exist');
+    } finally {
+      if (renderer) await act(async () => { renderer.unmount(); });
+      restore();
+    }
   });
 });

@@ -28,7 +28,7 @@ jobs:
 
       - name: Ejecutar revisión de código (Linter)
         run: npm run lint
-
+        
       - name: Compilar el proyecto (Build Test)
         run: npm run build
         env:

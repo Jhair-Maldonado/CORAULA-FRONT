@@ -1,4 +1,5 @@
-import axios from 'axios';
+import axios, { type AxiosAdapter } from 'axios';
+import { API_BASE_URL, API_TIMEOUT } from '@/config/appConfig';
 
 export const PASSWORD_CHANGE_REQUIRED_EVENT = 'auth:password-change-required';
 
@@ -6,14 +7,28 @@ export const LOGIN_URL = '/v1/auth/login';
 
 /**
  * Cliente HTTP estandarizado (Axios).
- * Configurado con la URL base del entorno.
+ * URL base y timeout según el modo de ejecución (src/config/appConfig.ts).
  */
 const httpClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api',
+  baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+/** Marca del adaptador simulado: permite comprobar que fuera de MOCK no se instala. */
+export const MOCK_ADAPTER_MARK = '__coraulaMockAdapter';
+
+// Solo en MOCK. La condición usa acceso literal a NEXT_PUBLIC_*: Next la resuelve en el build y, fuera de MOCK,
+// descarta la importación, así que los usuarios y datos de demostración no llegan al bundle.
+if (
+  process.env.NEXT_PUBLIC_APP_MODE === 'MOCK'
+  || (!process.env.NEXT_PUBLIC_APP_MODE && process.env.NEXT_PUBLIC_USE_MOCKS === 'true')
+) {
+  const adapter: AxiosAdapter = async (config) => (await import('@/mocks/http/mockAdapter')).mockAdapter(config);
+  httpClient.defaults.adapter = Object.assign(adapter, { [MOCK_ADAPTER_MARK]: true });
+}
 
 /**
  * Interceptor de Solicitudes (Request).

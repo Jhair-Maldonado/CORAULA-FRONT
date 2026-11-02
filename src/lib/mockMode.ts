@@ -1,5 +1,8 @@
 // src/lib/mockMode.ts
-// Determina si se usan mocks o backend real según variable de entorno
+// true solo en modo MOCK (src/config/appConfig.ts). Se evalúa en cada llamada.
+// `value` es el valor obsoleto de NEXT_PUBLIC_USE_MOCKS: "true" sin NEXT_PUBLIC_APP_MODE equivale a MOCK.
+import { readAppEnv, resolveAppMode } from '@/config/appConfig';
+
 export function isMockDataEnabled(value = process.env.NEXT_PUBLIC_USE_MOCKS): boolean {
-  return value !== 'false';
+  return resolveAppMode({ ...readAppEnv(), useMocks: value }) === 'MOCK';
 }

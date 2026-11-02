@@ -86,13 +86,14 @@ test('getHijos with mocks off: failures become sanitized errors, never mock chil
   });
 });
 
-test('getHijos returns MOCK_HIJOS only when isMockDataEnabled() is true', async () => {
+// Modos de ejecución (D1): en MOCK, 'hijos' usa el servicio real y lo responde el adaptador simulado de httpClient.
+test('getHijos in MOCK mode calls the real service (served by the mock adapter), never MOCK_HIJOS', async () => {
   process.env.NEXT_PUBLIC_USE_MOCKS = 'true';
   try {
     await withBackend({ status: 200, data: [ANA] }, async urls => {
       const hijos = await getHijos();
-      assert.equal(urls.length, 0);
-      assert.deepEqual(hijos.map(h => h.id), MOCK_HIJOS.map(h => h.id));
+      assert.deepEqual(urls, ['/v1/guardian/students']);
+      assert.deepEqual(hijos.map(h => h.id), ['57']);
     });
   } finally {
     process.env.NEXT_PUBLIC_USE_MOCKS = 'false';
@@ -168,7 +169,8 @@ test('HijosMatriculados with mocks off: no "Editar Ficha" button nor edit modal'
 test('HijosMatriculados with mocks on: "Editar Ficha" stays available for demo', async () => {
   process.env.NEXT_PUBLIC_USE_MOCKS = 'true';
   try {
-    const out = await renderHijos({ status: 200, data: [] });
+    // Los hijos llegan del servicio (en MOCK, del adaptador simulado): la tarjeta necesita al menos uno.
+    const out = await renderHijos({ status: 200, data: [ANA] });
     assert.ok(out.includes('Editar Ficha'), out);
   } finally {
     process.env.NEXT_PUBLIC_USE_MOCKS = 'false';

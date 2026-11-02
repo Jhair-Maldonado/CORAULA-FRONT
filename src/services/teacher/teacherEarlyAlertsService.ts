@@ -1,8 +1,11 @@
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { contractErrorCode } from '@/services/admin/contractErrors';
-import { isIsoDate } from '@/lib/gradeWindowContract';
-import type { EarlyWarning, EarlyWarningsPage } from '@/types/teacherEarlyAlertsApi';
+import { EARLY_ALERTS_PAGE_SIZE, isValidEarlyAlertsPage, parseEarlyWarningsPage } from '@/lib/earlyWarningsContract';
+import type { EarlyWarningsPage } from '@/types/teacherEarlyAlertsApi';
+
+// The page contract lives in @/lib/earlyWarningsContract (shared with management); re-exported for existing callers.
+export { EARLY_ALERTS_MAX_PAGE_SIZE, EARLY_ALERTS_PAGE_SIZE, parseEarlyWarningsPage } from '@/lib/earlyWarningsContract';
 
 // Backend #52: EarlyWarningsController.Teacher + EarlyWarningsExceptionHandler (develop).
 // 401/403 never carry a code. A code counts only with its contract status (contractErrors.ts).
@@ -15,48 +18,8 @@ const contractStatuses = {
 export type TeacherEarlyAlertsErrorCode = keyof typeof contractStatuses;
 export const TEACHER_EARLY_ALERTS_ERROR_CODES = Object.keys(contractStatuses) as TeacherEarlyAlertsErrorCode[];
 
-export const EARLY_ALERTS_PAGE_SIZE = 20;
-/** EarlyWarningsService.validatePage: size from 1 to 100, page from 0. */
-export const EARLY_ALERTS_MAX_PAGE_SIZE = 100;
 export const EARLY_ALERTS_EMPTY_MESSAGE = 'No hay alertas generadas para este curso en el bimestre';
 export const EARLY_ALERTS_COURSE_UNAVAILABLE_MESSAGE = 'Curso no disponible para tu cuenta';
-
-function invalid(): never { throw new Error('La respuesta de alertas tempranas no coincide con el contrato.'); }
-function object(value: unknown): Record<string, unknown> { if (!value || typeof value !== 'object' || Array.isArray(value)) return invalid(); return value as Record<string, unknown>; }
-function id(value: unknown): number { if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) return invalid(); return value; }
-function count(value: unknown): number { if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) return invalid(); return value; }
-function text(value: unknown): string { if (typeof value !== 'string' || !value.trim()) return invalid(); return value; }
-function timestamp(value: unknown): string { if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) return invalid(); return value; }
-// V26: nota_pa DECIMAL(3,1) between 0 and 10.9.
-function pa(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value >= 11 || Math.abs(value * 10 - Math.round(value * 10)) > 1e-8) return invalid();
-  return value;
-}
-
-function warning(value: unknown, expected: { sectionCourseId: number; bimesterId: number }): EarlyWarning {
-  const w = object(value);
-  const sectionCourseId = id(w.sectionCourseId), bimesterId = id(w.bimesterId);
-  if (sectionCourseId !== expected.sectionCourseId || bimesterId !== expected.bimesterId) return invalid();
-  if (w.studentCode !== null && (typeof w.studentCode !== 'string' || !w.studentCode.trim())) return invalid();
-  if (!isIsoDate(w.evaluatedOn)) return invalid();
-  return {
-    alertId: id(w.alertId), enrollmentId: id(w.enrollmentId), sectionCourseId, bimesterId, studentId: id(w.studentId),
-    studentCode: w.studentCode as string | null, fullName: text(w.fullName), courseName: text(w.courseName), sectionName: text(w.sectionName),
-    paAtDetection: pa(w.paAtDetection), activityCount: id(w.activityCount), evaluatedOn: w.evaluatedOn, detectedAt: timestamp(w.detectedAt),
-  };
-}
-
-export function parseEarlyWarningsPage(value: unknown, expected: { sectionCourseId: number; bimesterId: number; page: number; size: number }): EarlyWarningsPage {
-  const p = object(value);
-  if (!Array.isArray(p.content)) return invalid();
-  const page = count(p.page), size = id(p.size), totalElements = count(p.totalElements), totalPages = count(p.totalPages);
-  // The backend counts and lists in separate reads, so content is not matched against totalElements exactly.
-  if (page !== expected.page || size !== expected.size || totalPages !== Math.ceil(totalElements / size) || p.content.length > size) return invalid();
-  // UNIQUE (matricula_id, seccion_curso_id, bimestre_id): one alert per enrollment in this course and bimester.
-  const content = p.content.map(item => warning(item, expected));
-  if (new Set(content.map(w => w.alertId)).size !== content.length || new Set(content.map(w => w.enrollmentId)).size !== content.length) return invalid();
-  return { content, page, size, totalElements, totalPages };
-}
 
 function requestId(value: number): number {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error('El curso y el bimestre deben ser enteros positivos.');
@@ -65,7 +28,7 @@ function requestId(value: number): number {
 
 export const teacherEarlyAlertsService = {
   async list(sectionCourseId: number, bimesterId: number, page = 0, size = EARLY_ALERTS_PAGE_SIZE, signal?: AbortSignal): Promise<EarlyWarningsPage> {
-    if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(size) || size < 1 || size > EARLY_ALERTS_MAX_PAGE_SIZE) throw new Error('La paginación solicitada no es válida.');
+    if (!isValidEarlyAlertsPage(page, size)) throw new Error('La paginación solicitada no es válida.');
     const url = `/v1/teacher/courses/${requestId(sectionCourseId)}/bimesters/${requestId(bimesterId)}/early-alerts`;
     const response = await httpClient.get<unknown>(url, { params: { page, size }, signal });
     return parseEarlyWarningsPage(response.data, { sectionCourseId, bimesterId, page, size });

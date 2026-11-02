@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, FileText, Upload } from 'lucide-react';
+import { AlertCircle, Upload } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import ElementoMaterial from '@/components/materials/ElementoMaterial';
+import { deliverToPendingTab } from '@/lib/classMaterialsContract';
 import type { ClassMaterial } from '@/types/teacherMaterialsApi';
 import {
   DOWNLOAD_POPUP_BLOCKED_MESSAGE, MATERIAL_ACCEPT, MATERIAL_DESCRIPTION_MAX_LENGTH, MATERIAL_TITLE_MAX_LENGTH, MATERIAL_WITHDRAWAL_REASON_MAX_LENGTH, isUncertainPublish,
@@ -15,18 +17,12 @@ const input = 'w-full mt-1.5 p-2.5 rounded-lg border border-line bg-white text-i
 const button = 'min-h-10 px-3 py-2 rounded-lg text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 disabled:cursor-not-allowed';
 const secondary = `${button} bg-white border border-line hover:bg-neutral`;
 const primary = `${button} bg-accent text-white hover:bg-accent/90`;
-const dateTime = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' });
 
 function size(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-const formatLabel: Record<string, string> = {
-  'application/pdf': 'PDF',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint',
-};
 
 // FRONT #52: class materials of the course-section (BACK #53). Published directly by the teacher; the backend
 // decides every result. No local or simulated material is ever listed.
@@ -96,11 +92,9 @@ export default function MaterialesDocente({ sectionCourseId }: { sectionCourseId
     if (!tab) { setNotice(null); setError(DOWNLOAD_POPUP_BLOCKED_MESSAGE); return; }
     void run(async () => {
       try {
-        // parseDownloadUrl rejects anything that is not an http/https URL.
-        const { url } = await teacherMaterialsService.downloadUrl(sectionCourseId, material.id);
-        tab.location.replace(url);
+        // parseDownloadUrl rejects anything that is not an http/https URL; the tab is closed on failure.
+        await deliverToPendingTab(tab, () => teacherMaterialsService.downloadUrl(sectionCourseId, material.id));
       } catch (failure) {
-        tab.close();
         setError(teacherMaterialsErrorMessage(failure, 'download'));
         if (materialsRequireReload(failure)) reload();
       }
@@ -170,24 +164,10 @@ export default function MaterialesDocente({ sectionCourseId }: { sectionCourseId
           : load?.error ? <div role="alert" className="text-xs text-rose-700"><p>{load.error}</p><button type="button" className={`${secondary} mt-2`} onClick={reload}>Reintentar materiales</button></div>
           : !materials?.length ? <p className="text-xs text-muted">Este curso aún no tiene materiales publicados.</p>
           : <ul className="flex flex-col gap-2">
-              {materials.map(m => <li key={m.id} className={`p-3 rounded-lg border text-xs ${m.status === 'RETIRADO' ? 'border-line bg-neutral/30' : 'border-line bg-white'}`}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-2 font-bold text-sm text-ink break-words"><FileText size={14} aria-hidden="true" />{m.title}</p>
-                    <p className="text-muted mt-1">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${m.status === 'RETIRADO' ? 'bg-neutral text-muted border-line' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>{m.status === 'RETIRADO' ? 'Retirado' : 'Publicado'}</span>
-                      {' '}{formatLabel[m.file.mimeType] ?? m.file.mimeType} · {size(m.file.sizeBytes)} · {m.authorTeacherName} · <time dateTime={m.publishedAt}>{dateTime.format(new Date(m.publishedAt))}</time>
-                    </p>
-                    <p className="text-[11px] text-muted font-mono mt-1 break-all">{m.file.originalName}</p>
-                    {m.description && <p className="text-muted mt-1 whitespace-pre-line break-words">{m.description}</p>}
-                    {m.status === 'RETIRADO' && <p className="mt-1 text-amber-800">Retirado{m.withdrawnAt && <> el <time dateTime={m.withdrawnAt}>{dateTime.format(new Date(m.withdrawnAt))}</time></>}. Motivo: {m.withdrawalReason}</p>}
-                  </div>
-                  {m.status === 'PUBLICADO' && <div className="flex gap-2 shrink-0">
-                    <button type="button" aria-label={`Descargar ${m.title}`} className={secondary} disabled={busy} onClick={() => download(m)}>Descargar</button>
-                    <button type="button" aria-label={`Retirar ${m.title}`} className={`${secondary} text-rose-700`} disabled={busy} onClick={() => { setWithdrawing(m); setReason(''); setReasonError(null); setNotice(null); setError(null); }}>Retirar</button>
-                  </div>}
-                </div>
-              </li>)}
+              {materials.map(m => <ElementoMaterial key={m.id} material={m} actions={m.status === 'PUBLICADO' && <>
+                <button type="button" aria-label={`Descargar ${m.title}`} className={secondary} disabled={busy} onClick={() => download(m)}>Descargar</button>
+                <button type="button" aria-label={`Retirar ${m.title}`} className={`${secondary} text-rose-700`} disabled={busy} onClick={() => { setWithdrawing(m); setReason(''); setReasonError(null); setNotice(null); setError(null); }}>Retirar</button>
+              </>} />)}
             </ul>}
       </section>
 

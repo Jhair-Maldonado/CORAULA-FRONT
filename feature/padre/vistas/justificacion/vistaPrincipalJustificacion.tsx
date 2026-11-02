@@ -65,7 +65,7 @@ const MOCK_CALENDARIO = Array.from({ length: 31 }, (_, i) => {
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 export default function VistaPrincipalJustificacion() {
-  const { hijos, selectedHijoId, setSelectedHijoId } = usePadre();
+  const { hijos, hijoActivo, setSelectedHijoId } = usePadre();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [fechaJustificar, setFechaJustificar] = useState<string | undefined>(undefined);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -83,7 +83,6 @@ export default function VistaPrincipalJustificacion() {
     if (canNext) setSelectedMes(MESES[mesIndex + 1]);
   };
 
-  const hijoActivo = hijos.find(h => h.id === selectedHijoId) || hijos[0];
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

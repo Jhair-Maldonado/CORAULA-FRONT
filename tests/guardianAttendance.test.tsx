@@ -16,8 +16,8 @@ const RESPONSE: GuardianAttendanceResponse = {
   to: '2026-10-31',
   summary: { total: 2, present: 1, late: 0, absent: 1 },
   records: [
-    { date: '2026-10-05', courseName: 'Matemática', startTime: '08:00', endTime: '09:30', status: 'PRESENTE', justification: null },
-    { date: '2026-10-06', courseName: 'Historia', startTime: '10:00', endTime: '11:30', status: 'INASISTENCIA', justification: null },
+    { date: '2026-10-05', courseName: 'Matemática', startTime: '08:00', endTime: '09:30', status: 'PRESENTE', attendanceId: 501, justified: false, justification: null },
+    { date: '2026-10-06', courseName: 'Historia', startTime: '10:00', endTime: '11:30', status: 'INASISTENCIA', attendanceId: 502, justified: false, justification: null },
   ],
 };
 

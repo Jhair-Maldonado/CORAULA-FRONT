@@ -2,9 +2,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { usePadre } from '@/components/padres/PadreContext'; 
-import { CheckmarkCircle01Icon, Alert01Icon, PencilEdit02Icon, StarIcon } from 'hugeicons-react';
-import { EdicionHijoModal } from './component/edicionHijoModal'; 
+import { usePadre } from '@/components/padres/PadreContext';
+import { EdicionHijoModal } from './component/edicionHijoModal';
+import { TarjetaHijoVinculado } from './component/tarjetaHijoVinculado';
 import { HijoResumen } from '@/types/padre';
 import { isMockDataEnabled } from '@/lib/mockMode';
 
@@ -15,7 +15,7 @@ export default function HijosMatriculados() {
 
   // Estado para el modal de edición
   const [hijoEditando, setHijoEditando] = useState<HijoResumen | null>(null);
-  
+
   // Simulación de actualización local
   const [hijosLocal, setHijosLocal] = useState<HijoResumen[]>([]);
 
@@ -53,7 +53,7 @@ export default function HijosMatriculados() {
       <div className="mb-6 px-2">
         <h1 className="text-base font-black text-ink uppercase tracking-wider">Estudiantes a Cargo</h1>
         <p className="text-xs text-muted font-medium mt-1">
-          Seleccione un estudiante para visualizar su rendimiento y asistencia en el tablero principal.
+          Seleccione un estudiante para consultar su asistencia y los demás módulos del portal.
         </p>
       </div>
 
@@ -63,102 +63,15 @@ export default function HijosMatriculados() {
             <p className="text-[11px] font-bold text-muted">No tiene estudiantes vinculados</p>
           </div>
         ) : (
-          listaHijos.map((hijo) => {
-            const isSelected = hijo.id === selectedHijoId;
-            // Sin datos de rendimiento del backend no se muestran cifras.
-            const hasRendimiento = hijo.promedioGeneral != null;
-            const desaprobados = hijo.cursosBajos || 0;
-            const aprobados = 12 - desaprobados; // Simulado en base a 12 cursos totales (solo mocks)
-            const promedioStr = hijo.promedioGeneral != null ? hijo.promedioGeneral.toFixed(1) : 'Sin datos';
-
-            return (
-              <div 
-                key={hijo.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-all shadow-sm gap-4 border-line bg-white hover:border-muted"
-              >
-                {/* Lado Izquierdo: Info (No clickable) */}
-                <div className="flex items-center gap-4 flex-1">
-                  {/* Avatar */}
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-sm shrink-0 border bg-slate-100 text-slate-500 border-slate-200">
-                    {hijo.fotoUrl ? (
-                      <img src={hijo.fotoUrl} alt={hijo.nombres} className="w-full h-full rounded-full object-cover" />
-                    ) : (
-                      hijo.nombres.charAt(0) + hijo.apellidos.charAt(0)
-                    )}
-                  </div>
-                  
-                  {/* Info Básica */}
-                  <div>
-                    <h2 className="text-[12px] font-black leading-tight text-ink">
-                      {hijo.nombreCompleto}
-                    </h2>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[9px] font-bold text-muted uppercase tracking-wider bg-neutral px-1.5 py-0.5 rounded">
-                        {hijo.grado || hijo.seccion ? `${hijo.grado} "${hijo.seccion}"` : 'Sin sección'}{hijo.nivel ? ` - ${hijo.nivel}` : ''}
-                      </span>
-                      <span className="text-[9px] font-bold text-muted">
-                        Tutor: <span className="text-ink">{hijo.tutor || 'Sin datos'}</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Lado Derecho: Resumen, Promedio y Edición */}
-                <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-3 sm:pt-0 border-t sm:border-t-0 border-line/60">
-                  
-                  {/* Resumen de Rendimiento (Promedio y Cursos) */}
-                  <div className="flex items-center gap-4">
-                    {/* Promedio General */}
-                    <div className="flex flex-col items-center justify-center bg-white border border-line px-2.5 py-1.5 rounded-lg shadow-sm">
-                      <span className="text-[8px] font-bold text-muted uppercase tracking-wider mb-0.5">Promedio</span>
-                      <div className="flex items-center gap-1 text-accent">
-                        <StarIcon size={12} className="fill-accent" />
-                        <span className="text-[14px] font-black">{promedioStr}</span>
-                      </div>
-                    </div>
-
-                    <div className="w-px h-8 bg-line hidden sm:block"></div>
-                    
-                    <div className="flex items-center gap-4">
-                      <div className="flex flex-col items-end">
-                        <span className="text-[9px] font-bold text-muted uppercase tracking-wider mb-0.5">Aprobados</span>
-                        <div className="flex items-center gap-1 text-success-ink">
-                          <CheckmarkCircle01Icon size={12} />
-                          <span className="text-[11px] font-black">{hasRendimiento ? `${aprobados} cursos` : 'Sin datos'}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="w-px h-6 bg-line"></div>
-                      
-                      <div className="flex flex-col items-start">
-                        <span className="text-[9px] font-bold text-muted uppercase tracking-wider mb-0.5">En Riesgo</span>
-                        <div className={`flex items-center gap-1 ${desaprobados > 0 ? 'text-accent' : 'text-muted'}`}>
-                          <Alert01Icon size={12} />
-                          <span className="text-[11px] font-black">{hasRendimiento ? `${desaprobados} cursos` : 'Sin datos'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Acciones (solo modo demostración) */}
-                  {mocksActivos && (
-                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setHijoEditando(hijo);
-                      }}
-                      className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-neutral text-ink border border-line hover:bg-line/40 transition-colors flex items-center gap-1.5 shadow-sm"
-                    >
-                      <PencilEdit02Icon size={14} /> Editar Ficha
-                    </button>
-                  </div>
-                  )}
-
-                </div>
-              </div>
-            );
-          })
+          listaHijos.map((hijo) => (
+            <TarjetaHijoVinculado
+              key={hijo.id}
+              hijo={hijo}
+              seleccionado={hijo.id === selectedHijoId}
+              onSeleccionar={() => setSelectedHijoId(hijo.id)}
+              onEditar={mocksActivos ? () => setHijoEditando(hijo) : undefined}
+            />
+          ))
         )}
       </div>
 

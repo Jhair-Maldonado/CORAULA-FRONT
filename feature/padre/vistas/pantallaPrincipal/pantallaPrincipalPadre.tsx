@@ -36,19 +36,13 @@ function DashboardSkeleton() {
 // Página Principal (Arquitectura Fichas)
 // ─────────────────────────────────────────────────────────────
 export default function PantallaPrincipalPadre() {
-  const { selectedHijoId, hijos, setSelectedHijoId } = usePadre();
+  // El contexto ya resuelve el hijo activo (el seleccionado o el primero vinculado).
+  const { hijoActivo, hijos } = usePadre();
+  const selectedHijoId = hijoActivo?.id ?? '';
   const [resumen, setResumen] = useState<ResumenDashboardPadre | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'resumen' | 'calificaciones' | 'horario' | 'asistencia'>('resumen');
-
-  // Auto-seleccionar el primer hijo si no hay uno seleccionado
-  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
-  useEffect(() => {
-    if (!selectedHijoId && hijos.length > 0) {
-      setSelectedHijoId(hijos[0].id);
-    }
-  }, [hijos, selectedHijoId, setSelectedHijoId]);
 
   const cargar = useCallback(async () => {
     if (!selectedHijoId) return;

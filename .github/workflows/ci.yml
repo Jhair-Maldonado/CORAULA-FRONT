@@ -31,6 +31,16 @@ jobs:
 
     - name: Compilar el proyecto (Build Test)
       run: npm run build
+      env:
+        NEXT_PUBLIC_APP_MODE: PRODUCTION
+        NEXT_PUBLIC_API_URL: https://ci.invalid/api
+
+    - name: Verificar que el build de producción no contiene usuarios demo
+      run: |
+        if grep -rl "demo.local" .next/static .next/server >/dev/null 2>&1; then
+          echo "::error::El build de PRODUCTION contiene usuarios demo (demo.local)"
+          exit 1
+        fi
 
   coverage:
     runs-on: ubuntu-latest

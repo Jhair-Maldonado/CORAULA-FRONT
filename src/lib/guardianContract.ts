@@ -89,7 +89,20 @@ export function parseGuardianIncidentsPage(value: unknown, expected: { page: num
   const r = reader(fail);
   const result = page(value, fail, (item): GuardianIncident => {
     const x = r.object(item);
-    return { id: r.id(x.id), occurredAt: r.instant(x.occurredAt), severity: r.oneOf(SEVERITIES, x.severity), description: r.text(x.description), courseName: r.text(x.courseName) };
+    const res: GuardianIncident = {
+      id: r.id(x.id),
+      occurredAt: r.instant(x.occurredAt),
+      severity: r.oneOf(SEVERITIES, x.severity),
+      description: r.text(x.description),
+      courseName: r.text(x.courseName),
+    };
+    if (x.teacherName !== undefined && x.teacherName !== null) {
+      res.teacherName = r.text(x.teacherName);
+    }
+    if (x.studentName !== undefined && x.studentName !== null) {
+      res.studentName = r.text(x.studentName);
+    }
+    return res;
   }, expected);
   if (new Set(result.content.map(x => x.id)).size !== result.content.length) return fail();
   return result;

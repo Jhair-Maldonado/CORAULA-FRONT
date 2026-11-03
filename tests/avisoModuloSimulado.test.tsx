@@ -16,11 +16,19 @@ async function withEnv<T>(value: string | undefined, fn: () => Promise<T>) {
   try { return await fn(); } finally { if (original === undefined) delete process.env.NEXT_PUBLIC_USE_MOCKS; else process.env.NEXT_PUBLIC_USE_MOCKS = original; }
 }
 
-test('isMockDataEnabled only disables mocks with the exact value "false"', () => {
-  assert.equal(isMockDataEnabled(undefined), true);
-  assert.equal(isMockDataEnabled('true'), true);
-  assert.equal(isMockDataEnabled(''), true);
-  assert.equal(isMockDataEnabled('false'), false);
+// Modos de ejecución: sin NEXT_PUBLIC_APP_MODE, los mocks solo se activan con el valor obsoleto exacto "true".
+// Antes, una variable ausente o vacía activaba los mocks (inseguro para producción).
+test('isMockDataEnabled: only the legacy value "true" enables mocks when NEXT_PUBLIC_APP_MODE is absent', () => {
+  const mode = process.env.NEXT_PUBLIC_APP_MODE;
+  delete process.env.NEXT_PUBLIC_APP_MODE;
+  try {
+    assert.equal(isMockDataEnabled(''), false);
+    assert.equal(isMockDataEnabled('true'), true);
+    assert.equal(isMockDataEnabled('cualquiera'), false);
+    assert.equal(isMockDataEnabled('false'), false);
+  } finally {
+    if (mode !== undefined) process.env.NEXT_PUBLIC_APP_MODE = mode;
+  }
 });
 
 test('notice renders an accessible status with the student text when active', async () => {
@@ -38,7 +46,8 @@ test('notice renders nothing when inactive', async () => {
 });
 
 test('notice follows NEXT_PUBLIC_USE_MOCKS when activo is omitted', async () => {
-  for (const [value, shown] of [[undefined, true], ['true', true], ['false', false]] as const) {
+  // Modos de ejecución: una variable ausente ya no activa los mocks (antes: [undefined, true]).
+  for (const [value, shown] of [[undefined, false], ['true', true], ['false', false]] as const) {
     await withEnv(value, async () => {
       const r = await render(<AvisoModuloSimulado />);
       assert.equal(r.root.findAll(n => n.props.role === 'status').length, shown ? 1 : 0, `value=${value}`);

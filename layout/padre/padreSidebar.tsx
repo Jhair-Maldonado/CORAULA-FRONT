@@ -11,6 +11,8 @@ import {
   Comment01Icon,
   Logout01Icon,
   AlertCircleIcon,
+  Alert02Icon,
+  BookOpen01Icon,
   SquareLockPasswordIcon,
 } from 'hugeicons-react';
 import { usePadre } from '@/components/padres/PadreContext';
@@ -22,23 +24,25 @@ type MenuItem = {
   name: string;
   path: string;
   icon: any;
-  badge?: string | number;
 };
 
-const MENU_ITEMS: MenuItem[] = [
+// Cada path debe existir en src/app/padre/* (lo verifica tests/padreBase.test.tsx).
+export const MENU_ITEMS: MenuItem[] = [
   { name: 'Ficha', path: '/padre', icon: DashboardSquare01Icon },
   { name: 'Hijos', path: '/padre/hijos', icon: UserGroupIcon },
   { name: 'Asistencia', path: '/padre/asistencia', icon: Calendar01Icon },
-  { name: 'Chats', path: '/padre/mensajeria', icon: Comment01Icon, badge: 1 },
-  { name: 'Justificar', path: '/padre/justificacion', icon: AlertCircleIcon, badge: '1' },
-  { name: 'Avisos', path: '/padre/avisos', icon: Notification01Icon, badge: 2 },
+  { name: 'Libreta', path: '/padre/libreta', icon: BookOpen01Icon },
+  { name: 'Incidencias', path: '/padre/incidencias', icon: Alert02Icon },
+  { name: 'Chats', path: '/padre/mensajeria', icon: Comment01Icon },
+  { name: 'Justificar', path: '/padre/justificacion', icon: AlertCircleIcon },
+  { name: 'Avisos', path: '/padre/avisos', icon: Notification01Icon },
 ];
 
 export const PadreSidebar: React.FC = () => {
   const pathname = usePathname();
   const { padre } = usePadre();
   const authContext = useContext(AuthContext);
-  // Badges fijos y perfil del apoderado (getPadrePerfil) son simulados: solo en modo demostración.
+  // Sin contadores fijos: no hay conteos reales. El perfil del apoderado es simulado: solo en modo demostración.
   const mocksActivos = isMockDataEnabled();
 
   const handleLogout = () => {
@@ -73,11 +77,6 @@ export const PadreSidebar: React.FC = () => {
               >
                 <div className="relative">
                   <item.icon size={20} className={isActive ? 'text-white' : 'text-muted group-hover:text-ink'} />
-                  {mocksActivos && item.badge && (
-                    <span className="absolute -top-1 -right-2 w-4 h-4 bg-accent text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-white shadow-sm">
-                      {item.badge}
-                    </span>
-                  )}
                 </div>
                 <span className="text-[9px] font-bold text-center tracking-tight leading-tight w-full truncate">
                   {item.name}

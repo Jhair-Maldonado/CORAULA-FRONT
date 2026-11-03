@@ -1,5 +1,6 @@
-// Contrato: docs/guardian-attendance.md (backend).
+// Contrato: docs/guardian-attendance.md (#55) y docs/guardian-attendance-justifications.md (#57, solo aditivo).
 export type GuardianAttendanceStatus = 'PRESENTE' | 'TARDANZA' | 'INASISTENCIA';
+export type JustificationStatus = 'PENDIENTE' | 'OBSERVADA' | 'APROBADA' | 'RECHAZADA';
 
 export interface GuardianAttendanceRecord {
   date: string;
@@ -7,7 +8,12 @@ export interface GuardianAttendanceRecord {
   startTime: string;
   endTime: string;
   status: GuardianAttendanceStatus;
-  justification: null | { status: 'PENDIENTE' | 'APROBADA' | 'RECHAZADA' };
+  /** Id del registro de asistencia, para presentar una justificación (#57). */
+  attendanceId: number;
+  /** true si una justificación aprobada cubre la sesión. */
+  justified: boolean;
+  /** Última solicitud de justificación de la sesión; null si no hay. */
+  justification: null | { id: number; status: JustificationStatus };
 }
 
 export interface GuardianAttendanceResponse {

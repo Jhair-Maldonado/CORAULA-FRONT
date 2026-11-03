@@ -80,8 +80,7 @@ export function GuardianAttendanceReport({ data }: { data: GuardianAttendanceRes
 }
 
 export default function VistaPrincipalAsistencia() {
-  const { hijos, selectedHijo, isLoading: isPadreLoading, error: padreError, refreshPadreData } = usePadre();
-  const hijo = selectedHijo ?? hijos[0] ?? null;
+  const { hijoActivo: hijo, isLoading: isPadreLoading, error: padreError, refreshPadreData } = usePadre();
   const studentId = hijo?.id;
   const [range, setRange] = useState(initialRange);
   const [result, setResult] = useState<{ key: string; data: GuardianAttendanceResponse } | null>(null);

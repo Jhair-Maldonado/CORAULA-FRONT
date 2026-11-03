@@ -86,13 +86,14 @@ test('getHijos with mocks off: failures become sanitized errors, never mock chil
   });
 });
 
-test('getHijos returns MOCK_HIJOS only when isMockDataEnabled() is true', async () => {
+// Modos de ejecución (D1): en MOCK, 'hijos' usa el servicio real y lo responde el adaptador simulado de httpClient.
+test('getHijos in MOCK mode calls the real service (served by the mock adapter), never MOCK_HIJOS', async () => {
   process.env.NEXT_PUBLIC_USE_MOCKS = 'true';
   try {
     await withBackend({ status: 200, data: [ANA] }, async urls => {
       const hijos = await getHijos();
-      assert.equal(urls.length, 0);
-      assert.deepEqual(hijos.map(h => h.id), MOCK_HIJOS.map(h => h.id));
+      assert.deepEqual(urls, ['/v1/guardian/students']);
+      assert.deepEqual(hijos.map(h => h.id), ['57']);
     });
   } finally {
     process.env.NEXT_PUBLIC_USE_MOCKS = 'false';
@@ -100,6 +101,18 @@ test('getHijos returns MOCK_HIJOS only when isMockDataEnabled() is true', async 
 });
 
 async function renderHijos(reply: Reply): Promise<string> {
+  // TarjetaHijoVinculado usa next/link, que lee `self` (mismo patrón que academicPeriods.test.tsx).
+  const oldSelf = Object.getOwnPropertyDescriptor(globalThis, 'self');
+  Object.defineProperty(globalThis, 'self', { configurable: true, value: globalThis });
+  try {
+    return await renderHijosConBackend(reply);
+  } finally {
+    if (oldSelf) Object.defineProperty(globalThis, 'self', oldSelf);
+    else Reflect.deleteProperty(globalThis, 'self');
+  }
+}
+
+async function renderHijosConBackend(reply: Reply): Promise<string> {
   return withBackend(reply, async () => {
     let r!: ReturnType<typeof create>;
     await act(async () => {
@@ -134,10 +147,12 @@ test('HijosMatriculados: backend error shows an error message', async () => {
   for (const m of MOCK_HIJOS) assert.ok(!out.includes(m.nombreCompleto));
 });
 
-test('HijosMatriculados: real student renders "Sin datos" instead of invented figures', async () => {
+test('HijosMatriculados: real student renders contract fields only, no invented figures', async () => {
   const out = await renderHijos({ status: 200, data: [ANA] });
   assert.ok(out.includes('Ana Arias Prueba'), out);
-  assert.ok(out.includes('Sin datos'));
+  assert.ok(out.includes('5° Grado "A"'), out);
+  assert.ok(out.includes('C26000057'), out);
+  assert.ok(!out.includes('Promedio'));
   assert.ok(!out.includes('14.5'));
   assert.ok(!out.includes('16.0'));
   assert.ok(!out.includes('12 cursos'));
@@ -154,7 +169,8 @@ test('HijosMatriculados with mocks off: no "Editar Ficha" button nor edit modal'
 test('HijosMatriculados with mocks on: "Editar Ficha" stays available for demo', async () => {
   process.env.NEXT_PUBLIC_USE_MOCKS = 'true';
   try {
-    const out = await renderHijos({ status: 200, data: [] });
+    // Los hijos llegan del servicio (en MOCK, del adaptador simulado): la tarjeta necesita al menos uno.
+    const out = await renderHijos({ status: 200, data: [ANA] });
     assert.ok(out.includes('Editar Ficha'), out);
   } finally {
     process.env.NEXT_PUBLIC_USE_MOCKS = 'false';
@@ -187,7 +203,9 @@ test('PadreSidebar with mocks off: no fixed badges nor simulated guardian profil
     assert.ok(!off.includes(initials), off);
     process.env.NEXT_PUBLIC_USE_MOCKS = 'true';
     const on = await render();
-    assert.ok(/\d/.test(on), on);
+    // Sin contadores fijos en ningún modo; el perfil simulado solo aparece en modo demostración.
+    assert.ok(!/\d/.test(on), on);
+    assert.ok(on.includes(initials), on);
   } finally {
     process.env.NEXT_PUBLIC_USE_MOCKS = 'false';
     if (oldSelf) Object.defineProperty(globalThis, 'self', oldSelf);

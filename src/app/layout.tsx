@@ -1,6 +1,7 @@
 import React from 'react';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { PasswordChangeGate } from '@/components/PasswordChangeGate';
+import { ModoEntornoBanner } from '@/components/ui/ModoEntornoBanner';
 import './globals.css';
 
 export const metadata = {
@@ -21,6 +22,7 @@ export default function RootLayout({
             {children}
           </PasswordChangeGate>
         </AuthProvider>
+        <ModoEntornoBanner />
       </body>
     </html>
   );

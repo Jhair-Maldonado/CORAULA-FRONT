@@ -1,5 +1,6 @@
 // Rutas simuladas del apoderado (/v1/guardian). El apoderado de la sesión es el de padre@demo.local.
 import type { GuardianAttendanceRecord } from '@/types/guardianAttendanceApi';
+import type { AttendanceJustification } from '@/types/guardianJustificationsApi';
 import { fail, ok, pageOf, pageParams, positiveInt, type MockReply, type MockRequest, type MockRoute } from '../mockHttp';
 import { addDays, attendanceId, attendanceStatus, criteriaFor, hasSession, limaDayOf, studentFullName, type MockStore } from './shared';
 
@@ -158,6 +159,124 @@ export const apoderadoRoutes: MockRoute[] = [
       return ok(new Blob([pdf as BlobPart], { type: 'application/pdf' }), 200, {
         'content-type': 'application/pdf', 'content-disposition': `attachment; filename="libreta-${code}-${result.bimester.number}.pdf"`, 'cache-control': 'no-store',
       });
+    },
+  },
+  {
+    method: 'GET', pattern: '/v1/guardian/students/:studentId/justifications', roles: APODERADO,
+    handler: request => {
+      const student = linkedStudent(request);
+      if (!student) return studentNotFound();
+      const paging = pageParams(request.query);
+      if (!paging) return fail(400, 'La paginación no es válida.', 'VALIDATION_ERROR');
+      const { status } = request.query;
+      let list = request.store.justifications.filter(j => j.studentId === student.studentId);
+      if (status) {
+        list = list.filter(j => j.status === status);
+      }
+      list = [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return ok(pageOf(list, paging.page, paging.size));
+    },
+  },
+  {
+    method: 'GET', pattern: '/v1/guardian/students/:studentId/justifications/:id', roles: APODERADO,
+    handler: request => {
+      const student = linkedStudent(request);
+      if (!student) return studentNotFound();
+      const id = positiveInt(request.params.id);
+      const justification = request.store.justifications.find(j => j.id === id && j.studentId === student.studentId);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      return ok(justification);
+    },
+  },
+  {
+    method: 'POST', pattern: '/v1/guardian/students/:studentId/attendance/:attendanceId/justifications', roles: APODERADO,
+    handler: request => {
+      const student = linkedStudent(request);
+      if (!student) return studentNotFound();
+      const attendanceId = positiveInt(request.params.attendanceId);
+      if (!attendanceId) return fail(404, 'La sesión de asistencia no existe.', 'ATTENDANCE_NOT_FOUND');
+
+      let reason = '';
+      let attachmentName: string | null = null;
+      let attachmentMimeType: string | null = null;
+      let attachmentSizeBytes: number | null = null;
+      if (typeof FormData !== 'undefined' && request.body instanceof FormData) {
+        reason = (request.body.get('reason') as string) ?? '';
+        const f = request.body.get('file');
+        if (f && typeof f === 'object' && 'name' in f) {
+          const file = f as File;
+          attachmentName = file.name;
+          attachmentMimeType = file.type || 'application/pdf';
+          attachmentSizeBytes = file.size;
+        }
+      } else if (typeof request.body === 'object' && request.body !== null) {
+        reason = (request.body as any).reason ?? '';
+      }
+      if (!reason.trim()) return fail(400, 'El motivo es obligatorio.', 'VALIDATION_ERROR');
+
+      const nowIso = new Date().toISOString();
+      const created: AttendanceJustification = {
+        id: request.store.nextId(),
+        attendanceId,
+        studentId: student.studentId,
+        date: limaDayOf(request.store.now()),
+        courseName: 'Matemática',
+        attendanceStatus: 'INASISTENCIA',
+        reason: reason.trim(),
+        status: 'PENDIENTE',
+        attachmentName,
+        attachmentMimeType,
+        attachmentSizeBytes,
+        reviewComment: null,
+        response: null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        history: [{ from: null, to: 'PENDIENTE', comment: 'Solicitud presentada por el apoderado.', at: nowIso }],
+      };
+      request.store.justifications.unshift(created);
+      return ok(created, 201);
+    },
+  },
+  {
+    method: 'POST', pattern: '/v1/guardian/students/:studentId/justifications/:id/response', roles: APODERADO,
+    handler: request => {
+      const student = linkedStudent(request);
+      if (!student) return studentNotFound();
+      const id = positiveInt(request.params.id);
+      const justification = request.store.justifications.find(j => j.id === id && j.studentId === student.studentId);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      if (justification.status !== 'OBSERVADA') return fail(409, 'Solo se puede responder a una justificación observada.', 'INVALID_JUSTIFICATION_TRANSITION');
+
+      let responseText = '';
+      if (typeof FormData !== 'undefined' && request.body instanceof FormData) {
+        responseText = (request.body.get('response') as string) ?? '';
+      } else if (typeof request.body === 'object' && request.body !== null) {
+        responseText = (request.body as any).response ?? '';
+      }
+      if (!responseText.trim()) return fail(400, 'La respuesta es obligatoria.', 'VALIDATION_ERROR');
+
+      const nowIso = new Date().toISOString();
+      justification.status = 'PENDIENTE';
+      justification.response = responseText.trim();
+      justification.updatedAt = nowIso;
+      justification.history.push({
+        from: 'OBSERVADA',
+        to: 'PENDIENTE',
+        comment: responseText.trim(),
+        at: nowIso,
+      });
+      return ok(justification);
+    },
+  },
+  {
+    method: 'POST', pattern: '/v1/guardian/students/:studentId/justifications/:id/attachment/download-url', roles: APODERADO,
+    handler: request => {
+      const student = linkedStudent(request);
+      if (!student) return studentNotFound();
+      const id = positiveInt(request.params.id);
+      const justification = request.store.justifications.find(j => j.id === id && j.studentId === student.studentId);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      return ok({ url: 'https://storage.googleapis.com/test-bucket/justificacion.pdf', expiresInSeconds: 300 });
     },
   },
 ];

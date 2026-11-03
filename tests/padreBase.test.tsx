@@ -60,8 +60,9 @@ async function render(node: React.ReactNode, pathname = '/padre'): Promise<React
   return r;
 }
 
-test('registro: hijos, asistencia e incidencias están conectados en el frontend', () => {
-  assert.deepEqual([...GUARDIAN_MODULOS_CON_BACKEND].sort(), ['asistencia', 'hijos', 'incidencias']);
+test('registro: hijos, asistencia, incidencias y justificaciones están conectados en el frontend', () => {
+  assert.deepEqual([...GUARDIAN_MODULOS_CON_BACKEND].sort(), ['asistencia', 'hijos', 'incidencias', 'justificaciones']);
+  assert.equal(guardianModuloUsaBackend('justificaciones'), true);
   assert.equal(guardianModuloUsaBackend('hijos'), true);
   assert.equal(guardianModuloUsaBackend('incidencias'), true);
   assert.equal(guardianModuloUsaBackend('libreta'), false);
@@ -79,10 +80,10 @@ test('MOCK: los módulos registrados usan sus servicios reales (los responde el 
 });
 
 test('aviso por ruta: oculto solo en módulos registrados', () => {
-  for (const ruta of ['/padre/hijos', '/padre/asistencia', '/padre/incidencias', '/padre/hijos/57']) {
+  for (const ruta of ['/padre/hijos', '/padre/asistencia', '/padre/incidencias', '/padre/justificacion', '/padre/hijos/57']) {
     assert.equal(rutaPadreMuestraAvisoSimulado(ruta), false, ruta);
   }
-  for (const ruta of ['/padre', '/padre/libreta', '/padre/justificacion', '/padre/avisos', '/padre/mensajeria', '/padre/hijosx', null]) {
+  for (const ruta of ['/padre', '/padre/libreta', '/padre/avisos', '/padre/mensajeria', '/padre/hijosx', null]) {
     assert.equal(rutaPadreMuestraAvisoSimulado(ruta), true, String(ruta));
   }
 });

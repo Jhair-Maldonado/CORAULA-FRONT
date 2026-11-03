@@ -1,14 +1,30 @@
 'use client';
 
+import React, { Suspense } from 'react';
 import VistaPrincipalJustificacion from '../../../../feature/padre/vistas/justificacion/vistaPrincipalJustificacion';
 import { ModuloPendiente } from '../../../../feature/padre/vistas/moduloPendiente/moduloPendiente';
-import { isMockDataEnabled } from '@/lib/mockMode';
+import { guardianModuloUsaBackend } from '@/services/padres/guardianModules';
 
-// FRONT #57: la vista conectada llega en su propio PR. Con mocks apagados nunca se muestra el formulario
-// simulado (su envío sería un falso éxito); solo el modo demostración conserva la vista anterior.
+// APOD-JUSTIFICACIONES-UI (RF-28, BACK #57). Módulo conectado al backend real.
 export default function JustificacionesPage() {
-  if (!isMockDataEnabled()) {
-    return <ModuloPendiente titulo="Justificación de inasistencias" descripcion="Solicitudes de justificación de inasistencias y tardanzas del estudiante." />;
+  if (!guardianModuloUsaBackend('justificaciones')) {
+    return (
+      <ModuloPendiente
+        titulo="Justificación de inasistencias"
+        descripcion="Solicitudes de justificación de inasistencias y tardanzas del estudiante."
+      />
+    );
   }
-  return <VistaPrincipalJustificacion />;
+
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent border-t-transparent" />
+        </div>
+      }
+    >
+      <VistaPrincipalJustificacion />
+    </Suspense>
+  );
 }

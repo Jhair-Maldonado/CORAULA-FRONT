@@ -8,6 +8,7 @@ import type { GuardianSummaryResponse, StudentDetailResponse } from '@/types/stu
 import type { TeacherResponse } from '@/types/teacherApi';
 import type { IncidenciaResponse } from '@/types/incidenciasApi';
 import type { TeacherAttendanceStatus } from '@/types/teacherAttendanceApi';
+import type { AttendanceJustification } from '@/types/guardianJustificationsApi';
 
 export interface MockTeacher extends TeacherResponse { personId: number; email: string | null }
 
@@ -54,6 +55,7 @@ export interface MockStore {
   criterionGrades: MockCriterionGrade[];
   incidents: IncidenciaResponse[];
   publications: MockPublication[];
+  justifications: AttendanceJustification[];
 }
 
 export const LIMA_OFFSET = '-05:00';
@@ -203,6 +205,64 @@ export function createMockStore(now: () => Date = () => new Date()): MockStore {
       { bimesterId: 11, publishedAt: '2026-05-15T10:00:00-05:00', revision: 1 },
       { bimesterId: 12, publishedAt: '2026-07-24T10:00:00-05:00', revision: 2 },
       { bimesterId: 13, publishedAt: '2026-10-09T10:00:00-05:00', revision: 1 },
+    ],
+    justifications: [
+      {
+        id: nextId(),
+        attendanceId: 1001,
+        studentId: 57,
+        date: addDays(today, -2),
+        courseName: 'Matemática',
+        attendanceStatus: 'INASISTENCIA',
+        reason: 'Cita médica odontológica programada con anticipación.',
+        status: 'PENDIENTE',
+        attachmentName: 'constancia-medica.pdf',
+        attachmentMimeType: 'application/pdf',
+        attachmentSizeBytes: 102400,
+        reviewComment: null,
+        response: null,
+        createdAt: new Date(`${addDays(today, -1)}T09:00:00${LIMA_OFFSET}`).toISOString(),
+        updatedAt: new Date(`${addDays(today, -1)}T09:00:00${LIMA_OFFSET}`).toISOString(),
+        history: [
+          {
+            from: null,
+            to: 'PENDIENTE',
+            comment: 'Solicitud presentada por el apoderado.',
+            at: new Date(`${addDays(today, -1)}T09:00:00${LIMA_OFFSET}`).toISOString(),
+          },
+        ],
+      },
+      {
+        id: nextId(),
+        attendanceId: 1002,
+        studentId: 57,
+        date: addDays(today, -5),
+        courseName: 'Comunicación',
+        attendanceStatus: 'TARDANZA',
+        reason: 'Congestión vehicular imprevista en la ruta escolar.',
+        status: 'OBSERVADA',
+        attachmentName: null,
+        attachmentMimeType: null,
+        attachmentSizeBytes: null,
+        reviewComment: 'Por favor precisar si cuenta con constancia o reporte del servicio de transporte.',
+        response: null,
+        createdAt: new Date(`${addDays(today, -4)}T08:30:00${LIMA_OFFSET}`).toISOString(),
+        updatedAt: new Date(`${addDays(today, -3)}T11:00:00${LIMA_OFFSET}`).toISOString(),
+        history: [
+          {
+            from: null,
+            to: 'PENDIENTE',
+            comment: null,
+            at: new Date(`${addDays(today, -4)}T08:30:00${LIMA_OFFSET}`).toISOString(),
+          },
+          {
+            from: 'PENDIENTE',
+            to: 'OBSERVADA',
+            comment: 'Por favor precisar si cuenta con constancia o reporte del servicio de transporte.',
+            at: new Date(`${addDays(today, -3)}T11:00:00${LIMA_OFFSET}`).toISOString(),
+          },
+        ],
+      },
     ],
   };
 }

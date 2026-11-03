@@ -75,6 +75,7 @@ const MENU_SECTIONS: MenuSection[] = [
     items: [
         { name: 'Horarios', path: '/administrador/horario', icon: Calendar01Icon },
       { name: 'Matrícula', path: '/administrador/matricula', icon: LicenseIcon },
+      { name: 'Justificaciones', path: '/administrador/justificaciones', icon: LicenseIcon, roles: ['ADMINISTRADOR', 'DIRECTIVO'] },
       { name: 'Vacantes', path: '/administrador/vacantes', icon: UserAdd01Icon, badge: 12 },
     ]
   },

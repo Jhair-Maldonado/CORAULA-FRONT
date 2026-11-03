@@ -236,4 +236,65 @@ export const adminRoutes: MockRoute[] = [
   { method: 'GET', pattern: '/v1/management/vacancies', roles: MANAGEMENT, handler: vacancies },
   { method: 'GET', pattern: '/v1/management/attendance/daily', roles: MANAGEMENT, handler: dailyAttendance },
   { method: 'GET', pattern: '/v1/management/bimesters/:bimesterId/early-alerts', roles: MANAGEMENT, handler: earlyAlerts },
+  {
+    method: 'GET', pattern: '/v1/management/attendance-justifications', roles: MANAGEMENT,
+    handler: ({ store, query }) => {
+      const paging = pageParams(query);
+      if (!paging) return fail(400, 'La paginación no es válida.', 'VALIDATION_ERROR');
+      const { status } = query;
+      let list = store.justifications;
+      if (status) {
+        list = list.filter(j => j.status === status);
+      }
+      list = [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return ok(pageOf(list, paging.page, paging.size));
+    },
+  },
+  {
+    method: 'GET', pattern: '/v1/management/attendance-justifications/:id', roles: MANAGEMENT,
+    handler: ({ store, params }) => {
+      const id = positiveInt(params.id);
+      const justification = store.justifications.find(j => j.id === id);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      return ok(justification);
+    },
+  },
+  {
+    method: 'POST', pattern: '/v1/management/attendance-justifications/:id/decision', roles: ['DIRECTIVO'],
+    handler: ({ store, params, body }) => {
+      const id = positiveInt(params.id);
+      const justification = store.justifications.find(j => j.id === id);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      const input = asObject(body);
+      const decision = input.decision as string;
+      const comment = (input.comment as string)?.trim() ?? '';
+      if (!['APROBADA', 'RECHAZADA', 'OBSERVADA'].includes(decision)) {
+        return fail(400, 'La decisión debe ser APROBADA, RECHAZADA u OBSERVADA.', 'VALIDATION_ERROR');
+      }
+      if (!comment) {
+        return fail(400, 'El comentario es obligatorio.', 'VALIDATION_ERROR');
+      }
+      const nowIso = new Date().toISOString();
+      const prevStatus = justification.status;
+      justification.status = decision as any;
+      justification.reviewComment = comment;
+      justification.updatedAt = nowIso;
+      justification.history.push({
+        from: prevStatus,
+        to: decision as any,
+        comment,
+        at: nowIso,
+      });
+      return ok(justification);
+    },
+  },
+  {
+    method: 'POST', pattern: '/v1/management/attendance-justifications/:id/attachment/download-url', roles: MANAGEMENT,
+    handler: ({ store, params }) => {
+      const id = positiveInt(params.id);
+      const justification = store.justifications.find(j => j.id === id);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      return ok({ url: 'https://storage.googleapis.com/test-bucket/justificacion.pdf', expiresInSeconds: 300 });
+    },
+  },
 ];

@@ -1,288 +1,471 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { usePadre } from '@/components/padres/PadreContext'; 
-import { 
-  Alert02Icon, 
+import React, { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { usePadre } from '@/components/padres/PadreContext';
+import {
+  Alert02Icon,
   CheckmarkCircle01Icon,
-  DocumentValidationIcon,
-  UserSwitchIcon
+  Download01Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  File02Icon,
+  ArrowReloadHorizontalIcon,
 } from 'hugeicons-react';
-import { FormularioInasistencia } from './component/formularioInasistencia';
-import { CalendarioAsistencia } from './component/calendarioAsistencia';
-import { CardJustificacion } from './component/cardJustificacion'; 
+import {
+  guardianJustificationsService,
+  guardianJustificationsErrorMessage,
+} from '@/services/padres/guardianJustificationsService';
+import { formatLimaDateTime } from '@/services/padres/guardianIncidentsService';
+import { ModalFormularioJustificacion } from './component/modalFormularioJustificacion';
+import type {
+  AttendanceJustification,
+  AttendanceJustificationsPage,
+  JustificationStatus,
+} from '@/types/guardianJustificationsApi';
 
-// Datos Mockeados
-const MOCK_ALERTAS: any[] = [];
+const STATUS_BADGES: Record<JustificationStatus, { label: string; className: string }> = {
+  PENDIENTE: { label: 'Pendiente', className: 'bg-amber-50 text-amber-800 border-amber-200' },
+  OBSERVADA: { label: 'Observada', className: 'bg-sky-50 text-sky-800 border-sky-200' },
+  APROBADA: { label: 'Aprobada', className: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+  RECHAZADA: { label: 'Rechazada', className: 'bg-rose-50 text-rose-800 border-rose-200' },
+};
 
-const MOCK_HISTORIAL = [
-  {
-    id: 'h-1',
-    fecha: '15 de Mayo, 2026',
-    tipoIncidencia: 'Falta Injustificada',
-    estado: 'Aprobada',
-    motivo: 'Cita Médica',
-    detalle: 'Se adjuntó receta médica del pediatra.'
-  },
-  {
-    id: 'h-2',
-    fecha: '08 de Mayo, 2026',
-    tipoIncidencia: 'Tardanza al Colegio',
-    estado: 'Falta Justificar',
-    motivo: '—',
-    detalle: 'Requiere justificación formal del apoderado.'
-  },
-  {
-    id: 'h-3',
-    fecha: '02 de Mayo, 2026',
-    tipoIncidencia: 'Tardanza al Colegio',
-    estado: 'Rechazada',
-    motivo: 'Problemas de Tráfico',
-    detalle: 'El motivo no es considerado de fuerza mayor por el reglamento.'
-  }
+const FILTER_TABS: Array<{ id: JustificationStatus | 'TODAS'; label: string }> = [
+  { id: 'TODAS', label: 'Todas' },
+  { id: 'PENDIENTE', label: 'Pendientes' },
+  { id: 'OBSERVADA', label: 'Observadas' },
+  { id: 'APROBADA', label: 'Aprobadas' },
+  { id: 'RECHAZADA', label: 'Rechazadas' },
 ];
 
-const MESES = ['Marzo 2026', 'Abril 2026', 'Mayo 2026', 'Junio 2026'];
-
-// Generar mock de días del mes
-const MOCK_CALENDARIO = Array.from({ length: 31 }, (_, i) => {
-  const day = i + 1;
-  let estado = 'asistio'; 
-  let hora = '07:45 AM';
-  
-  if ([2, 3, 9, 10, 16, 17, 23, 24, 30, 31].includes(day)) {
-    estado = 'fin_semana';
-    hora = '';
-  } else {
-    if (day === 15) { estado = 'falta_justificada'; hora = '--:--'; } // Cita Médica
-    if (day === 8) { estado = 'tardanza_injustificada'; hora = '08:20 AM'; } // Falta Justificar
-    if (day === 2) { estado = 'tardanza_justificada'; hora = '08:15 AM'; } // Tráfico
-    if (day >= 26) { estado = 'futuro'; hora = ''; } // Días que aún no pasan
-  }
-  return { dia: day, estado, hora };
-});
-
-const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-
 export default function VistaPrincipalJustificacion() {
-  const { hijos, hijoActivo, setSelectedHijoId } = usePadre();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [fechaJustificar, setFechaJustificar] = useState<string | undefined>(undefined);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { hijoActivo, isLoading: isPadreLoading, error: padreError, refreshPadreData } = usePadre();
 
-  const [selectedMes, setSelectedMes] = useState('Mayo 2026');
-  const mesIndex = MESES.indexOf(selectedMes);
-  const canPrev = mesIndex > 0;
-  const canNext = mesIndex < MESES.length - 1;
+  const [filter, setFilter] = useState<JustificationStatus | 'TODAS'>('TODAS');
+  const [page, setPage] = useState(0);
+  const [pageData, setPageData] = useState<AttendanceJustificationsPage | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
 
-  const handlePrevMes = () => {
-    if (canPrev) setSelectedMes(MESES[mesIndex - 1]);
-  };
-  const handleNextMes = () => {
-    if (canNext) setSelectedMes(MESES[mesIndex + 1]);
-  };
+  // Modal para presentar justificación o subsanar observación
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    mode: 'submit' | 'respond';
+    attendanceId?: number;
+    justificationId?: number;
+    sessionInfo?: { date: string; courseName?: string; status?: string };
+    observationComment?: string | null;
+  } | null>(null);
 
+  // Carga de justificaciones
+  const loadJustifications = useCallback(async () => {
+    if (!hijoActivo) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const statusParam = filter === 'TODAS' ? null : filter;
+      const data = await guardianJustificationsService.list(String(hijoActivo.id), {
+        status: statusParam,
+        page,
+      });
+      setPageData(data);
+    } catch (cause) {
+      setError(guardianJustificationsErrorMessage(cause, 'list'));
+    } finally {
+      setLoading(false);
+    }
+  }, [hijoActivo, filter, page]);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
+    loadJustifications();
+  }, [loadJustifications]);
+
+  // Si la URL trae parámetros para justificar (desde Asistencia)
+  useEffect(() => {
+    const attendanceIdParam = searchParams.get('attendanceId');
+    if (attendanceIdParam && hijoActivo) {
+      const attendanceId = Number(attendanceIdParam);
+      if (Number.isSafeInteger(attendanceId) && attendanceId > 0) {
+        setModalState({
+          isOpen: true,
+          mode: 'submit',
+          attendanceId,
+          sessionInfo: {
+            date: searchParams.get('date') ?? '',
+            courseName: searchParams.get('course') ?? '',
+            status: searchParams.get('status') ?? '',
+          },
+        });
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [dropdownRef]);
+  }, [searchParams, hijoActivo]);
 
-  if (!hijoActivo) {
+  const handleDownloadAttachment = async (justificationId: number) => {
+    if (!hijoActivo) return;
+    setDownloadingId(justificationId);
+    try {
+      const { url } = await guardianJustificationsService.attachmentUrl(String(hijoActivo.id), justificationId);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (cause) {
+      alert(guardianJustificationsErrorMessage(cause, 'download'));
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleOpenRespondModal = (justification: AttendanceJustification) => {
+    if (!hijoActivo) return;
+    setModalState({
+      isOpen: true,
+      mode: 'respond',
+      justificationId: justification.id,
+      sessionInfo: {
+        date: justification.date,
+        courseName: justification.courseName,
+        status: justification.attendanceStatus,
+      },
+      observationComment: justification.reviewComment,
+    });
+  };
+
+  const handleModalSuccess = () => {
+    setModalState(null);
+    // Limpiar query params si venían en la URL
+    if (searchParams.get('attendanceId') || searchParams.get('justificationId')) {
+      router.replace('/padre/justificacion');
+    }
+    loadJustifications();
+  };
+
+  // Estados previos de carga del apoderado
+  if (isPadreLoading) {
     return (
-      <div className="p-6 text-center text-[11px] font-bold text-muted">
-        Cargando datos del estudiante...
+      <div className="mx-auto max-w-5xl p-6">
+        <div className="h-6 w-48 animate-pulse rounded bg-slate-200 mb-2" />
+        <div className="h-4 w-72 animate-pulse rounded bg-slate-200 mb-6" />
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 rounded-2xl border border-line bg-white p-5 animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
-  const alertaActiva = MOCK_ALERTAS.find(a => a.hijoId === hijoActivo.id);
+  if (padreError) {
+    return (
+      <div className="mx-auto max-w-5xl p-6">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-800">
+          <p className="font-semibold">{padreError}</p>
+          <button
+            onClick={() => refreshPadreData()}
+            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white transition hover:bg-accent/90"
+          >
+            <ArrowReloadHorizontalIcon size={14} /> Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  const handleJustificarDia = (dia: number) => {
-    const diaFormateado = dia < 10 ? `0${dia}` : dia;
-    // Extraer año y mes si fuera necesario, mockeado a mayo
-    setFechaJustificar(`2026-05-${diaFormateado}`);
-    setIsModalOpen(true);
-  };
-
-  const handleAbrirModalVacio = () => {
-    setFechaJustificar(undefined);
-    setIsModalOpen(true);
-  };
+  if (!hijoActivo) {
+    return (
+      <div className="mx-auto max-w-5xl p-6">
+        <div className="rounded-2xl border border-line bg-white p-8 text-center text-sm text-muted">
+          No tienes estudiantes vinculados a tu cuenta.
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full animate-in fade-in max-w-[1200px] mx-auto py-6">
-      
-      {/* Encabezado Principal */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 px-2">
+    <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 animate-in fade-in">
+      {/* Encabezado */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-base font-black text-ink uppercase tracking-wider">Control de Asistencia</h1>
-          <p className="text-xs text-muted font-medium mt-1">
-            Gestione las inasistencias y tardanzas de {hijoActivo.nombres}.
+          <h1 className="text-xl font-bold text-ink">Justificaciones de asistencia</h1>
+          <p className="text-xs text-muted">
+            Solicitudes de justificación de inasistencias y tardanzas de{' '}
+            <span className="font-semibold text-ink">{hijoActivo.nombres}</span>.
+          </p>
+        </div>
+        <Link
+          href="/padre/asistencia"
+          className="inline-flex items-center justify-center rounded-xl border border-accent bg-accent/5 px-4 py-2 text-xs font-bold text-accent transition hover:bg-accent hover:text-white"
+        >
+          Ver reporte de asistencia
+        </Link>
+      </div>
+
+      {/* Aviso informativo de plazo */}
+      <div className="flex items-start gap-3 rounded-2xl border border-line bg-white p-4 text-xs text-muted">
+        <CheckmarkCircle01Icon size={18} className="shrink-0 text-accent mt-0.5" />
+        <div>
+          <p className="font-semibold text-ink">Plazo reglamentario de justificación</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed">
+            Las inasistencias y tardanzas pueden justificarse dentro de los <strong>dos días hábiles</strong> posteriores a la sesión. Para iniciar una solicitud, dirígete al reporte de asistencia y haz clic en el botón «Justificar» de la clase correspondiente.
           </p>
         </div>
       </div>
 
-      {/* Grid de Estado Diario y Selector de Hijo - SÚPER COMPACTO */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
-        
-        {/* Panel Izquierdo: Alerta o Estado de Hoy (Ocupa 3/4) */}
-        <div className="md:col-span-3">
-          {alertaActiva ? (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 shadow-sm flex items-center justify-between h-full animate-pulse-slow gap-4">
-              <div className="flex items-center gap-3">
-                <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-full border-2 border-white shadow-sm overflow-hidden bg-red-100 flex items-center justify-center text-red-500 font-black text-xs">
-                    {hijoActivo.fotoUrl ? (
-                      <img src={hijoActivo.fotoUrl} alt={hijoActivo.nombres} className="w-full h-full object-cover" />
-                    ) : (
-                      <span>{hijoActivo.nombres.charAt(0)}{hijoActivo.apellidos.charAt(0)}</span>
-                    )}
-                  </div>
-                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-red-600 rounded-full flex items-center justify-center text-white border-2 border-white shadow-sm">
-                    <Alert02Icon size={8} />
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[8px] font-black text-red-600 uppercase tracking-widest bg-red-100 px-1.5 py-0.5 rounded-full inline-block mb-0.5">
-                    Tardanza Activa
-                  </span>
-                  <h2 className="text-[11px] font-black text-red-950 leading-tight">
-                    Retraso de {alertaActiva.minutosRetraso} minutos en {alertaActiva.tipoRetraso}.
-                  </h2>
-                </div>
-              </div>
-              <button 
-                onClick={handleAbrirModalVacio}
-                className="shrink-0 px-3 py-1.5 bg-red-600 text-white text-[9px] font-bold rounded-lg shadow-sm hover:bg-red-700 transition-colors"
-              >
-                Justificar Ahora
-              </button>
-            </div>
-          ) : (
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 shadow-sm flex items-center justify-between h-full">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 border-2 border-white shadow-sm">
-                  <CheckmarkCircle01Icon size={20} />
-                </div>
-                <div>
-                  <h3 className="text-[12px] font-black text-emerald-900 leading-tight">¡Todo en orden hoy!</h3>
-                  <p className="text-[9px] font-medium text-emerald-700 mt-0.5">El estudiante llegó a tiempo y no registra alertas.</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Panel Derecho: Selector Rápido de Hijo Local (Ocupa 1/4) */}
-        <div className="md:col-span-1 relative" ref={dropdownRef}>
-          <div 
-            className="bg-white border border-line rounded-xl p-2.5 shadow-sm flex items-center gap-3 h-full cursor-pointer hover:border-accent transition-colors"
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          >
-            <div className="w-10 h-10 rounded-full border border-line bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs overflow-hidden shrink-0">
-              {hijoActivo.fotoUrl ? (
-                <img src={hijoActivo.fotoUrl} alt={hijoActivo.nombres} className="w-full h-full object-cover" />
-              ) : (
-                <span>{hijoActivo.nombres.charAt(0)}{hijoActivo.apellidos.charAt(0)}</span>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-[10px] font-black text-ink truncate">{hijoActivo.nombres}</h3>
-              <p className="text-[8px] font-bold text-muted uppercase tracking-wider">Cambiar Hijo <UserSwitchIcon size={10} className="inline ml-0.5 pb-0.5" /></p>
-            </div>
-          </div>
-          
-          {/* Dropdown de Hijos */}
-          {isDropdownOpen && (
-            <div className="absolute top-full right-0 mt-2 w-full min-w-[220px] bg-white border border-line rounded-xl shadow-lg p-2 z-50 animate-in fade-in zoom-in-95">
-              <p className="text-[9px] font-black text-muted uppercase tracking-wider mb-2 px-2">Seleccione un estudiante</p>
-              {hijos.map(h => (
-                <button
-                  key={h.id}
-                  onClick={() => {
-                    setSelectedHijoId(h.id);
-                    setIsDropdownOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${
-                    h.id === hijoActivo.id ? 'bg-accent/10 border-accent/20 border' : 'hover:bg-neutral border border-transparent'
-                  }`}
-                >
-                  <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-ink overflow-hidden shrink-0">
-                    {h.fotoUrl ? (
-                      <img src={h.fotoUrl} alt={h.nombres} className="w-full h-full object-cover" />
-                    ) : (
-                      <span>{h.nombres.charAt(0)}{h.apellidos.charAt(0)}</span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-[10px] font-black truncate ${h.id === hijoActivo.id ? 'text-accent' : 'text-ink'}`}>
-                      {h.nombres} {h.apellidos}
-                    </p>
-                    <p className="text-[8px] font-bold text-muted truncate">{h.grado} - {h.seccion}</p>
-                  </div>
-                  {h.id === hijoActivo.id && <CheckmarkCircle01Icon size={12} className="text-accent" />}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Pestañas de filtro por estado */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-line pb-3">
+        {FILTER_TABS.map((tab) => {
+          const isActive = filter === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setFilter(tab.id);
+                setPage(0);
+              }}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                isActive
+                  ? 'bg-accent text-white shadow-xs'
+                  : 'bg-white text-muted border border-line hover:border-accent hover:text-accent'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Grid Principal: Calendario y Justificaciones (2/3 vs 1/3) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        
-        {/* Calendario de Asistencia (Ocupa 2/3) */}
-        <div className="lg:col-span-2">
-          <CalendarioAsistencia 
-            calendario={MOCK_CALENDARIO} 
-            mesActual={selectedMes}
-            onPrevMes={handlePrevMes}
-            onNextMes={handleNextMes}
-            canPrev={canPrev}
-            canNext={canNext}
-            onJustificarDia={handleJustificarDia} 
-          />
+      {/* Estado de carga */}
+      {loading && (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 rounded-2xl border border-line bg-white p-5 animate-pulse" />
+          ))}
         </div>
-
-        {/* Panel Derecho: Lista de Historial e Injustificadas (Ocupa 1/3) */}
-        <div className="lg:col-span-1">
-          <div className="bg-white border border-line rounded-xl shadow-sm h-full flex flex-col">
-            <div className="p-3 border-b border-line bg-neutral/30 flex justify-between items-center">
-              <h3 className="text-xs font-black text-ink uppercase tracking-wider flex items-center gap-1.5">
-                <DocumentValidationIcon size={16} className="text-muted" />
-                Historial de Registro
-              </h3>
-            </div>
-            
-            <div className="p-3 flex flex-col gap-3 flex-1 overflow-y-auto">
-              {MOCK_HISTORIAL.map((item) => (
-                <CardJustificacion 
-                  key={item.id} 
-                  item={item} 
-                  onJustificar={handleJustificarDia} 
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {isModalOpen && (
-        <FormularioInasistencia
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          fechaPrecargada={fechaJustificar}
-        />
       )}
 
+      {/* Estado de error */}
+      {!loading && error && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-800">
+          <Alert02Icon size={24} className="mx-auto mb-2 text-rose-600" />
+          <p className="font-semibold">{error}</p>
+          <button
+            onClick={loadJustifications}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white transition hover:bg-accent/90"
+          >
+            <ArrowReloadHorizontalIcon size={14} /> Reintentar
+          </button>
+        </div>
+      )}
+
+      {/* Estado vacío */}
+      {!loading && !error && (!pageData || pageData.content.length === 0) && (
+        <div className="rounded-2xl border border-line bg-white p-10 text-center text-sm text-muted">
+          <File02Icon size={32} className="mx-auto mb-3 text-muted/60" />
+          <p className="font-semibold text-ink">
+            {filter === 'TODAS'
+              ? `${hijoActivo.nombres} no tiene solicitudes de justificación registradas.`
+              : `No se encontraron justificaciones con estado «${filter}» para ${hijoActivo.nombres}.`}
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            Si tu hijo tuvo una inasistencia o tardanza reciente, puedes justificarla desde el reporte de asistencia.
+          </p>
+          <Link
+            href="/padre/asistencia"
+            className="mt-4 inline-flex items-center rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white transition hover:bg-accent/90"
+          >
+            Ir a Asistencia
+          </Link>
+        </div>
+      )}
+
+      {/* Listado de justificaciones */}
+      {!loading && !error && pageData && pageData.content.length > 0 && (
+        <div className="space-y-4">
+          {pageData.content.map((item) => {
+            const badge = STATUS_BADGES[item.status];
+            const isObserved = item.status === 'OBSERVADA';
+            const isDownloading = downloadingId === item.id;
+            const isHistoryExpanded = expandedHistoryId === item.id;
+
+            return (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-line bg-white p-5 shadow-xs transition hover:border-muted/60"
+              >
+                {/* Cabecera de la tarjeta */}
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-ink">{item.date}</span>
+                      <span className="text-xs font-medium text-muted">·</span>
+                      <span className="text-xs font-medium text-muted">{item.courseName}</span>
+                    </div>
+                    <span className="mt-1 inline-block text-[11px] font-bold text-muted uppercase">
+                      {item.attendanceStatus === 'INASISTENCIA' ? 'Inasistencia' : 'Tardanza'}
+                    </span>
+                  </div>
+                  <span
+                    className={`rounded-full border px-3 py-0.5 text-[11px] font-bold ${badge.className}`}
+                  >
+                    {badge.label}
+                  </span>
+                </div>
+
+                {/* Motivo presentado */}
+                <div className="mt-3 text-xs">
+                  <span className="font-bold text-ink">Motivo: </span>
+                  <span className="text-muted leading-relaxed whitespace-pre-wrap">{item.reason}</span>
+                </div>
+
+                {/* Comentario de revisión (Secretaría) */}
+                {item.reviewComment && (
+                  <div
+                    className={`mt-3 rounded-xl border p-3 text-xs ${
+                      isObserved
+                        ? 'border-sky-200 bg-sky-50 text-sky-900'
+                        : item.status === 'RECHAZADA'
+                        ? 'border-rose-200 bg-rose-50 text-rose-900'
+                        : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                    }`}
+                  >
+                    <p className="font-bold mb-0.5">
+                      {isObserved
+                        ? 'Observación de Secretaría:'
+                        : item.status === 'RECHAZADA'
+                        ? 'Motivo del rechazo:'
+                        : 'Comentario de revisión:'}
+                    </p>
+                    <p className="whitespace-pre-wrap">{item.reviewComment}</p>
+                  </div>
+                )}
+
+                {/* Respuesta del apoderado si ya subsanó */}
+                {item.response && (
+                  <div className="mt-2 rounded-xl border border-line bg-neutral/30 p-3 text-xs text-ink">
+                    <p className="font-bold text-muted mb-0.5">Tu respuesta a la observación:</p>
+                    <p className="whitespace-pre-wrap">{item.response}</p>
+                  </div>
+                )}
+
+                {/* Barra inferior: Adjunto y Acciones */}
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+                  <div className="flex items-center gap-2">
+                    {item.attachmentName ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadAttachment(item.id)}
+                        disabled={isDownloading}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-neutral/40 px-3 py-1.5 text-[11px] font-semibold text-ink transition hover:bg-neutral hover:border-muted disabled:opacity-50"
+                        title="Descargar documento de sustento"
+                      >
+                        <Download01Icon size={14} className="text-accent" />
+                        <span>{isDownloading ? 'Descargando...' : item.attachmentName}</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-muted italic">Sin archivo adjunto</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Botón para subsanar observación */}
+                    {isObserved && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenRespondModal(item)}
+                        className="rounded-xl bg-accent px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-accent/90"
+                      >
+                        Subsanar observación
+                      </button>
+                    )}
+
+                    {/* Botón para alternar historial */}
+                    {item.history.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedHistoryId(isHistoryExpanded ? null : item.id)
+                        }
+                        className="rounded-xl border border-line bg-white px-3 py-1.5 text-[11px] font-semibold text-muted transition hover:text-ink hover:border-muted"
+                      >
+                        {isHistoryExpanded ? 'Ocultar historial' : `Historial (${item.history.length})`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Historial desplegable */}
+                {isHistoryExpanded && item.history.length > 0 && (
+                  <div className="mt-3 border-t border-line/60 pt-3">
+                    <p className="text-[11px] font-bold text-muted uppercase tracking-wider mb-2">
+                      Línea de tiempo de la solicitud
+                    </p>
+                    <ol className="relative border-l border-line ml-2 space-y-3 pl-3">
+                      {item.history.map((change, index) => (
+                        <li key={index} className="relative text-xs">
+                          <span className="absolute -left-[17px] top-1 h-2 w-2 rounded-full bg-accent" />
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-ink">
+                              {change.from ? `${change.from} → ${change.to}` : change.to}
+                            </span>
+                            <span className="text-[10px] text-muted">
+                              {formatLimaDateTime(change.at)}
+                            </span>
+                          </div>
+                          {change.comment && (
+                            <p className="mt-0.5 text-muted text-[11px]">{change.comment}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Paginación */}
+          {pageData.totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-line pt-4">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="inline-flex items-center gap-1 rounded-xl border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-neutral disabled:opacity-50"
+              >
+                <ArrowLeft01Icon size={14} /> Anterior
+              </button>
+              <span className="text-xs text-muted">
+                Página {pageData.page + 1} de {pageData.totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page + 1 >= pageData.totalPages}
+                className="inline-flex items-center gap-1 rounded-xl border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-neutral disabled:opacity-50"
+              >
+                Siguiente <ArrowRight01Icon size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal para enviar justificación o responder */}
+      {modalState?.isOpen && hijoActivo && (
+        <ModalFormularioJustificacion
+          mode={modalState.mode}
+          studentId={String(hijoActivo.id)}
+          attendanceId={modalState.attendanceId}
+          justificationId={modalState.justificationId}
+          sessionInfo={modalState.sessionInfo}
+          observationComment={modalState.observationComment}
+          onClose={() => setModalState(null)}
+          onSuccess={handleModalSuccess}
+        />
+      )}
     </div>
   );
 }

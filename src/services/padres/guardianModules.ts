@@ -14,7 +14,7 @@ export type GuardianModulo =
   | 'justificaciones' // FRONT #57: .../attendance/{attendanceId}/justifications y .../justifications
   | 'notificaciones'; // FRONT #58
 
-export const GUARDIAN_MODULOS_CON_BACKEND: ReadonlySet<GuardianModulo> = new Set<GuardianModulo>(['hijos', 'asistencia', 'incidencias']);
+export const GUARDIAN_MODULOS_CON_BACKEND: ReadonlySet<GuardianModulo> = new Set<GuardianModulo>(['hijos', 'asistencia', 'incidencias', 'justificaciones']);
 
 // Rutas reales bajo /padre/* y el módulo que consumen. Las rutas sin módulo (/padre, /padre/mensajeria) son simuladas.
 export const GUARDIAN_RUTAS_MODULO: Readonly<Record<string, GuardianModulo>> = {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { usePadre } from '@/components/padres/PadreContext';
 import { attendanceRangeError, getGuardianAttendance } from '@/services/padres/guardianAttendanceService';
 import type { GuardianAttendanceRecord, GuardianAttendanceResponse } from '@/types/guardianAttendanceApi';
@@ -61,15 +62,36 @@ export function GuardianAttendanceReport({ data }: { data: GuardianAttendanceRes
             <section key={date} className="rounded-xl border border-line bg-white p-4">
               <h2 className="mb-3 text-sm font-bold text-ink">{date}</h2>
               <ul className="divide-y divide-line">
-                {records.map((record, index) => (
-                  <li key={`${record.date}-${record.startTime}-${record.courseName}-${index}`} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                {records.map((record, index) => {
+                  const canJustify = (record.status === 'INASISTENCIA' || record.status === 'TARDANZA') && !record.justified && !record.justification;
+                  return (
+                    <li key={`${record.date}-${record.startTime}-${record.courseName}-${index}`} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                     <span className="text-ink">{record.courseName} · {record.startTime}–{record.endTime}</span>
-                    <span className="font-semibold text-ink">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-ink">
                       {STATUS_LABEL[record.status] ?? record.status}
                       {record.justification ? ` · Justificación ${record.justification.status.toLowerCase()}` : ''}
-                    </span>
+                        </span>
+                        {canJustify && (
+                          <Link
+                            href={`/padre/justificacion?attendanceId=${record.attendanceId}&date=${encodeURIComponent(record.date)}&course=${encodeURIComponent(record.courseName)}&status=${encodeURIComponent(record.status)}`}
+                            className="inline-flex items-center rounded-lg bg-accent px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-accent/90"
+                          >
+                            Justificar
+                          </Link>
+                        )}
+                        {record.justification && (
+                          <Link
+                            href={`/padre/justificacion?justificationId=${record.justification.id}`}
+                            className="inline-flex items-center text-xs font-medium text-accent underline hover:text-accent/80"
+                          >
+                            Ver justificación
+                          </Link>
+                        )}
+                      </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </section>
           ))}

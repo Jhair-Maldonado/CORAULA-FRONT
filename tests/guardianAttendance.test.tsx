@@ -9,6 +9,7 @@ import { GuardianAttendanceReport } from '../feature/padre/vistas/asistencia/vis
 import type { GuardianAttendanceResponse } from '../src/types/guardianAttendanceApi';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+if (typeof globalThis.self === 'undefined') Object.assign(globalThis, { self: globalThis });
 
 const RESPONSE: GuardianAttendanceResponse = {
   studentId: 57,

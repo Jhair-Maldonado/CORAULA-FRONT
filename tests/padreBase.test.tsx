@@ -21,7 +21,7 @@ import { PadreProvider } from '../src/components/padres/PadreContext';
 import { PadreNavbar, padreTituloDeRuta } from '../layout/padre/padreNavbar';
 import { MENU_ITEMS } from '../layout/padre/padreSidebar';
 import { ACCESOS_HIJO, TarjetaHijoVinculado } from '../feature/padre/vistas/verHijos/component/tarjetaHijoVinculado';
-import LibretaPage from '../src/app/padre/libreta/page';
+import { ModuloPendiente } from '../feature/padre/vistas/moduloPendiente/moduloPendiente';
 import type { GuardianStudentResponse } from '../src/types/guardianApi';
 
 // APOD-FRONT-CORRECCION — PR A (base del portal del apoderado).
@@ -60,12 +60,13 @@ async function render(node: React.ReactNode, pathname = '/padre'): Promise<React
   return r;
 }
 
-test('registro: hijos, asistencia, incidencias y justificaciones están conectados en el frontend', () => {
-  assert.deepEqual([...GUARDIAN_MODULOS_CON_BACKEND].sort(), ['asistencia', 'hijos', 'incidencias', 'justificaciones']);
+test('registro: hijos, asistencia, libreta, incidencias y justificaciones están conectados en el frontend', () => {
+  assert.deepEqual([...GUARDIAN_MODULOS_CON_BACKEND].sort(), ['asistencia', 'hijos', 'incidencias', 'justificaciones', 'libreta']);
   assert.equal(guardianModuloUsaBackend('justificaciones'), true);
   assert.equal(guardianModuloUsaBackend('hijos'), true);
   assert.equal(guardianModuloUsaBackend('incidencias'), true);
-  assert.equal(guardianModuloUsaBackend('libreta'), false);
+  assert.equal(guardianModuloUsaBackend('libreta'), true);
+  assert.equal(guardianModuloUsaBackend('notificaciones'), false);
 });
 
 test('MOCK: los módulos registrados usan sus servicios reales (los responde el adaptador simulado)', () => {
@@ -73,28 +74,29 @@ test('MOCK: los módulos registrados usan sus servicios reales (los responde el 
   process.env.NEXT_PUBLIC_USE_MOCKS = 'true';
   try {
     assert.equal(guardianModuloUsaBackend('hijos'), true);
-    assert.equal(guardianModuloUsaBackend('libreta'), false);
+    assert.equal(guardianModuloUsaBackend('libreta'), true);
+    assert.equal(guardianModuloUsaBackend('notificaciones'), false);
   } finally {
     process.env.NEXT_PUBLIC_USE_MOCKS = original;
   }
 });
 
 test('aviso por ruta: oculto solo en módulos registrados', () => {
-  for (const ruta of ['/padre/hijos', '/padre/asistencia', '/padre/incidencias', '/padre/justificacion', '/padre/hijos/57']) {
+  for (const ruta of ['/padre/hijos', '/padre/asistencia', '/padre/libreta', '/padre/incidencias', '/padre/justificacion', '/padre/hijos/57']) {
     assert.equal(rutaPadreMuestraAvisoSimulado(ruta), false, ruta);
   }
-  for (const ruta of ['/padre', '/padre/libreta', '/padre/avisos', '/padre/mensajeria', '/padre/hijosx', null]) {
+  for (const ruta of ['/padre', '/padre/avisos', '/padre/mensajeria', '/padre/hijosx', null]) {
     assert.equal(rutaPadreMuestraAvisoSimulado(ruta), true, String(ruta));
   }
 });
 
 test('aviso por ruta: al registrar un módulo se oculta en su ruta', () => {
-  const conLibreta = new Set([...GUARDIAN_MODULOS_CON_BACKEND, 'libreta' as const]);
-  assert.equal(rutaPadreMuestraAvisoSimulado('/padre/libreta', conLibreta), false);
+  const conAvisos = new Set([...GUARDIAN_MODULOS_CON_BACKEND, 'notificaciones' as const]);
+  assert.equal(rutaPadreMuestraAvisoSimulado('/padre/avisos', conAvisos), false);
 });
 
 test('PadreSimulationNotice usa el registro por ruta', async () => {
-  for (const [ruta, visible] of [['/padre/hijos', false], ['/padre/asistencia', false], ['/padre/libreta', true], ['/padre/incidencias', false]] as const) {
+  for (const [ruta, visible] of [['/padre/hijos', false], ['/padre/asistencia', false], ['/padre/libreta', false], ['/padre/avisos', true]] as const) {
     const r = await render(<PadreSimulationNotice />, ruta);
     assert.equal(r.root.findAll(n => n.props.role === 'status').length > 0, visible, ruta);
     act(() => r.unmount());
@@ -109,14 +111,12 @@ test('rutas del registro, del menú y de los accesos de la tarjeta existen en sr
   assert.ok(paths.includes('/padre/libreta') && paths.includes('/padre/incidencias'));
 });
 
-test('Libreta muestra el estado pendiente sin datos y con aviso', async () => {
-  for (const [Page, ruta] of [[LibretaPage, '/padre/libreta']] as const) {
-    const r = await render(<><PadreSimulationNotice /><Page /></>, ruta);
-    const out = text(r.root);
-    assert.ok(out.includes('Módulo en construcción'), out);
-    assert.ok(out.includes('no hay información para mostrar'), out);
-    act(() => r.unmount());
-  }
+test('un módulo sin registrar muestra el estado pendiente sin datos y con aviso', async () => {
+  const r = await render(<><PadreSimulationNotice /><ModuloPendiente titulo="Comunicados" descripcion="Avisos del colegio." /></>, '/padre/avisos');
+  const out = text(r.root);
+  assert.ok(out.includes('Módulo en construcción'), out);
+  assert.ok(out.includes('no hay información para mostrar'), out);
+  act(() => r.unmount());
 });
 
 test('títulos del navbar según las rutas reales', () => {

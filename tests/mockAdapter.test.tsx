@@ -125,6 +125,13 @@ test('apoderado: hijos, asistencia, incidencias y libreta pasan los parsers estr
     assert.equal(report.student.fullName, 'Luis Arias Demo');
     assert.equal(report.section.level, 'SECONDARY');
     assert.ok(report.courses.some(c => c.criteria.some(x => x.grade === null)), 'una nota sin registrar');
+    // Libreta de Ana en el III Bimestre: notas menores que 11 (también 10,50) y un criterio sin nota.
+    const ana = await guardianReportService.report('57', 13);
+    assert.deepEqual(ana.courses.map(c => [c.name, c.grade]), [['Matemática', 9], ['Comunicación', 10.5], ['Ciencia y Tecnología', 14]]);
+    assert.deepEqual(ana.courses[2].criteria.map(c => c.grade), [14, null]);
+    assert.deepEqual(ana.areas.map(a => a.grade), [9, 10.5, 14]);
+    const anaII = await guardianReportService.report('57', 12);
+    assert.ok(anaII.courses.every(c => c.criteria.every(x => x.grade !== null && x.grade >= 11)), 'el resto de bimestres no cambia');
     const pdf = await guardianReportService.reportPdf('57', 11);
     assert.equal(pdf.fileName, 'libreta-C26000057-1.pdf');
     assert.match(await pdf.blob.text(), /^%PDF-1\.4[\s\S]*%%EOF\n$/);

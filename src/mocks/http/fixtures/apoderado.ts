@@ -162,7 +162,7 @@ export const apoderadoRoutes: MockRoute[] = [
         .map(({ p, b }) => ({
           bimesterId: b.id, number: b.number, name: b.name, academicPeriodId: b.academicPeriodId,
           academicPeriodName: store.periods.find(x => x.id === b.academicPeriodId)!.name, publishedAt: p.publishedAt, revision: p.revision,
-        })));
+        })), 200, { 'cache-control': 'no-store' });
     },
   },
   {

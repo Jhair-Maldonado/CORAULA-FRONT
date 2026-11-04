@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
+import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import { SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import httpClient from '../src/services/httpClient';
 import { PadreProvider, resolverHijoActivo, usePadre } from '../src/components/padres/PadreContext';
@@ -11,7 +13,10 @@ import type { GuardianStudentResponse } from '../src/types/guardianApi';
 
 // Selector del hijo compartido del portal del apoderado: datos sintéticos, sin red.
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+if (typeof globalThis.self === 'undefined') Object.assign(globalThis, { self: globalThis });
 process.env.NEXT_PUBLIC_USE_MOCKS = 'false';
+
+const router = { push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} } as unknown as AppRouterInstance;
 
 const ANA: GuardianStudentResponse = { studentId: 57, studentCode: 'C26000057', fullName: 'Ana Arias Prueba', grade: 5, sectionName: 'A' };
 const LUIS: GuardianStudentResponse = { studentId: 58, studentCode: null, fullName: 'Luis Arias Prueba', grade: null, sectionName: null };
@@ -114,19 +119,78 @@ test('un error de carga no deja hijos ni datos simulados', async () => {
   }
 });
 
-test('/padre/justificacion con mocks apagados muestra el módulo pendiente, nunca el formulario simulado', async () => {
+test('/padre/justificacion usa la vista conectada; con mocks apagados nunca muestra datos ni formularios simulados', async () => {
   const original = httpClient.defaults.adapter;
-  let calls = 0;
-  httpClient.defaults.adapter = async config => { calls++; throw new Error(`unexpected ${config.url}`); };
+  const requests: string[] = [];
+  httpClient.defaults.adapter = async (config: InternalAxiosRequestConfig) => {
+    requests.push(String(config.url));
+    if (config.url === '/v1/guardian/students') {
+      return { data: [ANA], status: 200, statusText: '', headers: {}, config } as AxiosResponse;
+    }
+    if (String(config.url).includes('/justifications')) {
+      return {
+        data: { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 },
+        status: 200,
+        statusText: '',
+        headers: {},
+        config,
+      } as AxiosResponse;
+    }
+    throw new Error(`unexpected ${config.url}`);
+  };
+
   let renderer!: ReactTestRenderer;
   try {
-    await act(async () => { renderer = create(<JustificacionesPage />); });
+    await act(async () => {
+      renderer = create(
+        <AppRouterContext.Provider value={router}>
+          <SearchParamsContext.Provider value={new URLSearchParams()}>
+            <PadreProvider>
+              <JustificacionesPage />
+            </PadreProvider>
+          </SearchParamsContext.Provider>
+        </AppRouterContext.Provider>
+      );
+    });
     const out = text(renderer.root);
-    assert.match(out, /Justificación de inasistencias/);
-    assert.match(out, /no hay información para mostrar/);
+    assert.match(out, /Justificaciones de asistencia/);
+    assert.match(out, /Ana Arias Prueba/);
+    assert.doesNotMatch(out, /no hay información para mostrar/);
     assert.equal(renderer.root.findAll(n => n.type === 'form' || n.type === 'textarea').length, 0);
     assert.doesNotMatch(out, /Enviar|Justificar inasistencia/);
-    assert.equal(calls, 0);
+    assert.doesNotMatch(out, /Sofía|Mateo/);
+    assert.ok(requests.some(url => url.includes('/justifications')));
+  } finally {
+    await act(async () => { renderer.unmount(); });
+    httpClient.defaults.adapter = original;
+  }
+
+  // Sin hijos ni sesión: la vista conectada no realiza consultas falsas de justificaciones
+  requests.length = 0;
+  httpClient.defaults.adapter = async (config: InternalAxiosRequestConfig) => {
+    requests.push(String(config.url));
+    if (config.url === '/v1/guardian/students') {
+      return { data: [], status: 200, statusText: '', headers: {}, config } as AxiosResponse;
+    }
+    throw new Error(`unexpected ${config.url}`);
+  };
+
+  try {
+    await act(async () => {
+      renderer = create(
+        <AppRouterContext.Provider value={router}>
+          <SearchParamsContext.Provider value={new URLSearchParams()}>
+            <PadreProvider>
+              <JustificacionesPage />
+            </PadreProvider>
+          </SearchParamsContext.Provider>
+        </AppRouterContext.Provider>
+      );
+    });
+    const out = text(renderer.root);
+    assert.match(out, /No tienes estudiantes vinculados a tu cuenta/);
+    assert.equal(renderer.root.findAll(n => n.type === 'form' || n.type === 'textarea').length, 0);
+    assert.deepEqual(requests, ['/v1/guardian/students']);
   } finally {
     await act(async () => { renderer.unmount(); });
     httpClient.defaults.adapter = original;

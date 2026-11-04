@@ -12,16 +12,6 @@ export type EstadoCuota = 'Pagado' | 'Pendiente' | 'Vencido';
 
 export type TipoComunicado = 'Urgente' | 'Académico' | 'Evento' | 'Administrativo';
 
-
-export type MotivoJustificacion = 
-  | 'Salud / Médico'
-  | 'Familiar'
-  | 'Viaje'
-  | 'Fuerza Mayor'
-  | 'Otro';
-
-export type EstadoJustificacion = 'Pendiente' | 'Aprobada' | 'Rechazada';
-
 export type MetodoPago = 'Transferencia' | 'Yape' | 'Plin' | 'Tarjeta' | 'Ventanilla';
 
 export interface PadrePerfil {
@@ -110,7 +100,6 @@ export interface IncidenciaAsistencia {
   estado: 'Pendiente' | 'Resuelta';
 }
 
-
 export interface CriterioEvaluacion {
   nombre: string;
   nota: number;
@@ -153,21 +142,6 @@ export interface RegistroAsistenciaDia {
   horaLlegada?: string;
   observacion?: string;
   justificacionId?: string;
-}
-
-export interface JustificacionInasistencia {
-  id: string;
-  hijoId: string;
-  hijoNombre: string;
-  fechaInasistencia: string;
-  motivo: MotivoJustificacion;
-  descripcion: string;
-  archivoAdjuntoNombre?: string;
-  archivoUrl?: string;
-  fechaEnvio: string;
-  estado: EstadoJustificacion;
-  respuestaTutor?: string;
-  fechaRespuesta?: string;
 }
 
 export interface BloqueHorarioDia {

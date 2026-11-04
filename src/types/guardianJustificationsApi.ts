@@ -16,6 +16,9 @@ export interface AttendanceJustification {
   id: number;
   attendanceId: number;
   studentId: number;
+  /** Opcionales: gestión los muestra si el backend los envía; si faltan se usa «Estudiante #id». */
+  studentName?: string | null;
+  studentCode?: string | null;
   date: string;
   courseName: string;
   attendanceStatus: JustifiableAttendanceStatus;

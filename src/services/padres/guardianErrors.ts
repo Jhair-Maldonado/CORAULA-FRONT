@@ -121,6 +121,7 @@ export function guardianJustificationErrorMessage(error: unknown, action: Guardi
   if (status === 401) return GUARDIAN_SESSION_EXPIRED;
   if (status === 403) return GUARDIAN_NOT_GUARDIAN;
   const code = guardianJustificationErrorCode(error);
+  if (code === 'VALIDATION_ERROR' && action === 'respond') return 'Revisa los datos: la respuesta es obligatoria (hasta 2000 caracteres).';
   if (code) return justificationCodeMessages[code];
   if (status === 404) return justificationCodeMessages.JUSTIFICATION_NOT_FOUND;
   return justificationGeneric[action];

@@ -1,6 +1,13 @@
-import { ModuloPendiente } from '../../../../feature/padre/vistas/moduloPendiente/moduloPendiente';
+'use client';
 
-// FRONT #56: la vista de libreta llega en su propio PR cuando exista el endpoint.
+import VistaLibreta from '../../../../feature/padre/vistas/libreta/vistaLibreta';
+import { ModuloPendiente } from '../../../../feature/padre/vistas/moduloPendiente/moduloPendiente';
+import { guardianModuloUsaBackend } from '@/services/padres/guardianModules';
+
+// FRONT #56 / BACK #56. Módulo registrado: en MOCK, el adaptador simulado de httpClient responde el servicio.
 export default function LibretaPage() {
-  return <ModuloPendiente titulo="Libreta de calificaciones" descripcion="Libreta bimestral publicada del estudiante." />;
+  if (!guardianModuloUsaBackend('libreta')) {
+    return <ModuloPendiente titulo="Libreta de calificaciones" descripcion="Libreta bimestral publicada del estudiante." />;
+  }
+  return <VistaLibreta />;
 }

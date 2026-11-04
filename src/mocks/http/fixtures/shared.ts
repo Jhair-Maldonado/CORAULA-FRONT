@@ -8,6 +8,7 @@ import type { GuardianSummaryResponse, StudentDetailResponse } from '@/types/stu
 import type { TeacherResponse } from '@/types/teacherApi';
 import type { IncidenciaResponse } from '@/types/incidenciasApi';
 import type { TeacherAttendanceStatus } from '@/types/teacherAttendanceApi';
+import type { AttendanceJustification } from '@/types/guardianJustificationsApi';
 
 export interface MockTeacher extends TeacherResponse { personId: number; email: string | null }
 
@@ -54,6 +55,7 @@ export interface MockStore {
   criterionGrades: MockCriterionGrade[];
   incidents: IncidenciaResponse[];
   publications: MockPublication[];
+  justifications: AttendanceJustification[];
 }
 
 export const LIMA_OFFSET = '-05:00';
@@ -181,7 +183,7 @@ export function createMockStore(now: () => Date = () => new Date()): MockStore {
       actionsTaken: null, createdAt: occurredAt, ...over,
     };
   };
-  return {
+  const store: MockStore = {
     nextId,
     now,
     periods: [{ ...PERIOD }],
@@ -204,7 +206,10 @@ export function createMockStore(now: () => Date = () => new Date()): MockStore {
       { bimesterId: 12, publishedAt: '2026-07-24T10:00:00-05:00', revision: 2 },
       { bimesterId: 13, publishedAt: '2026-10-09T10:00:00-05:00', revision: 1 },
     ],
+    justifications: [],
   };
+  store.justifications = seedJustifications(store);
+  return store;
 }
 
 /** Estado de asistencia: el guardado por el docente o uno determinista para días pasados. Hoy sin registrar: null. */
@@ -225,6 +230,107 @@ export function attendanceId(sc: MockSectionCourse, enrollmentId: number, day: s
 export function hasSession(store: MockStore, day: string): boolean {
   const period = store.periods[0];
   return isWeekday(day) && day >= period.startDate && day <= period.endDate;
+}
+
+export interface MockAttendanceSession {
+  attendanceId: number;
+  date: string;
+  courseName: string;
+  startTime: string;
+  endTime: string;
+  status: TeacherAttendanceStatus;
+}
+
+/** Sesiones registradas de una matrícula entre dos días (hasta hoy), con su attendanceId estable. */
+export function attendanceSessions(store: MockStore, sectionId: number, enrollmentId: number, from: string, to: string): MockAttendanceSession[] {
+  const sessions: MockAttendanceSession[] = [];
+  for (let day = from; day <= to && day <= limaDayOf(store.now()); day = addDays(day, 1)) {
+    if (!hasSession(store, day)) continue;
+    for (const sc of store.sectionCourses.filter(x => x.sectionId === sectionId && x.active)) {
+      const status = attendanceStatus(store, sc, enrollmentId, day);
+      if (!status) continue;
+      sessions.push({
+        attendanceId: attendanceId(sc, enrollmentId, day), date: day, courseName: store.courses.find(c => c.id === sc.courseId)!.name,
+        startTime: sc.startTime, endTime: sc.endTime, status,
+      });
+    }
+  }
+  return sessions;
+}
+
+/** Sesión de la matrícula con ese attendanceId (el día va codificado en el id), o null. */
+export function findAttendanceSession(store: MockStore, sectionId: number, enrollmentId: number, id: number): MockAttendanceSession | null {
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
+  const day = addDays('2026-01-01', Math.floor(id / 1_000_000));
+  return attendanceSessions(store, sectionId, enrollmentId, day, day).find(s => s.attendanceId === id) ?? null;
+}
+
+/** Plazo de #57: vence al terminar el segundo día hábil posterior a la sesión (America/Lima, sin feriados). */
+export function justificationDeadlineExpired(sessionDay: string, now: Date): boolean {
+  let day = sessionDay;
+  for (let business = 0; business < 2;) {
+    day = addDays(day, 1);
+    if (isWeekday(day)) business++;
+  }
+  return limaDayOf(now) > day;
+}
+
+/** Ruta del adjunto de ejemplo servido por la propia app (public/mock): en MOCK nunca se abre un dominio externo. */
+export const MOCK_JUSTIFICATION_ATTACHMENT_PATH = '/mock/justificacion-ejemplo.pdf';
+export function mockJustificationAttachmentUrl(): string {
+  const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'http://localhost:3000';
+  return `${origin}${MOCK_JUSTIFICATION_ATTACHMENT_PATH}`;
+}
+
+/** Solicitud vigente de una sesión: la última que no fue rechazada. */
+export function activeJustification(store: MockStore, attendanceIdValue: number): AttendanceJustification | null {
+  return store.justifications.find(j => j.attendanceId === attendanceIdValue && j.status !== 'RECHAZADA') ?? null;
+}
+
+/** Última solicitud de una sesión (la lista se guarda de la más reciente a la más antigua). */
+export function latestJustification(store: MockStore, attendanceIdValue: number): AttendanceJustification | null {
+  return store.justifications.find(j => j.attendanceId === attendanceIdValue) ?? null;
+}
+
+/**
+ * Semillas de #57 sobre faltas reales del mock de Ana (57): deja libre la más reciente para «Justificar» y cubre
+ * PENDIENTE (decidir), OBSERVADA (responder) y APROBADA (justified). Las horas caen el mismo día de la sesión.
+ */
+function seedJustifications(store: MockStore): AttendanceJustification[] {
+  const today = limaDayOf(store.now());
+  const faltas = attendanceSessions(store, 10, 501, addDays(today, -40), addDays(today, -1))
+    .filter(s => s.status === 'INASISTENCIA' || s.status === 'TARDANZA')
+    .sort((a, b) => b.date.localeCompare(a.date) || a.startTime.localeCompare(b.startTime));
+  const at = (day: string, time: string) => new Date(`${day}T${time}:00${LIMA_OFFSET}`).toISOString();
+  const seed = (
+    session: MockAttendanceSession | undefined,
+    status: 'PENDIENTE' | 'OBSERVADA' | 'APROBADA',
+    reason: string,
+    attachment: boolean,
+    reviewComment: string | null,
+  ): AttendanceJustification | null => {
+    if (!session) return null;
+    const created = at(session.date, '18:00');
+    const reviewed = at(session.date, '20:00');
+    return {
+      id: store.nextId(), attendanceId: session.attendanceId, studentId: 57, studentName: 'Ana Arias Demo', studentCode: 'C26000057',
+      date: session.date, courseName: session.courseName, attendanceStatus: session.status as 'INASISTENCIA' | 'TARDANZA',
+      reason, status,
+      attachmentName: attachment ? 'constancia-medica.pdf' : null, attachmentMimeType: attachment ? 'application/pdf' : null,
+      attachmentSizeBytes: attachment ? 102_400 : null, reviewComment, response: null,
+      createdAt: created, updatedAt: status === 'PENDIENTE' ? created : reviewed,
+      history: [
+        { from: null, to: 'PENDIENTE', comment: null, at: created },
+        ...(status === 'PENDIENTE' ? [] : [{ from: 'PENDIENTE' as const, to: status, comment: reviewComment, at: reviewed }]),
+      ],
+    };
+  };
+  return [
+    seed(faltas[1], 'PENDIENTE', 'Cita médica odontológica programada con anticipación.', true, null),
+    seed(faltas[2], 'OBSERVADA', 'Congestión vehicular imprevista en la ruta escolar.', false,
+      'Por favor precisar si cuenta con constancia o reporte del servicio de transporte.'),
+    seed(faltas[3], 'APROBADA', 'Descanso médico por gripe.', true, 'Constancia médica conforme.'),
+  ].filter((j): j is AttendanceJustification => j !== null);
 }
 
 export const sectionStudents = (store: MockStore, sectionId: number) =>

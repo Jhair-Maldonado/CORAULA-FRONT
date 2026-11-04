@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -22,6 +22,7 @@ import { evaluationService } from '../src/services/admin/evaluationService';
 import { teacherIncidentsService } from '../src/services/teacher/teacherIncidentsService';
 import { teacherGradesService } from '../src/services/teacher/teacherGradesService';
 import { teacherAttendanceService } from '../src/services/teacher/teacherAttendanceService';
+import { parseAttendanceJustification, parseAttendanceJustificationsPage, parseGuardianAttendance, parseJustificationAttachmentUrl } from '../src/lib/guardianContract';
 
 // Adaptador del modo MOCK: sin red. Los fixtures pasan por los servicios reales y sus parsers estrictos.
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -218,4 +219,87 @@ test('MOCK instala el adaptador y responde sin red (no hay backend en localhost:
   assert.deepEqual(probe({}), { mark: false });
   // En este proceso de pruebas (LOCAL) tampoco está instalado.
   assert.equal(Boolean((httpClient.defaults.adapter as unknown as Record<string, unknown> | undefined)?.[MOCK_ADAPTER_MARK]), false);
+});
+
+test('justificaciones (#57) en MOCK: flujo completo apoderado ↔ directivo con los 409 del contrato', async () => {
+  const api = client(fresh());
+  const auth = async (email: string) => ({ headers: { Authorization: `Bearer ${(await loginAs(api, email)).token}` } });
+  const [padre, docente, directivo, admin] = await Promise.all(
+    ['padre@demo.local', 'docente@demo.local', 'secretaria@demo.local', 'admin@demo.local'].map(auth),
+  );
+  const codeOf = async (promise: Promise<unknown>) => {
+    try { await promise; return 'OK'; } catch (error) { assert.ok(isAxiosError(error)); return `${error.response?.status} ${error.response?.data?.code ?? ''}`.trim(); }
+  };
+  const form = (field: 'reason' | 'response', text: string, file?: File) => {
+    const data = new FormData();
+    data.append(field, text);
+    if (file) data.append('file', file, file.name);
+    return data;
+  };
+  const attendance = async (from: string, to: string) =>
+    parseGuardianAttendance((await api.get('/v1/guardian/students/57/attendance', { ...padre, params: { from, to } })).data, { studentId: 57, from, to });
+  const decide = (id: number, decision: string, who = directivo) =>
+    api.post(`/v1/management/attendance-justifications/${id}/decision`, { decision, comment: 'Revisado.' }, who);
+  const submitPath = (attendanceId: number) => `/v1/guardian/students/57/attendance/${attendanceId}/justifications`;
+
+  // Semillas: PENDIENTE, OBSERVADA y APROBADA sobre faltas reales de Ana, enlazadas con su asistencia.
+  const seeds = parseAttendanceJustificationsPage((await api.get('/v1/guardian/students/57/justifications', { ...padre, params: { page: 0, size: 20 } })).data, { page: 0, size: 20, studentId: 57 });
+  assert.deepEqual(seeds.content.map(j => j.status).sort(), ['APROBADA', 'OBSERVADA', 'PENDIENTE']);
+  const history = await attendance('2026-09-23', '2026-11-02');
+  for (const seed of seeds.content) {
+    const record = history.records.find(r => r.attendanceId === seed.attendanceId);
+    assert.ok(record, `semilla ${seed.id} enlazada`);
+    assert.equal(record.status, seed.attendanceStatus);
+    assert.deepEqual(record.justification, { id: seed.id, status: seed.status });
+    assert.equal(record.justified, seed.status === 'APROBADA');
+  }
+
+  // Envío: el docente registra una inasistencia hoy y el apoderado la justifica con un PDF.
+  await api.put('/v1/teacher/courses/301/attendance/401', { records: [{ enrollmentId: 501, status: 'INASISTENCIA' }, { enrollmentId: 503, status: 'PRESENTE' }, { enrollmentId: 504, status: 'PRESENTE' }] }, { ...docente, params: { date: '2026-11-02' } });
+  const [today] = (await attendance('2026-11-02', '2026-11-02')).records;
+  assert.equal(today.status, 'INASISTENCIA');
+  const pdf = new File(['%PDF-1.4'], 'constancia.pdf', { type: 'application/pdf' });
+  const created = await api.post(submitPath(today.attendanceId), form('reason', 'Cita médica.', pdf), padre);
+  assert.equal(created.status, 201);
+  const justification = parseAttendanceJustification(created.data, { studentId: 57 });
+  assert.deepEqual([justification.date, justification.courseName, justification.attendanceStatus, justification.attachmentName], ['2026-11-02', today.courseName, 'INASISTENCIA', 'constancia.pdf']);
+  assert.deepEqual((await attendance('2026-11-02', '2026-11-02')).records[0].justification, { id: justification.id, status: 'PENDIENTE' });
+  assert.equal(await codeOf(api.post(submitPath(today.attendanceId), form('reason', 'Otra vez.'), padre)), '409 JUSTIFICATION_ALREADY_ACTIVE');
+
+  // Elegibilidad, plazo y archivos.
+  const presente = history.records.find(r => r.status === 'PRESENTE')!;
+  assert.equal(await codeOf(api.post(submitPath(presente.attendanceId), form('reason', 'x'), padre)), '409 ATTENDANCE_NOT_ELIGIBLE');
+  const vencida = history.records.find(r => r.status !== 'PRESENTE' && r.justification === null && r.date <= '2026-10-28');
+  assert.ok(vencida, 'hay una falta sin justificar fuera de plazo');
+  assert.equal(await codeOf(api.post(submitPath(vencida.attendanceId), form('reason', 'x'), padre)), '409 JUSTIFICATION_DEADLINE_EXPIRED');
+  assert.equal(await codeOf(api.post(submitPath(999_999_999), form('reason', 'x'), padre)), '404 ATTENDANCE_NOT_FOUND');
+  const exe = new File(['x'], 'programa.exe', { type: 'application/x-msdownload' });
+  assert.equal(await codeOf(api.post(submitPath(today.attendanceId), form('reason', 'x', exe), padre)), '400 FILE_TYPE_NOT_ALLOWED');
+  assert.equal(await codeOf(api.post('/v1/guardian/students/59/attendance/1/justifications', form('reason', 'x'), padre)), '404 STUDENT_NOT_FOUND');
+
+  // Decisión: solo DIRECTIVO y solo sobre PENDIENTE; la respuesta solo sobre OBSERVADA.
+  assert.equal(await codeOf(decide(justification.id, 'OBSERVADA', admin)), '403');
+  assert.equal(await codeOf(api.post(`/v1/guardian/students/57/justifications/${justification.id}/response`, form('response', 'x'), padre)), '409 INVALID_JUSTIFICATION_TRANSITION');
+  assert.equal((await decide(justification.id, 'OBSERVADA')).data.status, 'OBSERVADA');
+  const answered = await api.post(`/v1/guardian/students/57/justifications/${justification.id}/response`, form('response', 'Adjunto la constancia.'), padre);
+  assert.equal(answered.data.status, 'PENDIENTE');
+  assert.equal((await decide(justification.id, 'RECHAZADA')).data.status, 'RECHAZADA');
+  assert.equal(await codeOf(decide(justification.id, 'APROBADA')), '409 INVALID_JUSTIFICATION_TRANSITION');
+  // Tras RECHAZADA cabe otra solicitud dentro del plazo original.
+  assert.equal((await api.post(submitPath(today.attendanceId), form('reason', 'Nueva solicitud.'), padre)).status, 201);
+
+  // Aprobar la semilla PENDIENTE marca la sesión como justificada.
+  const pendiente = seeds.content.find(j => j.status === 'PENDIENTE')!;
+  await decide(pendiente.id, 'APROBADA');
+  const approved = (await attendance('2026-09-23', '2026-11-02')).records.find(r => r.attendanceId === pendiente.attendanceId)!;
+  assert.equal(approved.justified, true);
+
+  // Descarga: URL de la propia app (sin dominios externos) y el archivo existe en public/.
+  const link = parseJustificationAttachmentUrl((await api.post(`/v1/management/attendance-justifications/${pendiente.id}/attachment/download-url`, null, admin)).data);
+  const url = new URL(link.url);
+  assert.equal(url.hostname, 'localhost');
+  assert.equal(url.pathname, '/mock/justificacion-ejemplo.pdf');
+  assert.match(readFileSync(path.join(ROOT, 'public', url.pathname), 'latin1'), /^%PDF-1\.4[\s\S]*%%EOF\n$/);
+  const observada = seeds.content.find(j => j.status === 'OBSERVADA')!;
+  assert.equal(await codeOf(api.post(`/v1/guardian/students/57/justifications/${observada.id}/attachment/download-url`, null, padre)), '404 FILE_NOT_FOUND');
 });

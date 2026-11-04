@@ -9,6 +9,8 @@ import { GuardianAttendanceReport } from '../feature/padre/vistas/asistencia/vis
 import type { GuardianAttendanceResponse } from '../src/types/guardianAttendanceApi';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+// Fuera del App Router, next/link usa requestIdleCallback (self) aunque prefetch={false}: mismo patrón que el resto de pruebas.
+if (typeof globalThis.self === 'undefined') Object.assign(globalThis, { self: globalThis });
 
 const RESPONSE: GuardianAttendanceResponse = {
   studentId: 57,
@@ -46,6 +48,11 @@ test('consulta asistencia con el contrato real y muestra el resumen y sesiones d
     assert.match(output, /Matemática · 08:00–09:30/);
     assert.match(output, /Historia · 10:00–11:30/);
     assert.ok(output.indexOf('2026-10-06') < output.indexOf('2026-10-05'));
+    // «Justificar» solo en la inasistencia; el enlace lleva el hijo y no se precarga.
+    const links = renderer.root.findAll(n => typeof n.props.href === 'string' && n.props.href.startsWith('/padre/justificacion'));
+    const hrefs = [...new Set(links.map(n => n.props.href as string))];
+    assert.deepEqual(hrefs, ['/padre/justificacion?studentId=57&attendanceId=502&date=2026-10-06&course=Historia&status=INASISTENCIA']);
+    assert.ok(links.every(n => n.props.prefetch === false || n.type === 'a'));
     act(() => renderer.unmount());
   } finally {
     httpClient.defaults.adapter = original;

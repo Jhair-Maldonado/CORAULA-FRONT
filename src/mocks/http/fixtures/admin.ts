@@ -4,9 +4,13 @@ import type { SectionResponse } from '@/types/sectionApi';
 import type { CourseResponse } from '@/types/courseApi';
 import type { TeacherResponse } from '@/types/teacherApi';
 import { asObject, fail, ok, pageOf, pageParams, positiveInt, type MockRequest, type MockRoute } from '../mockHttp';
-import { attendanceStatus, hasSession, limaDayOf, sectionStudents, studentFullName, type MockStore, type MockTeacher } from './shared';
+import type { JustificationDecisionRequest } from '@/types/guardianJustificationsApi';
+import {
+  attendanceStatus, hasSession, limaDayOf, mockJustificationAttachmentUrl, sectionStudents, studentFullName, type MockStore, type MockTeacher,
+} from './shared';
 
 const MANAGEMENT = ['ADMINISTRADOR', 'DIRECTIVO'] as const;
+const DECISIONS: readonly JustificationDecisionRequest['decision'][] = ['APROBADA', 'RECHAZADA', 'OBSERVADA'];
 
 function summary(s: StudentDetailResponse): StudentSummaryResponse {
   return {
@@ -236,4 +240,57 @@ export const adminRoutes: MockRoute[] = [
   { method: 'GET', pattern: '/v1/management/vacancies', roles: MANAGEMENT, handler: vacancies },
   { method: 'GET', pattern: '/v1/management/attendance/daily', roles: MANAGEMENT, handler: dailyAttendance },
   { method: 'GET', pattern: '/v1/management/bimesters/:bimesterId/early-alerts', roles: MANAGEMENT, handler: earlyAlerts },
+  {
+    method: 'GET', pattern: '/v1/management/attendance-justifications', roles: MANAGEMENT,
+    handler: ({ store, query }) => {
+      const paging = pageParams(query);
+      if (!paging) return fail(400, 'La paginación no es válida.', 'VALIDATION_ERROR');
+      const { status } = query;
+      let list = store.justifications;
+      if (status) {
+        list = list.filter(j => j.status === status);
+      }
+      list = [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return ok(pageOf(list, paging.page, paging.size));
+    },
+  },
+  {
+    method: 'GET', pattern: '/v1/management/attendance-justifications/:id', roles: MANAGEMENT,
+    handler: ({ store, params }) => {
+      const id = positiveInt(params.id);
+      const justification = store.justifications.find(j => j.id === id);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      return ok(justification);
+    },
+  },
+  {
+    method: 'POST', pattern: '/v1/management/attendance-justifications/:id/decision', roles: ['DIRECTIVO'],
+    handler: ({ store, params, body }) => {
+      const id = positiveInt(params.id);
+      const justification = store.justifications.find(j => j.id === id);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      const input = asObject(body);
+      const decision = DECISIONS.find(d => d === input.decision);
+      const comment = typeof input.comment === 'string' ? input.comment.trim() : '';
+      if (!decision || !comment || comment.length > 2000) return fail(400, 'Datos inválidos.', 'VALIDATION_ERROR');
+      // Solo una solicitud PENDIENTE admite decisión; el backend responde 409 en cualquier otro estado.
+      if (justification.status !== 'PENDIENTE') return fail(409, 'Cambio de estado no permitido.', 'INVALID_JUSTIFICATION_TRANSITION');
+      const nowIso = store.now().toISOString();
+      justification.status = decision;
+      justification.reviewComment = comment;
+      justification.updatedAt = nowIso;
+      justification.history.push({ from: 'PENDIENTE', to: decision, comment, at: nowIso });
+      return ok(justification);
+    },
+  },
+  {
+    method: 'POST', pattern: '/v1/management/attendance-justifications/:id/attachment/download-url', roles: MANAGEMENT,
+    handler: ({ store, params }) => {
+      const id = positiveInt(params.id);
+      const justification = store.justifications.find(j => j.id === id);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      if (!justification.attachmentName) return fail(404, 'La solicitud no tiene adjunto.', 'FILE_NOT_FOUND');
+      return ok({ url: mockJustificationAttachmentUrl(), expiresInSeconds: 300 });
+    },
+  },
 ];

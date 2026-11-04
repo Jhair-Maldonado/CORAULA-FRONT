@@ -154,6 +154,10 @@ export function parseAttendanceJustification(value: unknown, expected: { student
     attachmentName: r.nullableText(x.attachmentName), attachmentMimeType: r.nullableText(x.attachmentMimeType), attachmentSizeBytes: nullableCount(x.attachmentSizeBytes),
     reviewComment: r.nullableText(x.reviewComment), response: r.nullableText(x.response), createdAt: r.instant(x.createdAt), updatedAt: r.instant(x.updatedAt), history,
   };
+  // Opcionales (gestión): solo se incorporan si llegan; un valor presente con otro tipo rompe el contrato.
+  const studentName = r.nullableText(x.studentName), studentCode = r.nullableText(x.studentCode);
+  if (studentName !== null) result.studentName = studentName;
+  if (studentCode !== null) result.studentCode = studentCode;
   if (expected.studentId !== undefined && result.studentId !== expected.studentId) return fail();
   if (expected.id !== undefined && result.id !== expected.id) return fail();
   if ((result.attachmentName === null) !== (result.attachmentMimeType === null)) return fail();

@@ -4,7 +4,6 @@ import {
   HijoResumen,
   CursoCalificacion,
   RegistroAsistenciaDia,
-  JustificacionInasistencia,
   HorarioSemanaPadre,
   ComunicadoPadre,
   CuotaPension,
@@ -20,7 +19,6 @@ import {
   MOCK_CALIFICACIONES_SOFIA,
   MOCK_CALIFICACIONES_MATEO,
   MOCK_ASISTENCIA_SOFIA,
-  MOCK_JUSTIFICACIONES,
   MOCK_ALERTAS_ASISTENCIA,
   MOCK_INCIDENCIAS_ASISTENCIA,
   MOCK_HORARIO_SOFIA,
@@ -217,52 +215,6 @@ export async function getAsistencia(hijoId: string, mes?: string): Promise<Regis
   const query = new URLSearchParams();
   if (mes) query.set('mes', mes);
   return fetchWithAuth<RegistroAsistenciaDia[]>(`/asistencia/estudiante/${hijoId}?${query.toString()}`);
-}
-
-/**
- * Lista las justificaciones enviadas para un estudiante
- */
-export async function getJustificaciones(hijoId: string): Promise<JustificacionInasistencia[]> {
-  if (USE_MOCKS) {
-    await mockDelay(250);
-    return MOCK_JUSTIFICACIONES.filter(j => j.hijoId === hijoId);
-  }
-  // TODO(backend): Confirmar endpoint GET /asistencia/justificaciones?hijoId=:id
-  return fetchWithAuth<JustificacionInasistencia[]>(`/asistencia/justificaciones?hijoId=${encodeURIComponent(hijoId)}`);
-}
-
-/**
- * Envía una nueva justificación de inasistencia
- */
-export async function enviarJustificacion(data: {
-  hijoId: string;
-  fechaInasistencia: string;
-  motivo: JustificacionInasistencia['motivo'];
-  descripcion: string;
-  archivoNombre?: string;
-}): Promise<JustificacionInasistencia> {
-  if (USE_MOCKS) {
-    await mockDelay(400);
-    const hijo = MOCK_HIJOS.find(h => h.id === data.hijoId) || MOCK_HIJOS[0];
-    const nueva: JustificacionInasistencia = {
-      id: `just-${Date.now()}`,
-      hijoId: data.hijoId,
-      hijoNombre: hijo.nombreCompleto,
-      fechaInasistencia: data.fechaInasistencia,
-      motivo: data.motivo,
-      descripcion: data.descripcion,
-      archivoAdjuntoNombre: data.archivoNombre || undefined,
-      fechaEnvio: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      estado: 'Pendiente'
-    };
-    MOCK_JUSTIFICACIONES.unshift(nueva);
-    return nueva;
-  }
-  // TODO(backend): Confirmar endpoint POST /asistencia/justificaciones y si soporta multipart/form-data para adjuntos
-  return fetchWithAuth<JustificacionInasistencia>('/asistencia/justificaciones', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
 }
 
 /**

@@ -6,7 +6,6 @@ import {
   HijoResumen,
   CursoCalificacion,
   RegistroAsistenciaDia,
-  JustificacionInasistencia,
   HorarioSemanaPadre,
   ComunicadoPadre,
   CuotaPension,
@@ -21,7 +20,6 @@ import {
   MOCK_CALIFICACIONES_SOFIA,
   MOCK_CALIFICACIONES_MATEO,
   MOCK_ASISTENCIA_SOFIA,
-  MOCK_JUSTIFICACIONES,
   MOCK_ALERTAS_ASISTENCIA,
   MOCK_INCIDENCIAS_ASISTENCIA,
   MOCK_HORARIO_SOFIA,
@@ -108,37 +106,6 @@ export async function getCalificaciones(hijoId: string, bimestre?: number): Prom
 export async function getAsistencia(hijoId: string, mes?: string): Promise<RegistroAsistenciaDia[]> {
   await mockDelay(300);
   return [...MOCK_ASISTENCIA_SOFIA];
-}
-
-export async function getJustificaciones(hijoId: string): Promise<JustificacionInasistencia[]> {
-  await mockDelay(250);
-  return MOCK_JUSTIFICACIONES.filter(j => j.hijoId === hijoId);
-}
-
-export async function enviarJustificacion(data: {
-  hijoId: string;
-  fechaInasistencia: string;
-  motivo: JustificacionInasistencia['motivo'];
-  descripcion: string;
-  archivoNombre?: string;
-}): Promise<JustificacionInasistencia> {
-  await mockDelay(400);
-  const hijos = await getHijos();
-  const hijo = hijos.find(h => h.id === data.hijoId) || hijos[0];
-  const nueva: JustificacionInasistencia = {
-    id: `just-${Date.now()}`,
-    hijoId: data.hijoId,
-    hijoNombre: hijo.nombreCompleto,
-    fechaInasistencia: data.fechaInasistencia,
-    motivo: data.motivo,
-    descripcion: data.descripcion,
-    archivoAdjuntoNombre: data.archivoNombre || undefined,
-    fechaEnvio: new Date().toISOString().replace('T', ' ').slice(0, 16),
-    estado: 'Pendiente'
-  };
-  // Se muta temporalmente el array del mock, aceptable en modo local-only
-  MOCK_JUSTIFICACIONES.unshift(nueva);
-  return nueva;
 }
 
 export async function getAlertasAsistencia(hijoId?: string): Promise<AlertaAsistencia[]> {

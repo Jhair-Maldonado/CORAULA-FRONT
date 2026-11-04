@@ -1,7 +1,11 @@
 // Rutas simuladas del apoderado (/v1/guardian). El apoderado de la sesión es el de padre@demo.local.
 import type { GuardianAttendanceRecord } from '@/types/guardianAttendanceApi';
+import type { AttendanceJustification } from '@/types/guardianJustificationsApi';
 import { fail, ok, pageOf, pageParams, positiveInt, type MockReply, type MockRequest, type MockRoute } from '../mockHttp';
-import { addDays, attendanceId, attendanceStatus, criteriaFor, hasSession, limaDayOf, studentFullName, type MockStore } from './shared';
+import {
+  activeJustification, attendanceSessions, criteriaFor, findAttendanceSession, justificationDeadlineExpired, latestJustification, limaDayOf,
+  mockJustificationAttachmentUrl, studentFullName, type MockStore,
+} from './shared';
 
 const APODERADO = ['APODERADO'] as const;
 const MAX_RANGE_DAYS = 92;
@@ -76,6 +80,28 @@ function publishedReport(request: MockRequest): MockReply | ReturnType<typeof re
 }
 const isReply = (value: unknown): value is MockReply => typeof value === 'object' && value !== null && 'status' in value;
 
+// Multipart de #57: texto obligatorio y archivo opcional (PDF, JPEG o PNG hasta 15 MB), como FileContext.JUSTIFICACION.
+const ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const ATTACHMENT_MAX_BYTES = 15 * 1024 * 1024;
+function readMultipart(body: unknown, field: 'reason' | 'response'): { text: string; file: File | null } {
+  if (typeof FormData === 'undefined' || !(body instanceof FormData)) return { text: '', file: null };
+  const value = body.get(field);
+  const file = body.get('file');
+  return { text: typeof value === 'string' ? value.trim() : '', file: typeof File !== 'undefined' && file instanceof File ? file : null };
+}
+function attachmentError(file: File | null): MockReply | null {
+  if (!file) return null;
+  if (file.size === 0) return fail(400, 'El archivo está vacío.', 'FILE_EMPTY');
+  if (file.size > ATTACHMENT_MAX_BYTES) return fail(400, 'El archivo supera el tamaño permitido.', 'FILE_TOO_LARGE');
+  if (!ATTACHMENT_TYPES.includes(file.type)) return fail(400, 'Tipo de archivo no permitido.', 'FILE_TYPE_NOT_ALLOWED');
+  return null;
+}
+function attachmentFields(file: File | null): Pick<AttendanceJustification, 'attachmentName' | 'attachmentMimeType' | 'attachmentSizeBytes'> {
+  return file
+    ? { attachmentName: file.name, attachmentMimeType: file.type, attachmentSizeBytes: file.size }
+    : { attachmentName: null, attachmentMimeType: null, attachmentSizeBytes: null };
+}
+
 export const apoderadoRoutes: MockRoute[] = [
   {
     method: 'GET', pattern: '/v1/guardian/students', roles: APODERADO,
@@ -91,18 +117,16 @@ export const apoderadoRoutes: MockRoute[] = [
       const student = linkedStudent(request);
       if (!student) return studentNotFound();
       if (!validRange(query.from, query.to)) return fail(400, 'El rango de fechas no es válido.', 'DATE_RANGE_INVALID');
-      const records: GuardianAttendanceRecord[] = [];
-      for (let day = query.from; day <= query.to && day <= limaDayOf(store.now()); day = addDays(day, 1)) {
-        if (!hasSession(store, day)) continue;
-        for (const sc of store.sectionCourses.filter(x => x.sectionId === student.sectionId && x.active)) {
-          const status = attendanceStatus(store, sc, student.enrollmentId!, day);
-          if (!status) continue;
-          records.push({
-            date: day, courseName: store.courses.find(c => c.id === sc.courseId)!.name, startTime: sc.startTime, endTime: sc.endTime, status,
-            attendanceId: attendanceId(sc, student.enrollmentId!, day), justified: false, justification: null,
-          });
-        }
-      }
+      // justification: la última solicitud de la sesión; justified solo si está APROBADA (como el backend).
+      const records: GuardianAttendanceRecord[] = attendanceSessions(store, student.sectionId!, student.enrollmentId!, query.from, query.to)
+        .map(session => {
+          const last = session.status === 'PRESENTE' ? null : latestJustification(store, session.attendanceId);
+          return {
+            date: session.date, courseName: session.courseName, startTime: session.startTime, endTime: session.endTime, status: session.status,
+            attendanceId: session.attendanceId, justified: last?.status === 'APROBADA',
+            justification: last ? { id: last.id, status: last.status } : null,
+          };
+        });
       records.sort((a, b) => b.date.localeCompare(a.date) || a.startTime.localeCompare(b.startTime));
       const count = (s: GuardianAttendanceRecord['status']) => records.filter(r => r.status === s).length;
       return ok({
@@ -158,6 +182,111 @@ export const apoderadoRoutes: MockRoute[] = [
       return ok(new Blob([pdf as BlobPart], { type: 'application/pdf' }), 200, {
         'content-type': 'application/pdf', 'content-disposition': `attachment; filename="libreta-${code}-${result.bimester.number}.pdf"`, 'cache-control': 'no-store',
       });
+    },
+  },
+  {
+    method: 'GET', pattern: '/v1/guardian/students/:studentId/justifications', roles: APODERADO,
+    handler: request => {
+      const student = linkedStudent(request);
+      if (!student) return studentNotFound();
+      const paging = pageParams(request.query);
+      if (!paging) return fail(400, 'La paginación no es válida.', 'VALIDATION_ERROR');
+      const { status } = request.query;
+      let list = request.store.justifications.filter(j => j.studentId === student.studentId);
+      if (status) {
+        list = list.filter(j => j.status === status);
+      }
+      list = [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return ok(pageOf(list, paging.page, paging.size));
+    },
+  },
+  {
+    method: 'GET', pattern: '/v1/guardian/students/:studentId/justifications/:id', roles: APODERADO,
+    handler: request => {
+      const student = linkedStudent(request);
+      if (!student) return studentNotFound();
+      const id = positiveInt(request.params.id);
+      const justification = request.store.justifications.find(j => j.id === id && j.studentId === student.studentId);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      return ok(justification);
+    },
+  },
+  {
+    method: 'POST', pattern: '/v1/guardian/students/:studentId/attendance/:attendanceId/justifications', roles: APODERADO,
+    handler: request => {
+      const student = linkedStudent(request);
+      if (!student) return studentNotFound();
+      const attendanceId = positiveInt(request.params.attendanceId);
+      const session = attendanceId ? findAttendanceSession(request.store, student.sectionId!, student.enrollmentId!, attendanceId) : null;
+      if (!attendanceId || !session) return fail(404, 'La sesión de asistencia no existe.', 'ATTENDANCE_NOT_FOUND');
+
+      const form = readMultipart(request.body, 'reason');
+      if (!form.text) return fail(400, 'El motivo es obligatorio.', 'VALIDATION_ERROR');
+      const fileError = attachmentError(form.file);
+      if (fileError) return fileError;
+      if (session.status !== 'INASISTENCIA' && session.status !== 'TARDANZA') {
+        return fail(409, 'La asistencia ya no admite justificación.', 'ATTENDANCE_NOT_ELIGIBLE');
+      }
+      if (activeJustification(request.store, attendanceId)) return fail(409, 'Ya existe una solicitud vigente.', 'JUSTIFICATION_ALREADY_ACTIVE');
+      if (justificationDeadlineExpired(session.date, request.store.now())) {
+        return fail(409, 'Venció el plazo para justificar.', 'JUSTIFICATION_DEADLINE_EXPIRED');
+      }
+
+      const nowIso = request.store.now().toISOString();
+      const created: AttendanceJustification = {
+        id: request.store.nextId(),
+        attendanceId,
+        studentId: student.studentId,
+        date: session.date,
+        courseName: session.courseName,
+        attendanceStatus: session.status,
+        reason: form.text,
+        status: 'PENDIENTE',
+        ...attachmentFields(form.file),
+        reviewComment: null,
+        response: null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        history: [{ from: null, to: 'PENDIENTE', comment: null, at: nowIso }],
+      };
+      request.store.justifications.unshift(created);
+      return ok(created, 201);
+    },
+  },
+  {
+    method: 'POST', pattern: '/v1/guardian/students/:studentId/justifications/:id/response', roles: APODERADO,
+    handler: request => {
+      const student = linkedStudent(request);
+      if (!student) return studentNotFound();
+      const id = positiveInt(request.params.id);
+      const justification = request.store.justifications.find(j => j.id === id && j.studentId === student.studentId);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      if (justification.status !== 'OBSERVADA') return fail(409, 'Solo se puede responder a una justificación observada.', 'INVALID_JUSTIFICATION_TRANSITION');
+
+      const form = readMultipart(request.body, 'response');
+      if (!form.text) return fail(400, 'La respuesta es obligatoria.', 'VALIDATION_ERROR');
+      const fileError = attachmentError(form.file);
+      if (fileError) return fileError;
+
+      const nowIso = request.store.now().toISOString();
+      justification.status = 'PENDIENTE';
+      justification.response = form.text;
+      if (form.file) Object.assign(justification, attachmentFields(form.file));
+      justification.updatedAt = nowIso;
+      justification.history.push({ from: 'OBSERVADA', to: 'PENDIENTE', comment: form.text, at: nowIso });
+      return ok(justification);
+    },
+  },
+  {
+    method: 'POST', pattern: '/v1/guardian/students/:studentId/justifications/:id/attachment/download-url', roles: APODERADO,
+    handler: request => {
+      const student = linkedStudent(request);
+      if (!student) return studentNotFound();
+      const id = positiveInt(request.params.id);
+      const justification = request.store.justifications.find(j => j.id === id && j.studentId === student.studentId);
+      if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
+      if (!justification.attachmentName) return fail(404, 'La solicitud no tiene adjunto.', 'FILE_NOT_FOUND');
+      return ok({ url: mockJustificationAttachmentUrl(), expiresInSeconds: 300 });
     },
   },
 ];

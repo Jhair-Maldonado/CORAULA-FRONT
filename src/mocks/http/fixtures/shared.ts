@@ -143,6 +143,10 @@ function student(
   };
 }
 
+// Libreta de Ana (57) en el III Bimestre: notas menores que 11 (Matemática 9; Comunicación 10,50) y un criterio
+// sin nota (Ciencia y Tecnología). Solo cambia ese alumno y ese bimestre; el resto usa la fórmula general.
+const ANA_III_BIMESTRE: Readonly<Record<number, readonly (number | null)[]>> = { 101: [8, 10], 102: [10, 11], 103: [14, null] };
+
 function seedGrades(students: StudentDetailResponse[], sectionCourses: MockSectionCourse[], nextId: () => number): MockCriterionGrade[] {
   const grades: MockCriterionGrade[] = [];
   for (const bimester of BIMESTERS.filter(b => b.status === 'CERRADO')) {
@@ -151,9 +155,11 @@ function seedGrades(students: StudentDetailResponse[], sectionCourses: MockSecti
         for (const criterion of criteriaFor(sc.courseId)) {
           // Una nota sin registrar para mostrar «Sin nota» en la libreta.
           if (s.studentId === 58 && sc.courseId === 105 && criterion.order === 2 && bimester.number === 3) continue;
+          const override = s.studentId === 57 && bimester.number === 3 ? ANA_III_BIMESTRE[sc.courseId]?.[criterion.order - 1] : undefined;
+          if (override === null) continue;
           grades.push({
             id: nextId(), enrollmentId: s.enrollmentId!, sectionCourseId: sc.id, bimesterId: bimester.id, criterionId: criterion.id,
-            grade: 11 + ((s.studentId + criterion.id + bimester.number * 3) % 9), registeredByTeacherId: sc.teacherId ?? 202,
+            grade: override ?? 11 + ((s.studentId + criterion.id + bimester.number * 3) % 9), registeredByTeacherId: sc.teacherId ?? 202,
             registeredAt: `${bimester.endDate}T15:00:00Z`, updatedAt: null,
           });
         }

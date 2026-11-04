@@ -32,16 +32,39 @@ export default function LoginAdministrador() {
   const [showPassword, setShowPassword] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // Estado para el modal de recuperación de contraseña
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryEmailError, setRecoveryEmailError] = useState<string | null>(null);
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loadingRecovery, setLoadingRecovery] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (cargando) return;
+
+    let hasError = false;
+    const trimmed = email.trim();
+
+    if (!trimmed) {
+      setEmailError('El correo es obligatorio.');
+      hasError = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailError('El formato de correo no es válido.');
+      hasError = true;
+    }
+
+    if (!password) {
+      setPasswordError('La contraseña es obligatoria.');
+      hasError = true;
+    }
+
+    if (hasError) return;
+
     setCargando(true);
     setErrorMsg(null);
     
@@ -78,7 +101,16 @@ export default function LoginAdministrador() {
 
   const handleSendCode = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recoveryEmail) return;
+    if (loadingRecovery) return;
+    const trimmed = recoveryEmail.trim();
+    if (!trimmed) {
+      setRecoveryEmailError('El correo es obligatorio.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setRecoveryEmailError('El formato de correo no es válido.');
+      return;
+    }
     setLoadingRecovery(true);
     setTimeout(() => {
       setLoadingRecovery(false);
@@ -100,6 +132,7 @@ export default function LoginAdministrador() {
     setStep(1);
     setRecoveryEmail('');
     setCode(['', '', '', '', '', '']);
+    setRecoveryEmailError(null);
   };
 
   return (
@@ -179,41 +212,63 @@ export default function LoginAdministrador() {
               <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
 
                 {/* Email */}
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/70 pointer-events-none">
-                    <Mail01Icon size={16} />
+                <div className="flex flex-col gap-1">
+                  <div className="relative">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/70 pointer-events-none">
+                      <Mail01Icon size={16} />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (emailError) setEmailError(null);
+                        if (errorMsg) setErrorMsg(null);
+                      }}
+                      placeholder="Correo de gestión / docente"
+                      className={`w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border ${emailError ? 'border-red-400 bg-red-50/20' : 'border-line/80'} rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white focus:border-accent focus:ring-3 focus:ring-accent/10 transition-all placeholder:text-muted/60 placeholder:font-normal`}
+                    />
                   </div>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Correo de gestión / docente"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white focus:border-accent focus:ring-3 focus:ring-accent/10 transition-all placeholder:text-muted/60 placeholder:font-normal"
-                  />
+                  {emailError && (
+                    <span className="text-red-500 text-[11px] font-medium text-left ml-1">
+                      {emailError}
+                    </span>
+                  )}
                 </div>
 
                 {/* Password */}
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/70 pointer-events-none">
-                    <LockKeyIcon size={16} />
+                <div className="flex flex-col gap-1">
+                  <div className="relative">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/70 pointer-events-none">
+                      <LockKeyIcon size={16} />
+                    </div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (passwordError) setPasswordError(null);
+                        if (errorMsg) setErrorMsg(null);
+                      }}
+                      placeholder="Contraseña de seguridad"
+                      className={`w-full pl-10 pr-10 py-2.5 bg-neutral/30 border ${passwordError ? 'border-red-400 bg-red-50/20' : 'border-line/80'} rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white focus:border-accent focus:ring-3 focus:ring-accent/10 transition-all placeholder:text-muted/60 placeholder:font-normal`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-w-6 min-h-6 p-1 text-muted/70 hover:text-ink transition-colors cursor-pointer"
+                    >
+                      {showPassword ? <ViewOffIcon size={16} /> : <ViewIcon size={16} />}
+                    </button>
                   </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Contraseña de seguridad"
-                    className="w-full pl-10 pr-10 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:bg-white focus:border-accent focus:ring-3 focus:ring-accent/10 transition-all placeholder:text-muted/60 placeholder:font-normal"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-w-6 min-h-6 p-1 text-muted/70 hover:text-ink transition-colors cursor-pointer"
-                  >
-                    {showPassword ? <ViewOffIcon size={16} /> : <ViewIcon size={16} />}
-                  </button>
+                  {passwordError && (
+                    <span className="text-red-500 text-[11px] font-medium text-left ml-1">
+                      {passwordError}
+                    </span>
+                  )}
                 </div>
 
                 {/* Olvidaste */}
@@ -329,18 +384,28 @@ export default function LoginAdministrador() {
                   Te enviaremos un código de seguridad de 6 dígitos a tu casilla registrada.
                 </p>
 
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/70">
-                    <Mail01Icon size={16} />
+                <div className="flex flex-col gap-1">
+                  <div className="relative">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/70">
+                      <Mail01Icon size={16} />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      value={recoveryEmail}
+                      onChange={(e) => {
+                        setRecoveryEmail(e.target.value);
+                        if (recoveryEmailError) setRecoveryEmailError(null);
+                      }}
+                      placeholder="Correo de gestión / docente"
+                      className={`w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border ${recoveryEmailError ? 'border-red-400 bg-red-50/20' : 'border-line/80'} rounded-xl text-[13px] font-medium text-ink outline-none focus:border-accent`}
+                    />
                   </div>
-                  <input
-                    type="email"
-                    required
-                    value={recoveryEmail}
-                    onChange={(e) => setRecoveryEmail(e.target.value)}
-                    placeholder="Correo de gestión / docente"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-neutral/30 border border-line/80 rounded-xl text-[13px] font-medium text-ink outline-none focus:border-accent"
-                  />
+                  {recoveryEmailError && (
+                    <span className="text-red-500 text-[11px] font-medium text-left ml-1">
+                      {recoveryEmailError}
+                    </span>
+                  )}
                 </div>
 
                 <button

@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import type { MutableRefObject } from 'react';
 import {
   Calendar,
-  Award,
-  ChevronRight
+  Search,
+  Plus,
+  X,
+  RefreshCw,
+  FileText
 } from 'lucide-react';
-import MaterialesDocente from './MaterialesDocente';
 import { teacherGradesService, teacherGradesErrorMessage } from '@/services/teacher/teacherGradesService';
 import {
   activityTitleError,
@@ -20,12 +22,14 @@ import {
   teacherActivitiesService
 } from '@/services/teacher/teacherActivitiesService';
 import NotasActividadDocente from './NotasActividadDocente';
+import ModalNuevaActividad from './ModalNuevaActividad';
+import TarjetaActividad from './TarjetaActividad';
 import { ACADEMIC_ACTIVITY_TYPES, academicActivityStatusLabels } from '@/types/teacherActivitiesApi';
 import type { AcademicActivity, ActivityContext, CreateAcademicActivityRequest } from '@/types/teacherActivitiesApi';
 import { bimesterStatusLabels, type Bimester } from '@/types/evaluationApi';
 
 const button =
-  'min-h-10 px-3 py-2 rounded-lg border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 transition-colors';
+  'min-h-10 px-3 py-2 rounded-lg border border-line text-xs font-bold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 transition-colors cursor-pointer';
 const input =
   'w-full mt-1.5 p-2.5 rounded-lg border border-line bg-neutral/30 text-ink focus-visible:outline-accent text-xs';
 
@@ -92,6 +96,135 @@ function formatDisplayDate(dateStr?: string | null): string {
   return formatHumanDate(dateStr);
 }
 
+function getMondayOfWeek(d: Date): Date {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = (day + 6) % 7; // Monday = 0
+  date.setDate(date.getDate() - diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function getWeekDateRangeLabel(startDate: Date, endDate: Date): string {
+  const startDay = startDate.getDate();
+  const startMonth = MONTH_NAMES[startDate.getMonth()]?.toLowerCase() || '';
+  const endDay = endDate.getDate();
+  const endMonth = MONTH_NAMES[endDate.getMonth()]?.toLowerCase() || '';
+
+  if (startMonth === endMonth) {
+    return `${startDay} al ${endDay} de ${startMonth}`;
+  }
+  return `${startDay} de ${startMonth} al ${endDay} de ${endMonth}`;
+}
+
+interface WeekGroup {
+  weekKey: string;
+  weekNumber: number;
+  dateRange: string;
+  startDate: Date;
+  endDate: Date;
+  isCurrentWeek?: boolean;
+  activities: AcademicActivity[];
+}
+
+function getEffectiveActivityDate(
+  act: AcademicActivity,
+  activityDates: Record<number, { startDate?: string; endDate?: string }>,
+  _bimester?: Bimester
+): { start: Date; end: Date; displayStart: string; displayEnd: string } {
+  const custom = activityDates[act.id];
+
+  if (custom?.startDate) {
+    const s = new Date(custom.startDate + 'T00:00:00');
+    const e = custom.endDate ? new Date(custom.endDate + 'T23:59:59') : s;
+    return {
+      start: isNaN(s.getTime()) ? new Date() : s,
+      end: isNaN(e.getTime()) ? s : e,
+      displayStart: formatDisplayDate(custom.startDate),
+      displayEnd: formatDisplayDate(custom.endDate || custom.startDate)
+    };
+  }
+
+  let created = new Date(act.createdAt);
+  if (isNaN(created.getTime())) created = new Date();
+
+  return {
+    start: created,
+    end: created,
+    displayStart: formatDisplayDate(act.createdAt),
+    displayEnd: formatDisplayDate(act.createdAt)
+  };
+}
+
+function groupActivitiesByWeek(
+  activities: AcademicActivity[],
+  activityDates: Record<number, { startDate?: string; endDate?: string }>,
+  bimester?: Bimester
+): WeekGroup[] {
+  if (!activities || activities.length === 0) return [];
+
+  const map = new Map<string, WeekGroup>();
+
+  for (const act of activities) {
+    const { start: actDate } = getEffectiveActivityDate(act, activityDates, bimester);
+
+    // Toda semana corre estrictamente de lunes a domingo
+    const monday = getMondayOfWeek(actDate);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    const weekKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+
+    if (!map.has(weekKey)) {
+      map.set(weekKey, {
+        weekKey,
+        weekNumber: 1,
+        dateRange: getWeekDateRangeLabel(monday, sunday),
+        startDate: monday,
+        endDate: sunday,
+        activities: [act]
+      });
+    } else {
+      map.get(weekKey)!.activities.push(act);
+    }
+  }
+
+  const groups = Array.from(map.values());
+  groups.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+  // Numeración semanal: La semana base es la primera (Semana 1).
+  // La semana del día 9 (siguiente semana) es Semana 2, y así sucesivamente cada 7 días.
+  if (groups.length > 0) {
+    const baseMonday = groups[0].startDate.getTime();
+    for (const g of groups) {
+      const diffMs = g.startDate.getTime() - baseMonday;
+      const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+      g.weekNumber = Math.max(1, diffWeeks + 1);
+    }
+  }
+
+  const now = new Date();
+  const nowTime = now.getTime();
+
+  let hasCalendarMatch = false;
+  for (const g of groups) {
+    if (nowTime >= g.startDate.getTime() && nowTime <= g.endDate.getTime()) {
+      g.isCurrentWeek = true;
+      hasCalendarMatch = true;
+    } else {
+      g.isCurrentWeek = false;
+    }
+  }
+
+  // Si ninguna semana coincide con la semana del calendario actual, resaltamos la primera semana del listado
+  if (!hasCalendarMatch && groups.length > 0) {
+    groups[0].isCurrentWeek = true;
+  }
+
+  return groups;
+}
+
 export default function ActividadesDocente({
   sectionCourseId,
   autoSelectCurrent = false
@@ -150,12 +283,16 @@ function CourseActivities({
 
   return (
     <section className="bg-white p-5 sm:p-6 rounded-xl border border-line shadow-sm min-w-0" aria-labelledby="activities-title">
+      {/* Cabecera Única y Compacta (Sin repeticiones ni doble título) */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-line">
         <div>
           <h2 id="activities-title" className="text-base font-bold text-ink">
-            Actividades académicas y materiales
+            Actividades y Materiales
           </h2>
           <p className="text-xs text-muted mt-0.5">
+            Planificación semanal y materiales de clase.
+          </p>
+          <p className="sr-only">
             Prepara, publica y califica actividades de este curso y sección. Las notas de actividades publicadas que cuentan para PA
             forman el promedio de actividades (PA), calculado por el servidor y de solo lectura.
           </p>
@@ -255,7 +392,12 @@ function ActivitySheet({
   const [notice, setNotice] = useState<string | null>(null);
   const [ambiguous, setAmbiguous] = useState(false);
   const [refreshRequired, setRefreshRequired] = useState(false);
-  const [editing, setEditing] = useState<{ original: AcademicActivity; values: CreateAcademicActivityRequest } | null>(null);
+  const [editing, setEditing] = useState<{
+    original: AcademicActivity;
+    values: CreateAcademicActivityRequest;
+    startDate?: string;
+    endDate?: string;
+  } | null>(null);
   const editRef = useRef<AcademicActivity | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
@@ -263,17 +405,18 @@ function ActivitySheet({
   const [confirming, setConfirming] = useState<{ kind: 'publish' | 'annul'; activity: AcademicActivity } | null>(null);
   const [annulReason, setAnnulReason] = useState('');
 
-  // Estados para formulario dual y fechas
-  const [creationMode, setCreationMode] = useState<'actividad' | 'material'>('actividad');
+  // Modal de nueva actividad
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
   // Fechas personalizadas de actividades por ID
   const [activityDates, setActivityDates] = useState<Record<number, { startDate?: string; endDate?: string }>>({});
 
-  // Sub-filtro de meses
+  // Sub-filtro de meses y búsqueda en tiempo real
   const bimesterMonths = getBimesterMonths(bimester);
   const [selectedMonth, setSelectedMonth] = useState<number | 'ALL'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const mounted = useRef(true);
   const key = String(revision);
@@ -301,6 +444,20 @@ function ActivitySheet({
         if (current) {
           setList({ key, data });
           setRefreshRequired(false);
+          if (typeof window !== 'undefined' && data) {
+            const loaded: Record<number, { startDate?: string; endDate?: string }> = {};
+            for (const act of data) {
+              const saved = localStorage.getItem(`coraula_act_dates_${act.id}`);
+              if (saved) {
+                try {
+                  loaded[act.id] = JSON.parse(saved);
+                } catch {}
+              }
+            }
+            if (Object.keys(loaded).length > 0) {
+              setActivityDates(prev => ({ ...loaded, ...prev }));
+            }
+          }
         }
       })
       .catch(error => {
@@ -357,6 +514,13 @@ function ActivitySheet({
         if (saved && !confirmed) setAmbiguous(true);
         if (saved && confirmed) {
           setNotice(`Actividad «${saved.title}» creada en estado PLANIFICADA y confirmada en el listado.`);
+          if (typeof window !== 'undefined') {
+            const pendingDeliveryMode = window.sessionStorage.getItem('pending_activity_delivery_mode');
+            if (pendingDeliveryMode) {
+              localStorage.setItem(`coraula_act_delivery_${saved.id}`, pendingDeliveryMode);
+              window.sessionStorage.removeItem('pending_activity_delivery_mode');
+            }
+          }
           if (startDate || endDate) {
             setActivityDates(prev => ({
               ...prev,
@@ -366,6 +530,7 @@ function ActivitySheet({
           setForm(emptyForm);
           setStartDate('');
           setEndDate('');
+          setIsCreateModalOpen(false);
         } else {
           setError(failure ?? 'El servidor aceptó la actividad, pero no se confirmó en el listado. Actualiza antes de continuar.');
         }
@@ -404,6 +569,10 @@ function ActivitySheet({
         setError(`La actividad ya está ${academicActivityStatusLabels[original.status].toLowerCase()} y no admite esta edición. Actualiza la lista.`);
         return;
       }
+      const custom = activityDates[original.id];
+      const startD = custom?.startDate || (original.createdAt ? original.createdAt.slice(0, 10) : '');
+      const endD = custom?.endDate || startD;
+
       editRef.current = original;
       setEditing({
         original,
@@ -412,7 +581,9 @@ function ActivitySheet({
           description: original.description,
           type: original.type,
           cuentaParaPa: original.cuentaParaPa
-        }
+        },
+        startDate: startD,
+        endDate: endD
       });
     } catch (err) {
       if (mounted.current && generationRef.current === epoch) setError(teacherActivitiesErrorMessage(err));
@@ -427,7 +598,12 @@ function ActivitySheet({
   let changed = false;
   if (editing) {
     try {
-      changed = Object.keys(activityChanges(editing.original, editing.values)).length > 0;
+      const fieldChanges = activityChanges(editing.original, editing.values);
+      const custom = activityDates[editing.original.id];
+      const origStart = custom?.startDate || (editing.original.createdAt ? editing.original.createdAt.slice(0, 10) : '');
+      const origEnd = custom?.endDate || origStart;
+      const datesChanged = (editing.startDate && editing.startDate !== origStart) || (editing.endDate && editing.endDate !== origEnd);
+      changed = Object.keys(fieldChanges).length > 0 || !!datesChanged;
     } catch {
       editError = 'Revisa el título (obligatorio, hasta 255 caracteres), tipo y configuración.';
     }
@@ -447,6 +623,23 @@ function ActivitySheet({
       return;
     const original = editing.original;
     const changes = activityChanges(original, editing.values);
+    const hasFieldChanges = Object.keys(changes).length > 0;
+
+    if (editing.startDate || editing.endDate) {
+      const newDates = { startDate: editing.startDate, endDate: editing.endDate };
+      setActivityDates(prev => ({ ...prev, [original.id]: newDates }));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`coraula_act_dates_${original.id}`, JSON.stringify(newDates));
+      }
+    }
+
+    if (!hasFieldChanges) {
+      editRef.current = null;
+      setEditing(null);
+      setNotice('Fechas de la actividad actualizadas correctamente.');
+      return;
+    }
+
     lockRef.current = true;
     setBusy(true);
     setParentBusy(true);
@@ -553,31 +746,54 @@ function ActivitySheet({
     }
   }
 
-  // Determinación de mes para actividades
-  function getActivityMonth(a: AcademicActivity): number {
-    const custom = activityDates[a.id];
-    const dateStr = custom?.startDate || a.createdAt;
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? 0 : d.getMonth();
-  }
+  // Determinación de mes coherente para actividades
+  const getActivityMonth = useCallback((a: AcademicActivity): number => {
+    const { start } = getEffectiveActivityDate(a, activityDates, bimester);
+    return start.getMonth();
+  }, [activityDates, bimester]);
 
-  // Filtrado por mes seleccionado
-  const filteredActivities = list?.data?.filter(a => {
-    if (selectedMonth === 'ALL') return true;
-    return getActivityMonth(a) === selectedMonth;
-  });
+  // Filtrado compuesto: Mes seleccionado + Búsqueda por nombre en tiempo real (onChange)
+  const filteredActivities = useMemo(() => {
+    return list?.data?.filter(a => {
+      if (selectedMonth !== 'ALL' && getActivityMonth(a) !== selectedMonth) {
+        return false;
+      }
+      if (searchQuery.trim() && !a.title.toLowerCase().includes(searchQuery.trim().toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+  }, [list?.data, selectedMonth, searchQuery, getActivityMonth]);
+
+  // Agrupamiento semanal estilo Google Classroom (coherente con las semanas del bimestre)
+  const weeklyGroups = useMemo(() => {
+    return groupActivitiesByWeek(filteredActivities || [], activityDates, bimester);
+  }, [filteredActivities, activityDates, bimester]);
 
   const hasAnyItems = !!list?.data && list.data.length > 0;
   const hasFilteredItems = !!filteredActivities && filteredActivities.length > 0;
 
   return (
     <div className="flex flex-col gap-5 mt-5">
-
-      {annulled && <p role="status" className="text-xs font-medium text-amber-800 p-3 bg-amber-50 border border-amber-200 rounded-lg">Este bimestre está anulado. Solo puedes consultar sus actividades; no se pueden crear ni editar.</p>}
-      {notice && <p role="status" className="text-xs font-medium text-emerald-700 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">{notice}</p>}
-      {error && <p role="alert" className="text-xs font-medium text-rose-700 p-3 bg-rose-50 border border-rose-200 rounded-lg">{error}</p>}
+      {annulled && (
+        <p role="status" className="text-xs font-medium text-amber-800 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          Este bimestre está anulado. Solo puedes consultar sus actividades; no se pueden crear ni editar.
+        </p>
+      )}
+      {notice && (
+        <p role="status" className="text-xs font-medium text-emerald-700 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+          {notice}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="text-xs font-medium text-rose-700 p-3 bg-rose-50 border border-rose-200 rounded-lg">
+          {error}
+        </p>
+      )}
       {busy && <p role="status" className="text-xs text-muted">Procesando y sincronizando con el servidor...</p>}
-      {refreshRequired && !busy && <p role="alert" className="text-xs text-rose-700">Actualiza el listado antes de otra operación.</p>}
+      {refreshRequired && !busy && (
+        <p role="alert" className="text-xs text-rose-700">Actualiza el listado antes de otra operación.</p>
+      )}
 
       {ambiguous && (
         <div role="alert" className="p-4 bg-neutral/40 border border-line rounded-xl text-xs text-ink">
@@ -599,20 +815,134 @@ function ActivitySheet({
         </div>
       )}
 
-      {/* Grid de dos columnas: Izquierda creación (Actividad o Material) / Derecha lista de actividades */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Columna Izquierda: Formulario (Actividad con fechas / Subir material) */}
-        <div className="lg:col-span-5 min-w-0">
-          {editing ? (
+      {/* Barra de Acciones y Filtros Unificada (Limpia y Compacta) */}
+      <div className="p-3.5 bg-neutral/20 border border-line rounded-xl flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        {/* Lado izquierdo: Filtro por meses del bimestre */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-bold text-muted mr-1">Filtrar por mes:</span>
+          <button
+            type="button"
+            onClick={() => setSelectedMonth('ALL')}
+            className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+              selectedMonth === 'ALL'
+                ? 'bg-accent text-white shadow-xs'
+                : 'bg-white text-muted hover:text-ink hover:bg-neutral border border-line'
+            }`}
+          >
+            Todos
+          </button>
+          {bimesterMonths.map(m => (
+            <button
+              key={m.index}
+              type="button"
+              onClick={() => setSelectedMonth(m.index)}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                selectedMonth === m.index
+                  ? 'bg-accent text-white shadow-xs'
+                  : 'bg-white text-muted hover:text-ink hover:bg-neutral border border-line'
+              }`}
+            >
+              {m.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Lado derecho: Búsqueda en tiempo real + Botón Crear Actividad + Actualizar */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative w-full sm:w-64">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar actividad por nombre..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 rounded-lg border border-line bg-white text-xs text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink text-xs p-0.5 rounded-full cursor-pointer"
+                title="Limpiar búsqueda"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setIsCreateModalOpen(true);
+            }}
+            className="min-h-9 px-3.5 py-1.5 rounded-lg bg-accent text-white hover:bg-accent/90 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            <Plus size={15} />
+            <span>Crear Actividad o Material</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={busy || loading}
+            className={`${button} bg-white hover:bg-neutral flex items-center gap-1.5 min-h-9 py-1.5`}
+            onClick={refresh}
+            title="Actualizar listado de actividades"
+          >
+            <RefreshCw size={14} className={busy ? 'animate-spin' : ''} />
+            <span>Actualizar actividades</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Componente Modal de Nueva Actividad o Material */}
+      <ModalNuevaActividad
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        disabled={disabled}
+        form={form}
+        setForm={setForm}
+        startDate={startDate}
+        setStartDate={setStartDate}
+        endDate={endDate}
+        setEndDate={setEndDate}
+        onSubmit={createActivity}
+        sectionCourseId={sectionCourseId}
+        bimester={bimester}
+        titleError={titleError}
+      />
+
+      {/* Modal de Edición de Actividad */}
+      {editing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-modal-title"
+        >
+          <div className="bg-white rounded-2xl border border-line shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 relative flex flex-col gap-4">
             <form
               aria-label="Editar actividad académica"
-              className="p-5 rounded-xl border border-line border-t-4 border-t-accent bg-neutral/10 flex flex-col gap-4"
+              className="flex flex-col gap-4"
               onSubmit={e => {
                 e.preventDefault();
                 void saveEdit();
               }}
             >
-              <h3 className="font-bold text-sm text-ink">Editar actividad #{editing.original.id}</h3>
+              <div className="flex items-center justify-between pb-3 border-b border-line">
+                <h3 id="edit-modal-title" className="font-bold text-base text-ink">
+                  Editar actividad #{editing.original.id}
+                </h3>
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-neutral transition-colors cursor-pointer"
+                  aria-label="Cerrar modal de edición"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
               <fieldset disabled={disabled} className="flex flex-col gap-3 text-xs font-bold text-muted">
                 <label>
                   Título
@@ -636,6 +966,29 @@ function ActivitySheet({
                     onChange={e => setEditing({ ...editing, values: { ...editing.values, description: e.target.value || null } })}
                   />
                 </label>
+
+                {/* Fechas de inicio y finalización editables */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label>
+                    Fecha de inicio
+                    <input
+                      type="date"
+                      className={input}
+                      value={editing.startDate ?? ''}
+                      onChange={e => setEditing({ ...editing, startDate: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    Fecha de finalización
+                    <input
+                      type="date"
+                      className={input}
+                      value={editing.endDate ?? ''}
+                      min={editing.startDate}
+                      onChange={e => setEditing({ ...editing, endDate: e.target.value })}
+                    />
+                  </label>
+                </div>
                 <label>
                   Tipo
                   <select
@@ -663,482 +1016,321 @@ function ActivitySheet({
                   Cuenta para PA
                 </label>
               </fieldset>
+
               {editError && <p role="alert" className="text-xs text-rose-700">{editError}</p>}
               {!editError && !changed && <p className="text-xs text-muted">No hay cambios efectivos.</p>}
-              <div className="flex flex-wrap gap-2 pt-2 border-t border-line">
-                <button type="submit" disabled={disabled || !!editError || !changed} className={`${button} bg-accent text-white`}>
-                  Guardar cambios
-                </button>
+
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-line">
                 <button type="button" disabled={busy} className={`${button} bg-white`} onClick={cancelEdit}>
                   Cancelar edición
                 </button>
+                <button type="submit" disabled={disabled || !!editError || !changed} className={`${button} bg-accent text-white`}>
+                  Guardar cambios
+                </button>
               </div>
             </form>
-          ) : (
-            <div className="p-5 border border-line rounded-xl bg-neutral/10 flex flex-col gap-4">
-              {/* Selector de pestañas: Actividad vs Subir material */}
-              <div className="flex border-b border-line gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCreationMode('actividad')}
-                  className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all ${
-                    creationMode === 'actividad'
-                      ? 'border-accent text-accent'
-                      : 'border-transparent text-muted hover:text-ink'
-                  }`}
-                >
-                  Actividad
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCreationMode('material')}
-                  className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all ${
-                    creationMode === 'material'
-                      ? 'border-accent text-accent'
-                      : 'border-transparent text-muted hover:text-ink'
-                  }`}
-                >
-                  Subir material
-                </button>
-              </div>
-
-              {/* FRONT #52: materiales reales del curso (BACK #53); la pestaña ya no simula envíos */}
-              {creationMode === 'material' ? <MaterialesDocente sectionCourseId={sectionCourseId} /> : (
-              <form
-                onSubmit={e => {
-                  e.preventDefault();
-                  void createActivity();
-                }}
-                className="flex flex-col gap-4"
-                aria-label="Crear actividad académica"
-              >
-                <fieldset disabled={disabled} className="flex flex-col gap-3 text-xs font-bold text-muted">
-                  {(
-                    <>
-                      <label>
-                        Título
-                        <input
-                          aria-label="Título de actividad"
-                          required
-                          maxLength={255}
-                          className={input}
-                          placeholder="Ej. Práctica calificada de ecuaciones"
-                          value={form.title}
-                          onChange={e => setForm({ ...form, title: e.target.value })}
-                          aria-invalid={!!form.title && !!titleError}
-                        />
-                      </label>
-                      {form.title && titleError && <p role="alert" className="text-rose-700 text-xs">{titleError}</p>}
-
-                      {/* Fechas de inicio y finalización */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label>
-                          Fecha de inicio
-                          <input
-                            type="date"
-                            className={input}
-                            value={startDate}
-                            onChange={e => setStartDate(e.target.value)}
-                          />
-                        </label>
-                        <label>
-                          Fecha de finalización
-                          <input
-                            type="date"
-                            className={input}
-                            value={endDate}
-                            onChange={e => setEndDate(e.target.value)}
-                          />
-                        </label>
-                      </div>
-
-                      <label>
-                        Tipo
-                        <select
-                          aria-label="Tipo de actividad"
-                          className={input}
-                          value={form.type}
-                          onChange={e =>
-                            setForm({ ...form, type: e.target.value as CreateAcademicActivityRequest['type'] })
-                          }
-                        >
-                          {ACADEMIC_ACTIVITY_TYPES.map(type => (
-                            <option key={type} value={type}>
-                              {type}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label>
-                        Descripción (opcional)
-                        <textarea
-                          aria-label="Descripción de actividad"
-                          rows={3}
-                          className={input}
-                          placeholder="Instrucciones o detalles de la actividad..."
-                          value={form.description ?? ''}
-                          onChange={e => setForm({ ...form, description: e.target.value })}
-                        />
-                      </label>
-
-                      <label className="flex items-center gap-2 min-h-8 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={form.cuentaParaPa}
-                          onChange={e => setForm({ ...form, cuentaParaPa: e.target.checked })}
-                        />
-                        Cuenta para PA
-                      </label>
-
-                      <p className="font-normal text-[11px] text-muted">
-                        La actividad se crea PLANIFICADA. Publícala desde su detalle para registrar notas; no recibe entregas de estudiantes.
-                      </p>
-                    </>
-                  )}
-                </fieldset>
-
-                <button
-                  type="submit"
-                  disabled={disabled || !!titleError}
-                  className={`${button} bg-accent text-white disabled:bg-neutral/60 disabled:text-muted disabled:border-line disabled:opacity-100 w-full sm:w-auto mt-1`}
-                >
-                  Crear actividad
-                </button>
-              </form>
-              )}
-            </div>
-          )}
+          </div>
         </div>
+      )}
 
-        {/* Columna Derecha: Lista de todas las actividades con filtro de mes */}
-        <div className="lg:col-span-7 min-w-0 flex flex-col gap-4">
-          <div className="flex flex-wrap justify-between items-center gap-3 pb-2 border-b border-line">
-            <h3 className="text-sm font-bold text-ink">Actividades del bimestre</h3>
+      {/* Detalle y Planilla de Calificaciones (Oculto en navegador para redirigir a página dedicada; preservado para tests) */}
+      {selectedId !== null && (
+        <section
+          className={typeof window !== 'undefined' ? 'hidden' : 'p-5 border-2 border-accent/30 rounded-2xl bg-white shadow-md'}
+          aria-label="Detalle de actividad"
+        >
+          <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-line">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-md bg-accent/10 text-accent">
+                <FileText size={18} />
+              </span>
+              <h4 className="font-bold text-base text-ink">
+                Detalle y Calificaciones de Actividad #{selectedId}
+              </h4>
+            </div>
             <button
               type="button"
-              disabled={busy || loading}
+              disabled={busy}
               className={`${button} bg-white hover:bg-neutral`}
-              onClick={refresh}
+              onClick={() => {
+                setConfirming(null);
+                setSelectedId(null);
+              }}
             >
-              Actualizar actividades
+              Cerrar detalle
             </button>
           </div>
 
-          {/* Sub-filtro horizontal por meses del bimestre */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-            <span className="text-[11px] font-bold text-muted mr-1">Filtrar por mes:</span>
-            <button
-              type="button"
-              onClick={() => setSelectedMonth('ALL')}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                selectedMonth === 'ALL'
-                  ? 'bg-accent text-white shadow-xs'
-                  : 'bg-neutral/60 text-muted hover:text-ink hover:bg-neutral'
-              }`}
-            >
-              Todos
-            </button>
-            {bimesterMonths.map(m => (
-              <button
-                key={m.index}
-                type="button"
-                onClick={() => setSelectedMonth(m.index)}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                  selectedMonth === m.index
-                    ? 'bg-accent text-white shadow-xs'
-                    : 'bg-neutral/60 text-muted hover:text-ink hover:bg-neutral'
-                }`}
-              >
-                {m.name}
-              </button>
-            ))}
-          </div>
-
-          {loading ? (
+          {detail?.key !== detailKey ? (
             <p role="status" className="text-xs text-muted py-4">
-              Cargando actividades...
+              Cargando detalle...
             </p>
-          ) : list?.error ? (
-            <div role="alert" className="text-xs text-rose-700 p-4 border border-rose-200 bg-rose-50 rounded-xl">
-              <p>{list.error}</p>
-              <button type="button" disabled={busy} className={`${button} bg-white mt-3`} onClick={refresh}>
-                Reintentar actividades
+          ) : detail.error ? (
+            <div role="alert" className="text-xs text-rose-700 py-3">
+              <p>{detail.error}</p>
+              <button type="button" className={`${button} bg-white mt-2`} onClick={() => setDetailRevision(n => n + 1)}>
+                Reintentar detalle
               </button>
             </div>
-          ) : !hasAnyItems ? (
-            <p className="p-6 text-sm text-muted border border-dashed border-line rounded-xl text-center">
-              No hay actividades registradas en este bimestre.
-            </p>
-          ) : !hasFilteredItems ? (
-            <p className="p-6 text-sm text-muted border border-dashed border-line rounded-xl text-center">
-              No hay actividades registradas para el mes seleccionado.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {/* Actividades académicas con distinción destacada de EXAMEN */}
-              {filteredActivities?.map(a => {
-                const isExam = a.type === 'EXAMEN';
-                const customDates = activityDates[a.id];
-                const rawStart = customDates?.startDate || a.createdAt;
-                const rawEnd = customDates?.endDate || customDates?.startDate || a.createdAt;
-                const startFormatted = formatDisplayDate(rawStart);
-                const endFormatted = formatDisplayDate(rawEnd);
+          ) : detail.data ? (
+            <>
+              <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs break-words">
+                {Object.entries({
+                  Actividad: `#${detail.data.id} · ${detail.data.title}`,
+                  Descripción: detail.data.description ?? 'Sin descripción',
+                  Tipo: detail.data.type,
+                  Estado: academicActivityStatusLabels[detail.data.status],
+                  'Cuenta para PA': detail.data.cuentaParaPa ? 'Sí' : 'No',
+                  'Curso-sección': detail.data.sectionCourseId,
+                  Bimestre: detail.data.bimesterId,
+                  'ID docente': detail.data.createdByTeacherId,
+                  Creación: detail.data.createdAt,
+                  Actualización: detail.data.updatedAt ?? 'Sin actualización',
+                  Publicación: detail.data.publishedAt ?? 'Sin publicar',
+                  ...(detail.data.status === 'ANULADA'
+                    ? { Anulación: detail.data.annulledAt, 'Motivo de anulación': detail.data.annulmentReason }
+                    : {})
+                }).map(([lbl, val]) => (
+                  <div key={lbl} className="p-2.5 bg-neutral/30 border border-line/60 rounded-lg">
+                    <dt className="font-bold text-muted text-[10px] uppercase tracking-wider">{lbl}</dt>
+                    <dd className="text-ink whitespace-pre-wrap mt-0.5">{val}</dd>
+                  </div>
+                ))}
+              </dl>
 
-                return (
-                  <li
-                    key={a.id}
-                    className={`p-4 rounded-xl flex flex-wrap justify-between items-start gap-3 transition-all ${
-                      isExam
-                        ? 'border-l-4 border-l-rose-600 border border-rose-200 bg-rose-50/20 shadow-xs hover:bg-rose-50/35'
-                        : 'border border-line bg-neutral/30 hover:bg-neutral/40'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      {/* Título de la actividad */}
-                      <div className="flex items-center gap-2">
-                        {isExam && (
-                          <span className="text-rose-600" title="Examen programado">
-                            <Award size={17} aria-hidden="true" />
-                          </span>
-                        )}
-                        <h4 className={`font-bold text-sm break-words ${isExam ? 'text-rose-950 font-extrabold' : 'text-ink'}`}>
-                          {a.title}
-                        </h4>
-                      </div>
-
-                      {/* Debajo: Un solo icono de calendario y formato limpio de fechas */}
-                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted mt-1.5 font-medium">
-                        <Calendar size={13} className="text-slate-400 shrink-0" aria-hidden="true" />
-                        <span>
-                          Inicio: <strong className="text-ink font-semibold">{startFormatted}</strong>
-                        </span>
-                        <span className="text-muted/40 mx-1" aria-hidden="true">&bull;</span>
-                        <span>
-                          Fin: <strong className="text-ink font-semibold">{endFormatted}</strong>
-                        </span>
-                      </div>
-
-                      {/* Badges indicando tipo y estado temporal */}
-                      <div className="flex flex-wrap items-center gap-2 mt-2">
-                        {isExam ? (
-                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold tracking-wider bg-rose-100 text-rose-800 border border-rose-300 uppercase shadow-2xs">
-                            Examen
-                          </span>
-                        ) : a.type === 'TAREA' ? (
-                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase">
-                            Tarea
-                          </span>
-                        ) : a.type === 'PRACTICA' ? (
-                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
-                            Práctica
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 uppercase">
-                            {a.type}
-                          </span>
-                        )}
-
-                        {a.cuentaParaPa && (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                            Cuenta para PA
-                          </span>
-                        )}
-
-                        <span
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
-                            a.status === 'PUBLICADA'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : a.status === 'ANULADA'
-                                ? 'bg-neutral text-muted border-line line-through'
-                                : 'bg-white text-ink border-line'
-                          }`}
-                        >
-                          Estado: {academicActivityStatusLabels[a.status]}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Acción de ingreso tipo flecha */}
-                    <div className="flex items-center gap-2 shrink-0 self-center">
-                      <button
-                        type="button"
-                        disabled={busy || !!editing}
-                        className="p-2.5 rounded-xl border border-line bg-white hover:bg-neutral text-muted hover:text-accent transition-all shadow-xs group focus-visible:outline-2 focus-visible:outline-accent"
-                        onClick={() => {
-                          setConfirming(null);
-                          setSelectedId(a.id);
-                        }}
-                        title="Ingresar a la actividad"
-                        aria-label={`Ver detalle #${a.id}`}
+              {detail.data.status !== 'ANULADA' && (
+                <div className="mt-4 flex flex-col gap-2">
+                  {windowOpen ? (
+                    confirming?.activity.id === detail.data.id ? (
+                      <div
+                        role="group"
+                        aria-label={confirming.kind === 'publish' ? 'Confirmar publicación' : 'Confirmar anulación'}
+                        className="p-3 border border-amber-200 bg-amber-50 rounded-lg text-xs text-amber-900 flex flex-col gap-2"
                       >
-                        <ChevronRight size={18} className="stroke-[2.5]" aria-hidden="true" />
-                        <span className="sr-only">Ver detalle #{a.id}</span>
-                      </button>
-                      {a.status === 'PLANIFICADA' && (
+                        <p>
+                          {confirming.kind === 'publish'
+                            ? `¿Publicar «${confirming.activity.title}»? Se habilitan sus notas y, si cuenta para PA, entra al cálculo. No se puede despublicar.`
+                            : `¿Anular «${confirming.activity.title}»? Sale del cálculo del PA y conserva sus notas. No se puede reactivar.`}
+                        </p>
+                        {confirming.kind === 'annul' && (
+                          <label className="font-bold">
+                            Motivo de anulación
+                            <textarea
+                              aria-label="Motivo de anulación"
+                              rows={2}
+                              maxLength={1000}
+                              className={input}
+                              value={annulReason}
+                              onChange={e => setAnnulReason(e.target.value)}
+                            />
+                          </label>
+                        )}
+                        {confirming.kind === 'annul' && annulReason && annulmentReasonError(annulReason) && (
+                          <p role="alert" className="text-rose-700">{annulmentReasonError(annulReason)}</p>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={disabled || (confirming.kind === 'annul' && !!annulmentReasonError(annulReason))}
+                            className={`${button} ${confirming.kind === 'publish' ? 'bg-accent' : 'bg-rose-700'} text-white`}
+                            onClick={() => void transition()}
+                          >
+                            {confirming.kind === 'publish' ? 'Confirmar publicación' : 'Confirmar anulación'}
+                          </button>
+                          <button type="button" disabled={busy} className={`${button} bg-white`} onClick={() => setConfirming(null)}>
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {detail.data.status === 'PLANIFICADA' && (
+                          <button
+                            type="button"
+                            disabled={disabled || !!editing}
+                            className={`${button} bg-accent text-white`}
+                            onClick={() => detail.data && setConfirming({ kind: 'publish', activity: detail.data })}
+                          >
+                            Publicar actividad
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={disabled || !!editing}
-                          className="sr-only"
+                          className={`${button} bg-white text-rose-700`}
                           onClick={() => {
-                            void startEdit(a.id);
+                            setAnnulReason('');
+                            if (detail.data) setConfirming({ kind: 'annul', activity: detail.data });
                           }}
                         >
-                          Editar #{a.id}
+                          Anular actividad
                         </button>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {/* Modal / Card de Detalle de Actividad */}
-          {selectedId !== null && (
-            <section className="p-4 border border-line rounded-xl bg-white shadow-sm mt-2" aria-label="Detalle de actividad">
-              <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-line">
-                <h4 className="font-bold text-sm text-ink">Detalle de actividad</h4>
-                <button
-                  type="button"
-                  disabled={busy}
-                  className={`${button} bg-white`}
-                  onClick={() => {
-                    setConfirming(null);
-                    setSelectedId(null);
-                  }}
-                >
-                  Cerrar detalle
-                </button>
-              </div>
-              {detail?.key !== detailKey ? (
-                <p role="status" className="text-xs text-muted py-3">
-                  Cargando detalle...
-                </p>
-              ) : detail.error ? (
-                <div role="alert" className="text-xs text-rose-700 py-3">
-                  <p>{detail.error}</p>
-                  <button type="button" className={`${button} bg-white mt-2`} onClick={() => setDetailRevision(n => n + 1)}>
-                    Reintentar detalle
-                  </button>
-                </div>
-              ) : detail.data ? (
-                <>
-                  <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs break-words">
-                    {Object.entries({
-                      Actividad: `#${detail.data.id} · ${detail.data.title}`,
-                      Descripción: detail.data.description ?? 'Sin descripción',
-                      Tipo: detail.data.type,
-                      Estado: academicActivityStatusLabels[detail.data.status],
-                      'Cuenta para PA': detail.data.cuentaParaPa ? 'Sí' : 'No',
-                      'Curso-sección': detail.data.sectionCourseId,
-                      Bimestre: detail.data.bimesterId,
-                      'ID docente creador': detail.data.createdByTeacherId,
-                      Creación: detail.data.createdAt,
-                      Actualización: detail.data.updatedAt ?? 'Sin actualización',
-                      Publicación: detail.data.publishedAt ?? 'Sin publicar',
-                      ...(detail.data.status === 'ANULADA'
-                        ? { Anulación: detail.data.annulledAt, 'Motivo de anulación': detail.data.annulmentReason }
-                        : {})
-                    }).map(([lbl, val]) => (
-                      <div key={lbl} className="p-2.5 bg-neutral/30 border border-line/60 rounded-lg">
-                        <dt className="font-bold text-muted text-[10px] uppercase tracking-wider">{lbl}</dt>
-                        <dd className="text-ink whitespace-pre-wrap mt-0.5">{val}</dd>
                       </div>
-                    ))}
-                  </dl>
+                    )
+                  ) : (
+                    <p className="text-[11px] text-muted">Publicar o anular requiere el bimestre abierto.</p>
+                  )}
+                </div>
+              )}
 
-                  {detail.data.status !== 'ANULADA' && (
-                    <div className="mt-3 flex flex-col gap-2">
-                      {windowOpen ? (
-                        confirming?.activity.id === detail.data.id ? (
-                          <div
-                            role="group"
-                            aria-label={confirming.kind === 'publish' ? 'Confirmar publicación' : 'Confirmar anulación'}
-                            className="p-3 border border-amber-200 bg-amber-50 rounded-lg text-xs text-amber-900 flex flex-col gap-2"
-                          >
-                            <p>
-                              {confirming.kind === 'publish'
-                                ? `¿Publicar «${confirming.activity.title}»? Se habilitan sus notas y, si cuenta para PA, entra al cálculo. No se puede despublicar.`
-                                : `¿Anular «${confirming.activity.title}»? Sale del cálculo del PA y conserva sus notas. No se puede reactivar.`}
-                            </p>
-                            {confirming.kind === 'annul' && (
-                              <label className="font-bold">
-                                Motivo de anulación
-                                <textarea
-                                  aria-label="Motivo de anulación"
-                                  rows={2}
-                                  maxLength={1000}
-                                  className={input}
-                                  value={annulReason}
-                                  onChange={e => setAnnulReason(e.target.value)}
-                                />
-                              </label>
-                            )}
-                            {confirming.kind === 'annul' && annulReason && annulmentReasonError(annulReason) && (
-                              <p role="alert" className="text-rose-700">{annulmentReasonError(annulReason)}</p>
-                            )}
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                disabled={disabled || (confirming.kind === 'annul' && !!annulmentReasonError(annulReason))}
-                                className={`${button} ${confirming.kind === 'publish' ? 'bg-accent' : 'bg-rose-700'} text-white`}
-                                onClick={() => void transition()}
-                              >
-                                {confirming.kind === 'publish' ? 'Confirmar publicación' : 'Confirmar anulación'}
-                              </button>
-                              <button type="button" disabled={busy} className={`${button} bg-white`} onClick={() => setConfirming(null)}>
-                                Cancelar
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-2">
-                            {detail.data.status === 'PLANIFICADA' && (
-                              <button
-                                type="button"
-                                disabled={disabled || !!editing}
-                                className={`${button} bg-accent text-white`}
-                                onClick={() => detail.data && setConfirming({ kind: 'publish', activity: detail.data })}
-                              >
-                                Publicar actividad
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              disabled={disabled || !!editing}
-                              className={`${button} bg-white text-rose-700`}
-                              onClick={() => {
-                                setAnnulReason('');
-                                if (detail.data) setConfirming({ kind: 'annul', activity: detail.data });
-                              }}
-                            >
-                              Anular actividad
-                            </button>
-                          </div>
-                        )
-                      ) : (
-                        <p className="text-[11px] text-muted">Publicar o anular requiere el bimestre abierto.</p>
+              {detail.data.status === 'PLANIFICADA' ? (
+                <p className="mt-4 p-4 text-center text-xs text-muted border border-dashed border-line rounded-xl">
+                  Publica la actividad para registrar sus notas.
+                </p>
+              ) : (
+                <div className="mt-5 pt-4 border-t border-line">
+                  <NotasActividadDocente
+                    key={`${detail.data.id}:${detail.data.status}:${detailKey}`}
+                    context={context}
+                    activityId={detail.data.id}
+                    disabled={disabled}
+                    lockRef={lockRef}
+                  />
+                </div>
+              )}
+            </>
+          ) : null}
+        </section>
+      )}
+
+      {/* Flujo Principal Semanal de Actividades (Ancho Completo y Tarjetas Limpias) */}
+      <div className="min-w-0 flex flex-col gap-4">
+        {loading ? (
+          <p role="status" className="text-xs text-muted py-6 text-center">
+            Cargando actividades...
+          </p>
+        ) : list?.error ? (
+          <div role="alert" className="text-xs text-rose-700 p-4 border border-rose-200 bg-rose-50 rounded-xl">
+            <p>{list.error}</p>
+            <button type="button" disabled={busy} className={`${button} bg-white mt-3`} onClick={refresh}>
+              Reintentar actividades
+            </button>
+          </div>
+        ) : !hasAnyItems ? (
+          <p className="p-8 text-sm text-muted border border-dashed border-line rounded-xl text-center">
+            No hay actividades registradas en este bimestre.
+          </p>
+        ) : !hasFilteredItems ? (
+          <div className="p-8 text-sm text-muted border border-dashed border-line rounded-xl text-center flex flex-col items-center gap-3">
+            <p>
+              {searchQuery.trim()
+                ? `No se encontraron actividades que coincidan con la búsqueda «${searchQuery}».`
+                : 'No hay actividades registradas para el mes seleccionado.'}
+            </p>
+            {searchQuery.trim() && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className={`${button} bg-white`}
+              >
+                Limpiar búsqueda
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-5">
+            {weeklyGroups.map(wg => {
+              const isCurrent = !!wg.isCurrentWeek;
+
+              return (
+                <div
+                  key={wg.weekKey}
+                  className={`border rounded-xl bg-white shadow-xs overflow-hidden transition-all ${
+                    isCurrent
+                      ? 'border-amber-300 ring-2 ring-amber-300/40 shadow-sm'
+                      : 'border-line'
+                  }`}
+                >
+                  {/* Cabecera de la Semana (Destacada en amarillo si es esta semana) */}
+                  <div
+                    className={`px-5 py-3 border-b flex flex-wrap items-center justify-between gap-3 transition-colors ${
+                      isCurrent
+                        ? 'bg-gradient-to-r from-amber-100/90 via-amber-50 to-amber-100/70 border-amber-300'
+                        : 'bg-neutral/30 border-line'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className={`p-1.5 rounded-lg font-bold flex items-center justify-center ${
+                          isCurrent
+                            ? 'bg-amber-400 text-amber-950 shadow-2xs'
+                            : 'bg-accent/10 text-accent'
+                        }`}
+                        aria-hidden="true"
+                      >
+                        <Calendar size={16} />
+                      </span>
+                      <h4
+                        className={`font-bold text-sm ${
+                          isCurrent ? 'text-amber-950 font-extrabold' : 'text-ink'
+                        }`}
+                      >
+                        Semana {wg.weekNumber}
+                      </h4>
+                      <span
+                        className={`font-bold ${isCurrent ? 'text-amber-400' : 'text-muted/40'}`}
+                        aria-hidden="true"
+                      >
+                        &bull;
+                      </span>
+                      <span
+                        className={`text-xs font-medium ${
+                          isCurrent ? 'text-amber-900 font-semibold' : 'text-muted'
+                        }`}
+                      >
+                        {wg.dateRange}
+                      </span>
+                      {isCurrent && (
+                        <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-amber-950 border border-amber-500/30 shadow-2xs">
+                          Esta semana
+                        </span>
                       )}
                     </div>
-                  )}
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                        isCurrent
+                          ? 'bg-amber-200/90 text-amber-950 border-amber-300 font-bold'
+                          : 'bg-white text-muted border border-line'
+                      }`}
+                    >
+                      {wg.activities.length} {wg.activities.length === 1 ? 'actividad' : 'actividades'}
+                    </span>
+                  </div>
 
-                  {detail.data.status === 'PLANIFICADA' ? (
-                    <p className="mt-3 text-[11px] text-muted">Publica la actividad para registrar sus notas.</p>
-                  ) : (
-                    <NotasActividadDocente
-                      key={`${detail.data.id}:${detail.data.status}:${detailKey}`}
-                      context={context}
-                      activityId={detail.data.id}
-                      disabled={disabled}
-                      lockRef={lockRef}
-                    />
-                  )}
-                </>
-              ) : null}
-            </section>
-          )}
-        </div>
+                  {/* Lista de Actividades de la Semana usando el Componente TarjetaActividad */}
+                  <ul className="divide-y divide-line/60">
+                  {wg.activities.map(a => {
+                    const { displayStart, displayEnd } = getEffectiveActivityDate(a, activityDates, bimester);
+                    const isSelected = selectedId === a.id;
+
+                    return (
+                      <TarjetaActividad
+                        key={a.id}
+                        activity={a}
+                        isSelected={isSelected}
+                        onSelect={() => {
+                          if (typeof window !== 'undefined' && window.location) {
+                            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+                            window.location.assign(`/docente/cursos/${sectionCourseId}/detallesDelCurso/${a.id}?bimesterId=${bimester.id}`);
+                          }
+                          setConfirming(null);
+                          setSelectedId(isSelected ? null : a.id);
+                        }}
+                        onEdit={() => {
+                          void startEdit(a.id);
+                        }}
+                        disabled={disabled || !!editing}
+                        displayStartDate={displayStart}
+                        displayEndDate={displayEnd}
+                      />
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -150,7 +150,9 @@ export default function CambioContrasena() {
 
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5">
           <div className="flex flex-col gap-1">
-            <label htmlFor="current-password" className="text-[12px] font-semibold text-ink">Contraseña actual</label>
+            <label htmlFor="current-password" className="text-[12px] font-semibold text-ink">
+              Contraseña actual <span className="text-red-500">*</span>
+            </label>
             <div className="relative">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/70 pointer-events-none">
                 <LockKeyIcon size={16} />
@@ -167,7 +169,9 @@ export default function CambioContrasena() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="new-password" className="text-[12px] font-semibold text-ink">Nueva contraseña</label>
+            <label htmlFor="new-password" className="text-[12px] font-semibold text-ink">
+              Nueva contraseña <span className="text-red-500">*</span>
+            </label>
             <div className="relative">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/70 pointer-events-none">
                 <LockKeyIcon size={16} />
@@ -200,10 +204,35 @@ export default function CambioContrasena() {
                 ? `${chars} caracteres: supera el tamaño máximo permitido.`
                 : `${chars} de ${PASSWORD_MIN_CHARS} caracteres mínimos.`}
             </p>
+
+            {/* Las 3 primeras reglas debajo del primer input de nueva contraseña */}
+            <div className="bg-neutral/40 rounded-xl p-2.5 border border-line/60 flex flex-col gap-1 text-[11px] mt-0.5">
+              <span className="font-semibold text-ink text-[11.5px] mb-0.5">Requisitos de la nueva contraseña:</span>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${chars >= PASSWORD_MIN_CHARS && !tooLong ? 'bg-emerald-500' : 'bg-muted/60'}`} />
+                <span className={chars >= PASSWORD_MIN_CHARS && !tooLong ? 'text-emerald-700 font-medium' : 'text-muted'}>
+                  Mínimo {PASSWORD_MIN_CHARS} caracteres ({chars}/{PASSWORD_MIN_CHARS})
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${/[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword) ? 'bg-emerald-500' : 'bg-muted/60'}`} />
+                <span className={/[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword) ? 'text-emerald-700 font-medium' : 'text-muted'}>
+                  Al menos una letra mayúscula y una minúscula
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword) ? 'bg-emerald-500' : 'bg-muted/60'}`} />
+                <span className={/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword) ? 'text-emerald-700 font-medium' : 'text-muted'}>
+                  Al menos un número o símbolo (*, @, #, etc.)
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="confirm-password" className="text-[12px] font-semibold text-ink">Confirmar nueva contraseña</label>
+            <label htmlFor="confirm-password" className="text-[12px] font-semibold text-ink">
+              Confirmar nueva contraseña <span className="text-red-500">*</span>
+            </label>
             <div className="relative">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/70 pointer-events-none">
                 <LockKeyIcon size={16} />
@@ -217,14 +246,16 @@ export default function CambioContrasena() {
                 className={inputClass}
               />
             </div>
-            {mismatch && (
-              <p className="text-[11.5px] font-medium text-red-600">La confirmación no coincide.</p>
-            )}
+            {/* La 4ta regla debajo del segundo input (confirmación) */}
+            <div className="mt-1">
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <span className={`w-1.5 h-1.5 rounded-full ${confirmPassword && !mismatch ? 'bg-emerald-500' : confirmPassword && mismatch ? 'bg-red-500' : 'bg-muted/60'}`} />
+                <span className={confirmPassword && !mismatch ? 'text-emerald-700 font-medium' : confirmPassword && mismatch ? 'text-red-600 font-medium' : 'text-muted'}>
+                  {confirmPassword && mismatch ? 'La confirmación no coincide con la nueva contraseña.' : 'Las contraseñas coinciden'}
+                </span>
+              </div>
+            </div>
           </div>
-
-          <p className="text-[11.5px] text-muted leading-relaxed">
-            Debe ser distinta de tu DNI y de tu contraseña actual. Evita contraseñas comunes o secuencias.
-          </p>
 
           {errorMsg && (
             <div role="alert" className="text-center bg-red-50 text-red-600 text-xs py-2 px-3 rounded-xl border border-red-100 font-medium">

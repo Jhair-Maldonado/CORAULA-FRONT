@@ -300,3 +300,174 @@ test('modal formulario: muestra mensaje específico si vence el plazo (409 JUSTI
     httpClient.defaults.adapter = original;
   }
 });
+
+// ── Cierre FRONT #57 ────────────────────────────────────────────────────────
+const SERVER_TEXT = 'texto interno del servidor que nunca se muestra';
+function errorReply(config: InternalAxiosRequestConfig, status: number, code?: string): never {
+  const response = {
+    data: { error: 'Error', message: SERVER_TEXT, ...(code ? { code } : {}) }, status, statusText: '', headers: {}, config,
+  } as AxiosResponse;
+  throw new AxiosError('error', 'ERR_BAD_REQUEST', config, undefined, response);
+}
+
+async function submitWith(code: string, status: number): Promise<string> {
+  const original = httpClient.defaults.adapter;
+  httpClient.defaults.adapter = async (config: InternalAxiosRequestConfig) => errorReply(config, status, code);
+  let renderer!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      renderer = create(<ModalFormularioJustificacion mode="submit" studentId="57" attendanceId={202} onClose={() => {}} onSuccess={() => {}} />);
+    });
+    await act(async () => { renderer.root.findByProps({ id: 'justificacion-texto' }).props.onChange({ target: { value: 'Motivo válido.' } }); });
+    await act(async () => { await renderer.root.findByType('form').props.onSubmit({ preventDefault: () => {} }); });
+    return textOf(renderer.root);
+  } finally {
+    if (renderer) await act(async () => { renderer.unmount(); });
+    httpClient.defaults.adapter = original;
+  }
+}
+
+test('modal formulario: mensajes fijos para ALREADY_ACTIVE, NOT_ELIGIBLE y STUDENT_NOT_FOUND, sin el texto del servidor', async () => {
+  const cases: [string, number, RegExp][] = [
+    ['JUSTIFICATION_ALREADY_ACTIVE', 409, /Ya existe una solicitud vigente para esta sesión/],
+    ['ATTENDANCE_NOT_ELIGIBLE', 409, /Esta sesión ya no admite justificación/],
+    ['STUDENT_NOT_FOUND', 404, /El estudiante ya no está vinculado a tu cuenta/],
+    ['JUSTIFICATION_DEADLINE_EXPIRED', 409, /Venció el plazo para justificar esta sesión/],
+  ];
+  for (const [code, status, expected] of cases) {
+    const out = await submitWith(code, status);
+    assert.match(out, expected, code);
+    assert.ok(!out.includes(SERVER_TEXT), code);
+  }
+});
+
+test('modal formulario: rechaza en el cliente archivos de más de 15 MB o de tipo no permitido, sin enviar', async () => {
+  const original = httpClient.defaults.adapter;
+  let calls = 0;
+  httpClient.defaults.adapter = async (config: InternalAxiosRequestConfig) => { calls++; throw new Error(`unexpected ${config.url}`); };
+  const big = new File(['x'], 'constancia.pdf', { type: 'application/pdf' });
+  Object.defineProperty(big, 'size', { value: 15 * 1024 * 1024 + 1 });
+  const exe = new File(['x'], 'programa.exe', { type: 'application/x-msdownload' });
+  const disfrazado = new File(['x'], 'foto.png', { type: 'application/pdf' });
+  let renderer!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      renderer = create(<ModalFormularioJustificacion mode="submit" studentId="57" attendanceId={202} onClose={() => {}} onSuccess={() => {}} />);
+    });
+    const cases: [File, RegExp][] = [[big, /supera los 15 MB/], [exe, /Solo se admiten archivos PDF, JPEG o PNG/], [disfrazado, /Solo se admiten archivos PDF, JPEG o PNG/]];
+    for (const [file, expected] of cases) {
+      const input = renderer.root.find(n => n.type === 'input' && n.props.type === 'file');
+      await act(async () => { input.props.onChange({ target: { files: [file], value: 'x' } }); });
+      assert.match(textOf(renderer.root), expected, file.name);
+    }
+    assert.equal(calls, 0);
+  } finally {
+    if (renderer) await act(async () => { renderer.unmount(); });
+    httpClient.defaults.adapter = original;
+  }
+});
+
+async function renderVista(params: string, adapter: (config: InternalAxiosRequestConfig) => Promise<AxiosResponse>, replaced: string[] = []) {
+  const original = httpClient.defaults.adapter;
+  httpClient.defaults.adapter = adapter;
+  const spyRouter = { ...router, replace: (href: string) => { replaced.push(href); } } as unknown as AppRouterInstance;
+  let renderer!: ReactTestRenderer;
+  await act(async () => {
+    renderer = create(
+      <AppRouterContext.Provider value={spyRouter}>
+        <SearchParamsContext.Provider value={new URLSearchParams(params)}>
+          <PadreProvider>
+            <VistaPrincipalJustificacion />
+          </PadreProvider>
+        </SearchParamsContext.Provider>
+      </AppRouterContext.Provider>
+    );
+  });
+  return {
+    renderer,
+    cleanup: async () => { await act(async () => { renderer.unmount(); }); httpClient.defaults.adapter = original; },
+  };
+}
+
+const okReply = (config: InternalAxiosRequestConfig, data: unknown) => ({ data, status: 200, statusText: '', headers: {}, config } as AxiosResponse);
+
+test('vista apoderado: «Justificar» abre el formulario solo si el enlace es del hijo activo; cerrar limpia la URL', async () => {
+  const adapter = async (config: InternalAxiosRequestConfig) =>
+    config.url === '/v1/guardian/students' ? okReply(config, [ANA]) : okReply(config, pageOf([]));
+  const ajeno = await renderVista('studentId=58&attendanceId=202&date=2026-05-20&course=Historia&status=INASISTENCIA', adapter);
+  try {
+    assert.equal(ajeno.renderer.root.findAll(n => n.props.id === 'justificacion-texto').length, 0);
+  } finally { await ajeno.cleanup(); }
+
+  const replaced: string[] = [];
+  const propio = await renderVista('studentId=57&attendanceId=202&date=2026-05-20&course=Historia&status=INASISTENCIA', adapter, replaced);
+  try {
+    assert.equal(propio.renderer.root.findAll(n => n.props.id === 'justificacion-texto').length, 1);
+    assert.match(textOf(propio.renderer.root), /Historia/);
+    const modal = propio.renderer.root.findByType(ModalFormularioJustificacion);
+    await act(async () => { modal.props.onClose(); });
+    assert.deepEqual(replaced, ['/padre/justificacion']);
+    assert.equal(propio.renderer.root.findAll(n => n.props.id === 'justificacion-texto').length, 0);
+  } finally { await propio.cleanup(); }
+});
+
+test('vista apoderado: «Ver justificación» muestra la solicitud destacada aunque no esté en la página', async () => {
+  const destacada = sampleJustification(77, { status: 'OBSERVADA', reason: 'Motivo de la solicitud enlazada', reviewComment: 'Adjunte constancia' });
+  const requested: string[] = [];
+  const view = await renderVista('studentId=57&justificationId=77', async (config: InternalAxiosRequestConfig) => {
+    requested.push(String(config.url));
+    if (config.url === '/v1/guardian/students') return okReply(config, [ANA]);
+    if (config.url === '/v1/guardian/students/57/justifications/77') return okReply(config, destacada);
+    return okReply(config, pageOf([]));
+  });
+  try {
+    const section = view.renderer.root.find(n => n.type === 'section' && n.props['aria-label'] === 'Solicitud seleccionada');
+    assert.match(textOf(section), /Motivo de la solicitud enlazada/);
+    assert.match(textOf(section), /Subsanar observación/);
+    assert.ok(requested.includes('/v1/guardian/students/57/justifications/77'));
+  } finally { await view.cleanup(); }
+});
+
+test('vista apoderado: un error de descarga se muestra en la tarjeta, sin alert()', async () => {
+  const alerts: unknown[] = [];
+  const originalAlert = globalThis.alert;
+  Object.assign(globalThis, { alert: (m: unknown) => { alerts.push(m); } });
+  const view = await renderVista('', async (config: InternalAxiosRequestConfig) => {
+    if (config.url === '/v1/guardian/students') return okReply(config, [ANA]);
+    if (String(config.url).endsWith('/attachment/download-url')) return errorReply(config, 404, 'FILE_NOT_FOUND');
+    return okReply(config, pageOf([sampleJustification(5)]));
+  });
+  try {
+    const download = view.renderer.root.find(n => n.type === 'button' && n.props.title === 'Descargar documento de sustento');
+    await act(async () => { await download.props.onClick(); });
+    const alertNode = view.renderer.root.find(n => n.props.role === 'alert');
+    assert.match(textOf(alertNode), /El archivo adjunto ya no está disponible/);
+    assert.equal(alerts.length, 0);
+  } finally {
+    await view.cleanup();
+    Object.assign(globalThis, { alert: originalAlert });
+  }
+});
+
+test('vista apoderado: cambiar de filtro cancela la consulta anterior y su respuesta no pisa a la nueva', async () => {
+  let releaseFirst!: () => void;
+  const signals: AbortSignal[] = [];
+  const view = await renderVista('', async (config: InternalAxiosRequestConfig) => {
+    if (config.url === '/v1/guardian/students') return okReply(config, [ANA]);
+    signals.push(config.signal as AbortSignal);
+    if (!config.params?.status) {
+      await new Promise<void>(resolve => { releaseFirst = resolve; });
+      return okReply(config, pageOf([sampleJustification(1, { reason: 'Respuesta vieja' })]));
+    }
+    return okReply(config, pageOf([sampleJustification(2, { status: 'OBSERVADA', reason: 'Respuesta nueva' })]));
+  });
+  try {
+    const tab = view.renderer.root.find(n => n.type === 'button' && textOf(n) === 'Observadas');
+    await act(async () => { tab.props.onClick(); });
+    assert.equal(signals[0].aborted, true);
+    await act(async () => { releaseFirst(); });
+    const out = textOf(view.renderer.root);
+    assert.match(out, /Respuesta nueva/);
+    assert.doesNotMatch(out, /Respuesta vieja/);
+  } finally { await view.cleanup(); }
+});

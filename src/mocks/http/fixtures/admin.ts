@@ -4,9 +4,13 @@ import type { SectionResponse } from '@/types/sectionApi';
 import type { CourseResponse } from '@/types/courseApi';
 import type { TeacherResponse } from '@/types/teacherApi';
 import { asObject, fail, ok, pageOf, pageParams, positiveInt, type MockRequest, type MockRoute } from '../mockHttp';
-import { attendanceStatus, hasSession, limaDayOf, sectionStudents, studentFullName, type MockStore, type MockTeacher } from './shared';
+import type { JustificationDecisionRequest } from '@/types/guardianJustificationsApi';
+import {
+  attendanceStatus, hasSession, limaDayOf, mockJustificationAttachmentUrl, sectionStudents, studentFullName, type MockStore, type MockTeacher,
+} from './shared';
 
 const MANAGEMENT = ['ADMINISTRADOR', 'DIRECTIVO'] as const;
+const DECISIONS: readonly JustificationDecisionRequest['decision'][] = ['APROBADA', 'RECHAZADA', 'OBSERVADA'];
 
 function summary(s: StudentDetailResponse): StudentSummaryResponse {
   return {
@@ -266,25 +270,16 @@ export const adminRoutes: MockRoute[] = [
       const justification = store.justifications.find(j => j.id === id);
       if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
       const input = asObject(body);
-      const decision = input.decision as string;
-      const comment = (input.comment as string)?.trim() ?? '';
-      if (!['APROBADA', 'RECHAZADA', 'OBSERVADA'].includes(decision)) {
-        return fail(400, 'La decisión debe ser APROBADA, RECHAZADA u OBSERVADA.', 'VALIDATION_ERROR');
-      }
-      if (!comment) {
-        return fail(400, 'El comentario es obligatorio.', 'VALIDATION_ERROR');
-      }
-      const nowIso = new Date().toISOString();
-      const prevStatus = justification.status;
-      justification.status = decision as any;
+      const decision = DECISIONS.find(d => d === input.decision);
+      const comment = typeof input.comment === 'string' ? input.comment.trim() : '';
+      if (!decision || !comment || comment.length > 2000) return fail(400, 'Datos inválidos.', 'VALIDATION_ERROR');
+      // Solo una solicitud PENDIENTE admite decisión; el backend responde 409 en cualquier otro estado.
+      if (justification.status !== 'PENDIENTE') return fail(409, 'Cambio de estado no permitido.', 'INVALID_JUSTIFICATION_TRANSITION');
+      const nowIso = store.now().toISOString();
+      justification.status = decision;
       justification.reviewComment = comment;
       justification.updatedAt = nowIso;
-      justification.history.push({
-        from: prevStatus,
-        to: decision as any,
-        comment,
-        at: nowIso,
-      });
+      justification.history.push({ from: 'PENDIENTE', to: decision, comment, at: nowIso });
       return ok(justification);
     },
   },
@@ -294,7 +289,8 @@ export const adminRoutes: MockRoute[] = [
       const id = positiveInt(params.id);
       const justification = store.justifications.find(j => j.id === id);
       if (!justification) return fail(404, 'La justificación no existe.', 'JUSTIFICATION_NOT_FOUND');
-      return ok({ url: 'https://storage.googleapis.com/test-bucket/justificacion.pdf', expiresInSeconds: 300 });
+      if (!justification.attachmentName) return fail(404, 'La solicitud no tiene adjunto.', 'FILE_NOT_FOUND');
+      return ok({ url: mockJustificationAttachmentUrl(), expiresInSeconds: 300 });
     },
   },
 ];

@@ -63,7 +63,8 @@ export function GuardianAttendanceReport({ data }: { data: GuardianAttendanceRes
               <h2 className="mb-3 text-sm font-bold text-ink">{date}</h2>
               <ul className="divide-y divide-line">
                 {records.map((record, index) => {
-                  const canJustify = (record.status === 'INASISTENCIA' || record.status === 'TARDANZA') && !record.justified && !record.justification;
+                  const canJustify = (record.status === 'INASISTENCIA' || record.status === 'TARDANZA') && !record.justified
+                    && (!record.justification || record.justification.status === 'RECHAZADA'); // tras un rechazo cabe otra solicitud dentro del plazo
                   return (
                     <li key={`${record.date}-${record.startTime}-${record.courseName}-${index}`} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                     <span className="text-ink">{record.courseName} · {record.startTime}–{record.endTime}</span>
@@ -74,7 +75,8 @@ export function GuardianAttendanceReport({ data }: { data: GuardianAttendanceRes
                         </span>
                         {canJustify && (
                           <Link
-                            href={`/padre/justificacion?attendanceId=${record.attendanceId}&date=${encodeURIComponent(record.date)}&course=${encodeURIComponent(record.courseName)}&status=${encodeURIComponent(record.status)}`}
+                            href={`/padre/justificacion?studentId=${data.studentId}&attendanceId=${record.attendanceId}&date=${encodeURIComponent(record.date)}&course=${encodeURIComponent(record.courseName)}&status=${encodeURIComponent(record.status)}`}
+                            prefetch={false}
                             className="inline-flex items-center rounded-lg bg-accent px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-accent/90"
                           >
                             Justificar
@@ -82,7 +84,8 @@ export function GuardianAttendanceReport({ data }: { data: GuardianAttendanceRes
                         )}
                         {record.justification && (
                           <Link
-                            href={`/padre/justificacion?justificationId=${record.justification.id}`}
+                            href={`/padre/justificacion?studentId=${data.studentId}&justificationId=${record.justification.id}`}
+                            prefetch={false}
                             className="inline-flex items-center text-xs font-medium text-accent underline hover:text-accent/80"
                           >
                             Ver justificación

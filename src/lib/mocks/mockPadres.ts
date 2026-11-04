@@ -4,7 +4,6 @@ import {
   HijoResumen,
   CursoCalificacion,
   RegistroAsistenciaDia,
-  JustificacionInasistencia,
   HorarioSemanaPadre,
   ComunicadoPadre,
   CuotaPension,
@@ -256,22 +255,6 @@ export const MOCK_ASISTENCIA_SOFIA: RegistroAsistenciaDia[] = [
   { id: 'as-8', fecha: '2026-04-10', diaSemana: 'Viernes', estado: 'Presente', horaLlegada: '07:49' },
   { id: 'as-9', fecha: '2026-04-13', diaSemana: 'Lunes', estado: 'Presente', horaLlegada: '07:46' },
   { id: 'as-10', fecha: '2026-04-14', diaSemana: 'Martes', estado: 'Presente', horaLlegada: '07:40' }
-];
-
-export const MOCK_JUSTIFICACIONES: JustificacionInasistencia[] = [
-  {
-    id: 'just-001',
-    hijoId: 'hijo-001',
-    hijoNombre: 'Sofía Fernández Torres',
-    fechaInasistencia: '2026-04-09',
-    motivo: 'Salud / Médico',
-    descripcion: 'Control odontológico anual y curación preventiva. Se adjuntó constancia médica.',
-    archivoAdjuntoNombre: 'constancia_medica_clinica_san_pablo.pdf',
-    fechaEnvio: '2026-04-08 18:30',
-    estado: 'Aprobada',
-    respuestaTutor: 'Justificación recibida y aceptada. Se coordinó reprogramación de la práctica de Comunicación.',
-    fechaRespuesta: '2026-04-09 09:15'
-  }
 ];
 
 export const MOCK_ALERTAS_ASISTENCIA: AlertaAsistencia[] = [

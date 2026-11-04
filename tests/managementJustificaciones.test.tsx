@@ -10,7 +10,10 @@ import { ModalDetalleJustificacion } from '../feature/admin/vistas/(administrati
 import {
   managementAttendanceJustificationsService,
   justificationDecisionError,
+  managementJustificationErrorMessage,
+  etiquetaEstudiante,
 } from '../src/services/admin/managementAttendanceJustificationsService';
+import { parseAttendanceJustification } from '../src/lib/guardianContract';
 import type { AttendanceJustification, AttendanceJustificationsPage } from '../src/types/guardianJustificationsApi';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -267,6 +270,188 @@ test('modal detalle: ADMINISTRADOR ve detalle pero NO la sección de resolución
     assert.match(rootText, /Gripe severa con descanso médico/);
     assert.doesNotMatch(rootText, /Resolución de la solicitud \(Directivo\)/);
     assert.doesNotMatch(rootText, /Confirmar aprobada/);
+  } finally {
+    if (renderer) await act(async () => { renderer.unmount(); });
+    httpClient.defaults.adapter = original;
+  }
+});
+
+// ── Cierre FRONT #57 ────────────────────────────────────────────────────────
+const SERVER_TEXT = 'texto interno del servidor que nunca se muestra';
+const okReply = (config: InternalAxiosRequestConfig, data: unknown) => ({ data, status: 200, statusText: '', headers: {}, config } as AxiosResponse);
+function errorReply(config: InternalAxiosRequestConfig, status: number, code?: string): never {
+  const response = {
+    data: { error: 'Error', message: SERVER_TEXT, ...(code ? { code } : {}) }, status, statusText: '', headers: {}, config,
+  } as AxiosResponse;
+  throw new AxiosError('error', 'ERR_BAD_REQUEST', config, undefined, response);
+}
+function axiosFailure(status: number, code?: string) {
+  const config = { headers: {} } as InternalAxiosRequestConfig;
+  try { errorReply(config, status, code); } catch (error) { return error; }
+  throw new Error('unreachable');
+}
+
+test('errores de gestión: mensajes propios por acción, sin textos del apoderado ni del servidor', () => {
+  const cases: [unknown, Parameters<typeof managementJustificationErrorMessage>[1], RegExp][] = [
+    [axiosFailure(403), 'decide', /Solo un directivo puede resolver justificaciones/],
+    [axiosFailure(403), 'list', /no tiene permiso para consultar las justificaciones/],
+    [axiosFailure(409, 'INVALID_JUSTIFICATION_TRANSITION'), 'decide', /ya fue resuelta o cambió de estado/],
+    [axiosFailure(409, 'ATTENDANCE_NOT_ELIGIBLE'), 'decide', /ya no admite justificación/],
+    [axiosFailure(400, 'VALIDATION_ERROR'), 'decide', /el comentario es obligatorio/],
+    [axiosFailure(404, 'JUSTIFICATION_NOT_FOUND'), 'detail', /La solicitud ya no está disponible/],
+    [axiosFailure(500), 'decide', /No se pudo registrar la decisión/],
+    [axiosFailure(401), 'list', /La sesión ha expirado/],
+  ];
+  for (const [error, action, expected] of cases) {
+    const message = managementJustificationErrorMessage(error, action);
+    assert.match(message, expected, `${action} ${message}`);
+    assert.ok(!message.includes(SERVER_TEXT));
+    assert.doesNotMatch(message, /apoderado|motivo/i);
+  }
+});
+
+test('servicio de gestión: una decisión cuya respuesta no refleja el estado pedido es un error de contrato', async () => {
+  const original = httpClient.defaults.adapter;
+  httpClient.defaults.adapter = async (config: InternalAxiosRequestConfig) => okReply(config, sampleJustification(30, { status: 'PENDIENTE' }));
+  try {
+    await assert.rejects(managementAttendanceJustificationsService.decide(30, { decision: 'APROBADA', comment: 'Conforme' }));
+  } finally {
+    httpClient.defaults.adapter = original;
+  }
+});
+
+test('parser: studentName y studentCode son opcionales; si llegan con otro tipo rompen el contrato', () => {
+  const base = { ...sampleJustification(40) } as Record<string, unknown>;
+  assert.equal(parseAttendanceJustification(base).studentName, undefined);
+  const withName = parseAttendanceJustification({ ...base, studentName: 'Ana Arias Demo', studentCode: 'C26000057' });
+  assert.equal(withName.studentName, 'Ana Arias Demo');
+  assert.equal(withName.studentCode, 'C26000057');
+  assert.throws(() => parseAttendanceJustification({ ...base, studentName: 57 }));
+  assert.deepEqual(etiquetaEstudiante({ studentId: 57 }), { nombre: 'Estudiante #57', codigo: null });
+  assert.deepEqual(etiquetaEstudiante({ studentId: 57, studentName: '  ', studentCode: null }), { nombre: 'Estudiante #57', codigo: null });
+});
+
+test('bandeja gestión: muestra nombre y código si vienen; si no, «Estudiante #id»', async () => {
+  const original = httpClient.defaults.adapter;
+  httpClient.defaults.adapter = async (config: InternalAxiosRequestConfig) => okReply(config, pageOf([
+    sampleJustification(50, { studentName: 'Ana Arias Demo', studentCode: 'C26000057' } as Partial<AttendanceJustification>),
+    sampleJustification(51, { studentId: 58 }),
+  ]));
+  let renderer!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      renderer = create(<AuthContext.Provider value={authFor('DIRECTIVO')}><VistaBandejaJustificaciones /></AuthContext.Provider>);
+    });
+    const out = textOf(renderer.root);
+    assert.match(out, /Ana Arias Demo/);
+    assert.match(out, /C26000057/);
+    assert.match(out, /Estudiante #58/);
+  } finally {
+    if (renderer) await act(async () => { renderer.unmount(); });
+    httpClient.defaults.adapter = original;
+  }
+});
+
+test('bandeja gestión: ADMINISTRADOR abre una PENDIENTE desde la bandeja y no ve botones de decisión', async () => {
+  const original = httpClient.defaults.adapter;
+  const just = sampleJustification(52, { status: 'PENDIENTE' });
+  httpClient.defaults.adapter = async (config: InternalAxiosRequestConfig) =>
+    String(config.url).endsWith('/52') ? okReply(config, just) : okReply(config, pageOf([just]));
+  let renderer!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      renderer = create(<AuthContext.Provider value={authFor('ADMINISTRADOR')}><VistaBandejaJustificaciones /></AuthContext.Provider>);
+    });
+    const open = renderer.root.find(n => n.type === 'button' && textOf(n) === 'Ver detalle');
+    await act(async () => { open.props.onClick(); });
+    const out = textOf(renderer.root);
+    assert.match(out, /Detalle de justificación #52/);
+    assert.equal(renderer.root.findAll(n => n.type === 'button' && /Aprobar|Observar|Rechazar/.test(textOf(n))).length, 0);
+    assert.equal(renderer.root.findAll(n => n.type === 'form' || n.type === 'textarea').length, 0);
+  } finally {
+    if (renderer) await act(async () => { renderer.unmount(); });
+    httpClient.defaults.adapter = original;
+  }
+});
+
+async function decideWith(status: number, code?: string): Promise<{ text: string; successCalls: number }> {
+  const original = httpClient.defaults.adapter;
+  const just = sampleJustification(60, { status: 'PENDIENTE' });
+  httpClient.defaults.adapter = async (config: InternalAxiosRequestConfig) =>
+    config.url?.endsWith('/decision') ? errorReply(config, status, code) : okReply(config, just);
+  let renderer!: ReactTestRenderer;
+  let successCalls = 0;
+  try {
+    await act(async () => {
+      renderer = create(<ModalDetalleJustificacion justificationId={60} canDecide onClose={() => {}} onDecisionSuccess={() => { successCalls++; }} />);
+    });
+    const reject = renderer.root.find(n => n.type === 'button' && textOf(n).includes('Rechazar'));
+    await act(async () => { reject.props.onClick(); });
+    await act(async () => { renderer.root.findByProps({ id: 'decision-comment' }).props.onChange({ target: { value: 'No procede.' } }); });
+    await act(async () => { await renderer.root.findByType('form').props.onSubmit({ preventDefault: () => {} }); });
+    const alertNode = renderer.root.find(n => n.props.role === 'alert');
+    return { text: textOf(alertNode), successCalls };
+  } finally {
+    if (renderer) await act(async () => { renderer.unmount(); });
+    httpClient.defaults.adapter = original;
+  }
+}
+
+test('modal detalle: una decisión rechazada (409/403) muestra un mensaje fijo de gestión', async () => {
+  const conflict = await decideWith(409, 'INVALID_JUSTIFICATION_TRANSITION');
+  assert.match(conflict.text, /ya fue resuelta o cambió de estado/);
+  assert.ok(!conflict.text.includes(SERVER_TEXT));
+  assert.equal(conflict.successCalls, 0);
+  const forbidden = await decideWith(403);
+  assert.match(forbidden.text, /Solo un directivo puede resolver justificaciones/);
+  assert.doesNotMatch(forbidden.text, /apoderado/);
+});
+
+test('modal detalle: un error de descarga se muestra en el modal, sin alert()', async () => {
+  const original = httpClient.defaults.adapter;
+  const alerts: unknown[] = [];
+  const originalAlert = globalThis.alert;
+  Object.assign(globalThis, { alert: (m: unknown) => { alerts.push(m); } });
+  httpClient.defaults.adapter = async (config: InternalAxiosRequestConfig) =>
+    String(config.url).endsWith('/download-url') ? errorReply(config, 503, 'FILE_STORAGE_UNAVAILABLE') : okReply(config, sampleJustification(61));
+  let renderer!: ReactTestRenderer;
+  try {
+    await act(async () => { renderer = create(<ModalDetalleJustificacion justificationId={61} canDecide={false} onClose={() => {}} />); });
+    const download = renderer.root.find(n => n.type === 'button' && textOf(n).includes('Descargar'));
+    await act(async () => { await download.props.onClick(); });
+    assert.match(textOf(renderer.root.find(n => n.props.role === 'alert')), /almacenamiento de archivos no está disponible/);
+    assert.equal(alerts.length, 0);
+  } finally {
+    if (renderer) await act(async () => { renderer.unmount(); });
+    httpClient.defaults.adapter = original;
+    Object.assign(globalThis, { alert: originalAlert });
+  }
+});
+
+test('bandeja gestión: cambiar de pestaña cancela la consulta anterior y su respuesta no pisa a la nueva', async () => {
+  const original = httpClient.defaults.adapter;
+  let releaseFirst!: () => void;
+  const signals: AbortSignal[] = [];
+  httpClient.defaults.adapter = async (config: InternalAxiosRequestConfig) => {
+    signals.push(config.signal as AbortSignal);
+    if (config.params?.status === 'PENDIENTE') {
+      await new Promise<void>(resolve => { releaseFirst = resolve; });
+      return okReply(config, pageOf([sampleJustification(70, { courseName: 'Curso viejo' })]));
+    }
+    return okReply(config, pageOf([sampleJustification(71, { status: 'APROBADA', courseName: 'Curso nuevo' })]));
+  };
+  let renderer!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      renderer = create(<AuthContext.Provider value={authFor('DIRECTIVO')}><VistaBandejaJustificaciones /></AuthContext.Provider>);
+    });
+    const tab = renderer.root.find(n => n.type === 'button' && textOf(n) === 'Aprobadas');
+    await act(async () => { tab.props.onClick(); });
+    assert.equal(signals[0].aborted, true);
+    await act(async () => { releaseFirst(); });
+    const out = textOf(renderer.root);
+    assert.match(out, /Curso nuevo/);
+    assert.doesNotMatch(out, /Curso viejo/);
   } finally {
     if (renderer) await act(async () => { renderer.unmount(); });
     httpClient.defaults.adapter = original;

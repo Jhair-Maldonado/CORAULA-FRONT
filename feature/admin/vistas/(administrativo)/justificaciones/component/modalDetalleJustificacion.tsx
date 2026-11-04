@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Cancel01Icon,
   Download01Icon,
@@ -12,7 +12,8 @@ import {
 import {
   managementAttendanceJustificationsService,
   justificationDecisionError,
-  guardianJustificationErrorMessage,
+  managementJustificationErrorMessage,
+  etiquetaEstudiante,
 } from '@/services/admin/managementAttendanceJustificationsService';
 import { formatLimaDateTime } from '@/services/padres/guardianIncidentsService';
 import { JUSTIFICATION_TEXT_MAX_LENGTH } from '@/services/padres/guardianJustificationsService';
@@ -48,6 +49,7 @@ export function ModalDetalleJustificacion({
 
   // Estado para la descarga
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // Estado para la toma de decisión (solo DIRECTIVO)
   const [selectedDecision, setSelectedDecision] = useState<Exclude<JustificationStatus, 'PENDIENTE'> | null>(null);
@@ -55,31 +57,37 @@ export function ModalDetalleJustificacion({
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
 
-  const loadDetail = useCallback(async () => {
+  const [reloadKey, setReloadKey] = useState(0);
+  const loadDetail = () => setReloadKey((k) => k + 1);
+
+  // Cambiar de solicitud o cerrar el modal cancela la lectura en curso.
+  useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
-    try {
-      const result = await managementAttendanceJustificationsService.detail(justificationId);
-      setData(result);
-    } catch (cause) {
-      setError(guardianJustificationErrorMessage(cause, 'detail'));
-    } finally {
-      setLoading(false);
-    }
-  }, [justificationId]);
-
-  useEffect(() => {
-    loadDetail();
-  }, [loadDetail]);
+    managementAttendanceJustificationsService
+      .detail(justificationId, controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted) setData(result);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) setError(managementJustificationErrorMessage(cause, 'detail'));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [justificationId, reloadKey]);
 
   const handleDownloadAttachment = async () => {
     if (!data) return;
     setIsDownloading(true);
+    setDownloadError(null);
     try {
       const { url } = await managementAttendanceJustificationsService.attachmentUrl(data.id);
       window.open(url, '_blank', 'noopener,noreferrer');
     } catch (cause) {
-      alert(guardianJustificationErrorMessage(cause, 'download'));
+      setDownloadError(managementJustificationErrorMessage(cause, 'download'));
     } finally {
       setIsDownloading(false);
     }
@@ -102,13 +110,13 @@ export function ModalDetalleJustificacion({
         decision: selectedDecision,
         comment: decisionComment.trim(),
       };
-      await managementAttendanceJustificationsService.decide(data.id, req);
+      const decided = await managementAttendanceJustificationsService.decide(data.id, req);
+      setData(decided);
       setSelectedDecision(null);
       setDecisionComment('');
       onDecisionSuccess?.();
-      await loadDetail();
     } catch (cause) {
-      setDecisionError(guardianJustificationErrorMessage(cause, 'detail'));
+      setDecisionError(managementJustificationErrorMessage(cause, 'decide'));
     } finally {
       setIsSubmittingDecision(false);
     }
@@ -177,8 +185,11 @@ export function ModalDetalleJustificacion({
               {/* Resumen de la sesión */}
               <div className="grid grid-cols-2 gap-3 rounded-xl border border-line bg-neutral/20 p-4 sm:grid-cols-4 text-xs">
                 <div>
-                  <p className="text-muted font-medium">Estudiante ID</p>
-                  <p className="font-bold text-ink mt-0.5">{data.studentId}</p>
+                  <p className="text-muted font-medium">Estudiante</p>
+                  <p className="font-bold text-ink mt-0.5">{etiquetaEstudiante(data).nombre}</p>
+                  {etiquetaEstudiante(data).codigo && (
+                    <p className="text-[10px] text-muted">{etiquetaEstudiante(data).codigo}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-muted font-medium">Fecha de clase</p>
@@ -230,6 +241,11 @@ export function ModalDetalleJustificacion({
                   </div>
                 ) : (
                   <p className="text-xs text-muted italic">La solicitud no incluye archivo adjunto.</p>
+                )}
+                {downloadError && (
+                  <p role="alert" className="mt-2 text-xs font-semibold text-rose-700">
+                    {downloadError}
+                  </p>
                 )}
               </div>
 

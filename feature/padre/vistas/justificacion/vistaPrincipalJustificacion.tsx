@@ -51,6 +51,10 @@ export default function VistaPrincipalJustificacion() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [downloadError, setDownloadError] = useState<{ id: number; message: string } | null>(null);
+  const [focused, setFocused] = useState<AttendanceJustification | null>(null);
+  const [focusError, setFocusError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
 
   // Modal para presentar justificación o subsanar observación
@@ -63,57 +67,86 @@ export default function VistaPrincipalJustificacion() {
     observationComment?: string | null;
   } | null>(null);
 
-  // Carga de justificaciones
-  const loadJustifications = useCallback(async () => {
-    if (!hijoActivo) return;
+  const hijoId = hijoActivo ? String(hijoActivo.id) : null;
+  const loadJustifications = useCallback(() => setReloadKey((k) => k + 1), []);
+
+  // Carga de justificaciones: cambiar de hijo, filtro o página cancela la consulta anterior.
+  useEffect(() => {
+    if (!hijoId) return;
+    const controller = new AbortController();
+    const statusParam = filter === 'TODAS' ? null : filter;
     setLoading(true);
     setError(null);
-    try {
-      const statusParam = filter === 'TODAS' ? null : filter;
-      const data = await guardianJustificationsService.list(String(hijoActivo.id), {
-        status: statusParam,
-        page,
+    guardianJustificationsService
+      .list(hijoId, { status: statusParam, page }, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setPageData(data);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) setError(guardianJustificationsErrorMessage(cause, 'list'));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
       });
-      setPageData(data);
-    } catch (cause) {
-      setError(guardianJustificationsErrorMessage(cause, 'list'));
-    } finally {
-      setLoading(false);
-    }
-  }, [hijoActivo, filter, page]);
+    return () => controller.abort();
+  }, [hijoId, filter, page, reloadKey]);
 
-  useEffect(() => {
-    loadJustifications();
-  }, [loadJustifications]);
+  // Enlaces desde Asistencia: solo valen para el hijo con el que se generaron (studentId en la URL).
+  const linkStudentId = searchParams.get('studentId');
+  const linkMatchesHijo = hijoId !== null && linkStudentId === hijoId;
+  const attendanceIdParam = linkMatchesHijo ? searchParams.get('attendanceId') : null;
+  const justificationIdParam = linkMatchesHijo ? searchParams.get('justificationId') : null;
+  const hasLinkParams = searchParams.has('attendanceId') || searchParams.has('justificationId');
 
-  // Si la URL trae parámetros para justificar (desde Asistencia)
+  const clearLinkParams = useCallback(() => {
+    if (hasLinkParams) router.replace('/padre/justificacion');
+  }, [hasLinkParams, router]);
+
+  // «Justificar» abre el formulario de esa sesión.
   useEffect(() => {
-    const attendanceIdParam = searchParams.get('attendanceId');
-    if (attendanceIdParam && hijoActivo) {
-      const attendanceId = Number(attendanceIdParam);
-      if (Number.isSafeInteger(attendanceId) && attendanceId > 0) {
-        setModalState({
-          isOpen: true,
-          mode: 'submit',
-          attendanceId,
-          sessionInfo: {
-            date: searchParams.get('date') ?? '',
-            courseName: searchParams.get('course') ?? '',
-            status: searchParams.get('status') ?? '',
-          },
-        });
-      }
-    }
-  }, [searchParams, hijoActivo]);
+    if (!attendanceIdParam) return;
+    const attendanceId = Number(attendanceIdParam);
+    if (!Number.isSafeInteger(attendanceId) || attendanceId <= 0) return;
+    setModalState({
+      isOpen: true,
+      mode: 'submit',
+      attendanceId,
+      sessionInfo: {
+        date: searchParams.get('date') ?? '',
+        courseName: searchParams.get('course') ?? '',
+        status: searchParams.get('status') ?? '',
+      },
+    });
+  }, [attendanceIdParam, searchParams]);
+
+  // «Ver justificación» muestra esa solicitud destacada, aunque no esté en la página actual.
+  useEffect(() => {
+    setFocused(null);
+    setFocusError(null);
+    if (!hijoId || !justificationIdParam) return;
+    const id = Number(justificationIdParam);
+    if (!Number.isSafeInteger(id) || id <= 0) return;
+    const controller = new AbortController();
+    guardianJustificationsService
+      .detail(hijoId, id, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setFocused(data);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) setFocusError(guardianJustificationsErrorMessage(cause, 'detail'));
+      });
+    return () => controller.abort();
+  }, [hijoId, justificationIdParam, reloadKey]);
 
   const handleDownloadAttachment = async (justificationId: number) => {
-    if (!hijoActivo) return;
+    if (!hijoId) return;
     setDownloadingId(justificationId);
+    setDownloadError(null);
     try {
-      const { url } = await guardianJustificationsService.attachmentUrl(String(hijoActivo.id), justificationId);
+      const { url } = await guardianJustificationsService.attachmentUrl(hijoId, justificationId);
       window.open(url, '_blank', 'noopener,noreferrer');
     } catch (cause) {
-      alert(guardianJustificationsErrorMessage(cause, 'download'));
+      setDownloadError({ id: justificationId, message: guardianJustificationsErrorMessage(cause, 'download') });
     } finally {
       setDownloadingId(null);
     }
@@ -134,12 +167,14 @@ export default function VistaPrincipalJustificacion() {
     });
   };
 
+  const handleModalClose = () => {
+    setModalState(null);
+    if (attendanceIdParam) clearLinkParams();
+  };
+
   const handleModalSuccess = () => {
     setModalState(null);
-    // Limpiar query params si venían en la URL
-    if (searchParams.get('attendanceId') || searchParams.get('justificationId')) {
-      router.replace('/padre/justificacion');
-    }
+    if (attendanceIdParam) clearLinkParams();
     loadJustifications();
   };
 
@@ -184,6 +219,154 @@ export default function VistaPrincipalJustificacion() {
     );
   }
 
+  const renderCard = (item: AttendanceJustification, destacada = false) => {
+    const badge = STATUS_BADGES[item.status];
+    const isObserved = item.status === 'OBSERVADA';
+    const isDownloading = downloadingId === item.id;
+    const isHistoryExpanded = expandedHistoryId === item.id;
+
+    return (
+      <div
+        key={destacada ? `destacada-${item.id}` : item.id}
+        id={destacada ? 'justificacion-destacada' : undefined}
+        className="rounded-2xl border border-line bg-white p-5 shadow-xs transition hover:border-muted/60"
+      >
+        {/* Cabecera de la tarjeta */}
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-ink">{item.date}</span>
+              <span className="text-xs font-medium text-muted">·</span>
+              <span className="text-xs font-medium text-muted">{item.courseName}</span>
+            </div>
+            <span className="mt-1 inline-block text-[11px] font-bold text-muted uppercase">
+              {item.attendanceStatus === 'INASISTENCIA' ? 'Inasistencia' : 'Tardanza'}
+            </span>
+          </div>
+          <span
+            className={`rounded-full border px-3 py-0.5 text-[11px] font-bold ${badge.className}`}
+          >
+            {badge.label}
+          </span>
+        </div>
+
+        {/* Motivo presentado */}
+        <div className="mt-3 text-xs">
+          <span className="font-bold text-ink">Motivo: </span>
+          <span className="text-muted leading-relaxed whitespace-pre-wrap">{item.reason}</span>
+        </div>
+
+        {/* Comentario de revisión (Secretaría) */}
+        {item.reviewComment && (
+          <div
+            className={`mt-3 rounded-xl border p-3 text-xs ${
+              isObserved
+                ? 'border-sky-200 bg-sky-50 text-sky-900'
+                : item.status === 'RECHAZADA'
+                ? 'border-rose-200 bg-rose-50 text-rose-900'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+            }`}
+          >
+            <p className="font-bold mb-0.5">
+              {isObserved
+                ? 'Observación de Secretaría:'
+                : item.status === 'RECHAZADA'
+                ? 'Motivo del rechazo:'
+                : 'Comentario de revisión:'}
+            </p>
+            <p className="whitespace-pre-wrap">{item.reviewComment}</p>
+          </div>
+        )}
+
+        {/* Respuesta del apoderado si ya subsanó */}
+        {item.response && (
+          <div className="mt-2 rounded-xl border border-line bg-neutral/30 p-3 text-xs text-ink">
+            <p className="font-bold text-muted mb-0.5">Tu respuesta a la observación:</p>
+            <p className="whitespace-pre-wrap">{item.response}</p>
+          </div>
+        )}
+
+        {/* Barra inferior: Adjunto y Acciones */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+          <div className="flex items-center gap-2">
+            {item.attachmentName ? (
+              <button
+                type="button"
+                onClick={() => handleDownloadAttachment(item.id)}
+                disabled={isDownloading}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-neutral/40 px-3 py-1.5 text-[11px] font-semibold text-ink transition hover:bg-neutral hover:border-muted disabled:opacity-50"
+                title="Descargar documento de sustento"
+              >
+                <Download01Icon size={14} className="text-accent" />
+                <span>{isDownloading ? 'Descargando...' : item.attachmentName}</span>
+              </button>
+            ) : (
+              <span className="text-[11px] text-muted italic">Sin archivo adjunto</span>
+            )}
+            {downloadError?.id === item.id && (
+              <span role="alert" className="text-[11px] font-semibold text-rose-700">
+                {downloadError.message}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Botón para subsanar observación */}
+            {isObserved && (
+              <button
+                type="button"
+                onClick={() => handleOpenRespondModal(item)}
+                className="rounded-xl bg-accent px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-accent/90"
+              >
+                Subsanar observación
+              </button>
+            )}
+
+            {/* Botón para alternar historial */}
+            {item.history.length > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setExpandedHistoryId(isHistoryExpanded ? null : item.id)
+                }
+                className="rounded-xl border border-line bg-white px-3 py-1.5 text-[11px] font-semibold text-muted transition hover:text-ink hover:border-muted"
+              >
+                {isHistoryExpanded ? 'Ocultar historial' : `Historial (${item.history.length})`}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Historial desplegable */}
+        {isHistoryExpanded && item.history.length > 0 && (
+          <div className="mt-3 border-t border-line/60 pt-3">
+            <p className="text-[11px] font-bold text-muted uppercase tracking-wider mb-2">
+              Línea de tiempo de la solicitud
+            </p>
+            <ol className="relative border-l border-line ml-2 space-y-3 pl-3">
+              {item.history.map((change, index) => (
+                <li key={index} className="relative text-xs">
+                  <span className="absolute -left-[17px] top-1 h-2 w-2 rounded-full bg-accent" />
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-ink">
+                      {change.from ? `${change.from} → ${change.to}` : change.to}
+                    </span>
+                    <span className="text-[10px] text-muted">
+                      {formatLimaDateTime(change.at)}
+                    </span>
+                  </div>
+                  {change.comment && (
+                    <p className="mt-0.5 text-muted text-[11px]">{change.comment}</p>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 animate-in fade-in">
       {/* Encabezado */}
@@ -197,6 +380,7 @@ export default function VistaPrincipalJustificacion() {
         </div>
         <Link
           href="/padre/asistencia"
+          prefetch={false}
           className="inline-flex items-center justify-center rounded-xl border border-accent bg-accent/5 px-4 py-2 text-xs font-bold text-accent transition hover:bg-accent hover:text-white"
         >
           Ver reporte de asistencia
@@ -213,6 +397,24 @@ export default function VistaPrincipalJustificacion() {
           </p>
         </div>
       </div>
+
+      {/* Solicitud enlazada desde Asistencia («Ver justificación») */}
+      {focusError && (
+        <p role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
+          {focusError}
+        </p>
+      )}
+      {focused && (
+        <section aria-label="Solicitud seleccionada" className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted">Solicitud seleccionada</p>
+            <button type="button" onClick={clearLinkParams} className="text-xs font-semibold text-accent underline">
+              Ver todas
+            </button>
+          </div>
+          {renderCard(focused, true)}
+        </section>
+      )}
 
       {/* Pestañas de filtro por estado */}
       <div className="flex flex-wrap items-center gap-2 border-b border-line pb-3">
@@ -274,6 +476,7 @@ export default function VistaPrincipalJustificacion() {
           </p>
           <Link
             href="/padre/asistencia"
+            prefetch={false}
             className="mt-4 inline-flex items-center rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white transition hover:bg-accent/90"
           >
             Ir a Asistencia
@@ -284,147 +487,7 @@ export default function VistaPrincipalJustificacion() {
       {/* Listado de justificaciones */}
       {!loading && !error && pageData && pageData.content.length > 0 && (
         <div className="space-y-4">
-          {pageData.content.map((item) => {
-            const badge = STATUS_BADGES[item.status];
-            const isObserved = item.status === 'OBSERVADA';
-            const isDownloading = downloadingId === item.id;
-            const isHistoryExpanded = expandedHistoryId === item.id;
-
-            return (
-              <div
-                key={item.id}
-                className="rounded-2xl border border-line bg-white p-5 shadow-xs transition hover:border-muted/60"
-              >
-                {/* Cabecera de la tarjeta */}
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-ink">{item.date}</span>
-                      <span className="text-xs font-medium text-muted">·</span>
-                      <span className="text-xs font-medium text-muted">{item.courseName}</span>
-                    </div>
-                    <span className="mt-1 inline-block text-[11px] font-bold text-muted uppercase">
-                      {item.attendanceStatus === 'INASISTENCIA' ? 'Inasistencia' : 'Tardanza'}
-                    </span>
-                  </div>
-                  <span
-                    className={`rounded-full border px-3 py-0.5 text-[11px] font-bold ${badge.className}`}
-                  >
-                    {badge.label}
-                  </span>
-                </div>
-
-                {/* Motivo presentado */}
-                <div className="mt-3 text-xs">
-                  <span className="font-bold text-ink">Motivo: </span>
-                  <span className="text-muted leading-relaxed whitespace-pre-wrap">{item.reason}</span>
-                </div>
-
-                {/* Comentario de revisión (Secretaría) */}
-                {item.reviewComment && (
-                  <div
-                    className={`mt-3 rounded-xl border p-3 text-xs ${
-                      isObserved
-                        ? 'border-sky-200 bg-sky-50 text-sky-900'
-                        : item.status === 'RECHAZADA'
-                        ? 'border-rose-200 bg-rose-50 text-rose-900'
-                        : 'border-emerald-200 bg-emerald-50 text-emerald-900'
-                    }`}
-                  >
-                    <p className="font-bold mb-0.5">
-                      {isObserved
-                        ? 'Observación de Secretaría:'
-                        : item.status === 'RECHAZADA'
-                        ? 'Motivo del rechazo:'
-                        : 'Comentario de revisión:'}
-                    </p>
-                    <p className="whitespace-pre-wrap">{item.reviewComment}</p>
-                  </div>
-                )}
-
-                {/* Respuesta del apoderado si ya subsanó */}
-                {item.response && (
-                  <div className="mt-2 rounded-xl border border-line bg-neutral/30 p-3 text-xs text-ink">
-                    <p className="font-bold text-muted mb-0.5">Tu respuesta a la observación:</p>
-                    <p className="whitespace-pre-wrap">{item.response}</p>
-                  </div>
-                )}
-
-                {/* Barra inferior: Adjunto y Acciones */}
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
-                  <div className="flex items-center gap-2">
-                    {item.attachmentName ? (
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadAttachment(item.id)}
-                        disabled={isDownloading}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-neutral/40 px-3 py-1.5 text-[11px] font-semibold text-ink transition hover:bg-neutral hover:border-muted disabled:opacity-50"
-                        title="Descargar documento de sustento"
-                      >
-                        <Download01Icon size={14} className="text-accent" />
-                        <span>{isDownloading ? 'Descargando...' : item.attachmentName}</span>
-                      </button>
-                    ) : (
-                      <span className="text-[11px] text-muted italic">Sin archivo adjunto</span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Botón para subsanar observación */}
-                    {isObserved && (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenRespondModal(item)}
-                        className="rounded-xl bg-accent px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-accent/90"
-                      >
-                        Subsanar observación
-                      </button>
-                    )}
-
-                    {/* Botón para alternar historial */}
-                    {item.history.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedHistoryId(isHistoryExpanded ? null : item.id)
-                        }
-                        className="rounded-xl border border-line bg-white px-3 py-1.5 text-[11px] font-semibold text-muted transition hover:text-ink hover:border-muted"
-                      >
-                        {isHistoryExpanded ? 'Ocultar historial' : `Historial (${item.history.length})`}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Historial desplegable */}
-                {isHistoryExpanded && item.history.length > 0 && (
-                  <div className="mt-3 border-t border-line/60 pt-3">
-                    <p className="text-[11px] font-bold text-muted uppercase tracking-wider mb-2">
-                      Línea de tiempo de la solicitud
-                    </p>
-                    <ol className="relative border-l border-line ml-2 space-y-3 pl-3">
-                      {item.history.map((change, index) => (
-                        <li key={index} className="relative text-xs">
-                          <span className="absolute -left-[17px] top-1 h-2 w-2 rounded-full bg-accent" />
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-ink">
-                              {change.from ? `${change.from} → ${change.to}` : change.to}
-                            </span>
-                            <span className="text-[10px] text-muted">
-                              {formatLimaDateTime(change.at)}
-                            </span>
-                          </div>
-                          {change.comment && (
-                            <p className="mt-0.5 text-muted text-[11px]">{change.comment}</p>
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {pageData.content.map((item) => renderCard(item))}
 
           {/* Paginación */}
           {pageData.totalPages > 1 && (
@@ -462,7 +525,7 @@ export default function VistaPrincipalJustificacion() {
           justificationId={modalState.justificationId}
           sessionInfo={modalState.sessionInfo}
           observationComment={modalState.observationComment}
-          onClose={() => setModalState(null)}
+          onClose={handleModalClose}
           onSuccess={handleModalSuccess}
         />
       )}

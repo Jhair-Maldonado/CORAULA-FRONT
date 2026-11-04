@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
 import {
   Alert02Icon,
-  Download01Icon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
   File02Icon,
@@ -13,7 +12,8 @@ import {
 } from 'hugeicons-react';
 import {
   managementAttendanceJustificationsService,
-  guardianJustificationErrorMessage,
+  managementJustificationErrorMessage,
+  etiquetaEstudiante,
 } from '@/services/admin/managementAttendanceJustificationsService';
 import { ModalDetalleJustificacion } from './component/modalDetalleJustificacion';
 import type {
@@ -68,26 +68,28 @@ function BandejaJustificacionesContent({ canDecide }: { canDecide: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [selectedJustificationId, setSelectedJustificationId] = useState<number | null>(null);
 
-  const loadData = useCallback(async () => {
+  const [reloadKey, setReloadKey] = useState(0);
+  const loadData = () => setReloadKey((k) => k + 1);
+
+  // Cada cambio de filtro, página o recarga cancela la consulta anterior: una respuesta vieja no pisa a la nueva.
+  useEffect(() => {
+    const controller = new AbortController();
+    const statusParam = filter === 'TODAS' ? null : filter;
     setLoading(true);
     setError(null);
-    try {
-      const statusParam = filter === 'TODAS' ? null : filter;
-      const result = await managementAttendanceJustificationsService.list({
-        status: statusParam,
-        page,
+    managementAttendanceJustificationsService
+      .list({ status: statusParam, page }, controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted) setPageData(result);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) setError(managementJustificationErrorMessage(cause, 'list'));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
       });
-      setPageData(result);
-    } catch (cause) {
-      setError(guardianJustificationErrorMessage(cause, 'list'));
-    } finally {
-      setLoading(false);
-    }
-  }, [filter, page]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+    return () => controller.abort();
+  }, [filter, page, reloadKey]);
 
   return (
     <div className="space-y-6 p-4 sm:p-6 animate-in fade-in max-w-7xl mx-auto">
@@ -184,10 +186,16 @@ function BandejaJustificacionesContent({ canDecide }: { canDecide: boolean }) {
               <tbody className="divide-y divide-line">
                 {pageData.content.map((j) => {
                   const badge = STATUS_BADGES[j.status];
+                  const etiqueta = etiquetaEstudiante(j);
                   return (
                     <tr key={j.id} className="hover:bg-neutral/20 transition">
                       <td className="p-3.5 font-bold text-ink">#{j.id}</td>
-                      <td className="p-3.5 text-ink font-medium">Estudiante #{j.studentId}</td>
+                      <td className="p-3.5 text-ink font-medium">
+                        {etiqueta.nombre}
+                        {etiqueta.codigo && (
+                          <span className="ml-1.5 text-[10px] font-normal text-muted">{etiqueta.codigo}</span>
+                        )}
+                      </td>
                       <td className="p-3.5 text-muted">{j.date}</td>
                       <td className="p-3.5 text-ink font-semibold">{j.courseName}</td>
                       <td className="p-3.5 uppercase font-medium text-muted">

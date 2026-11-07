@@ -247,9 +247,9 @@ test('load errors are sanitized and retried', async () => {
   });
 });
 
-test('bimesters view: "Alertas tempranas" for every bimester except PLANIFICADO, opening the panel', async () => {
+test('bimesters view: "Alertas tempranas" for every bimester except PLANIFICADO and ANULADO, opening the panel', async () => {
   const original = { getBimesters: evaluationService.getBimesters, periods: academicPeriodsService.list };
-  evaluationService.getBimesters = async () => [bimester('ABIERTO', 4), bimester('PLANIFICADO', 5), bimester('ANULADO', 6), bimester('CERRADO', 7)];
+  evaluationService.getBimesters = async () => [bimester('ABIERTO', 4), bimester('PLANIFICADO', 5), bimester('ANULADO', 6), bimester('CERRADO', 7), bimester('EN_REVISION', 8)];
   academicPeriodsService.list = async () => [{ id: 30, name: 'Periodo 30', startDate: '2026-03-01', endDate: '2026-12-20', active: true, current: true }];
   const restore = mockFilter();
   const dom = withDom();
@@ -260,8 +260,8 @@ test('bimesters view: "Alertas tempranas" for every bimester except PLANIFICADO,
         await act(async () => { renderer = create(<AuthContext.Provider value={auth(role)}><VistaBimestres /></AuthContext.Provider>, { createNodeMock: () => new dom.Element() }); });
         try {
           const button = (label: string) => renderer.root.findAllByType('button').find(b => b.props['aria-label'] === label || text(b) === label);
-          for (const id of [4, 6, 7]) assert.ok(button(`Alertas tempranas de Bimestre ${id}`), `${role} ${id}`);
-          assert.equal(button('Alertas tempranas de Bimestre 5'), undefined);
+          for (const id of [4, 7, 8]) assert.ok(button(`Alertas tempranas de Bimestre ${id}`), `${role} ${id}`);
+          for (const id of [5, 6]) assert.equal(button(`Alertas tempranas de Bimestre ${id}`), undefined, `${role} ${id}`);
           assert.equal(calls.length, 0, 'sin consultas hasta abrir el panel');
           await act(async () => { button('Alertas tempranas de Bimestre 4')!.props.onClick(); });
           assert.match(text(renderer.root), /Alertas tempranas · Bimestre 4/);

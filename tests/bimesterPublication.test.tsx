@@ -8,7 +8,7 @@ import VistaBimestres from '../feature/admin/vistas/(academico)/bimestres/vistaB
 import { AuthContext } from '../src/contexts/AuthContext';
 import {
   bimesterPublicationService, hasPublicationPendings, parseBimesterPublicationView, publicationActionErrorMessage, publicationReadErrorMessage,
-  publicationReasonLabel, reopenReasonError,
+  publicationReasonLabel, reopenReasonError, PUBLICATION_READ_TIMEOUT_MS,
 } from '../src/services/admin/bimesterPublicationService';
 import { BIMESTER_PUBLICATION_ERROR_CODES, bimesterPublicationErrorCode, bimesterPublicationErrorCodeMessage, bimesterPublicationErrorCodeMessages } from '../src/services/admin/bimesterPublicationErrors';
 import { evaluationService } from '../src/services/admin/evaluationService';
@@ -108,6 +108,33 @@ test('review, publish and reopen send exactly their contract bodies and confirm 
   assert.match(reopenReasonError('m'.repeat(256))!, /255/);
 });
 
+test('only the publication GET uses its own 120 000 ms timeout; review, publish and reopen keep the global one', async () => {
+  assert.equal(PUBLICATION_READ_TIMEOUT_MS, 120_000);
+  assert.notEqual(httpClient.defaults.timeout, PUBLICATION_READ_TIMEOUT_MS);
+  const original = httpClient.defaults.adapter;
+  const timeouts = new Map<string, number | undefined>();
+  let data: unknown = null;
+  httpClient.defaults.adapter = async config => { timeouts.set(`${config.method} ${config.url}`, config.timeout); return { config, data, status: 200, statusText: 'OK', headers: {} }; };
+  try {
+    data = prepared(); await bimesterPublicationService.getPublication(4);
+    data = prepared('EN_REVISION'); await bimesterPublicationService.review(4);
+    data = published(); await bimesterPublicationService.publish(4, 'hash-1');
+    data = bimester('ABIERTO'); await bimesterPublicationService.reopen(4, 'Motivo');
+  } finally { httpClient.defaults.adapter = original; }
+  assert.equal(timeouts.get('get /v1/management/bimesters/4/publication'), 120_000);
+  for (const action of ['review', 'publish', 'reopen']) assert.equal(timeouts.get(`post /v1/management/bimesters/4/${action}`), httpClient.defaults.timeout, action);
+});
+
+test('read messages: a timeout is told apart from a missing connection', () => {
+  const timedOut = 'La consulta tardó más de lo esperado. Intenta nuevamente en unos minutos.';
+  for (const code of ['ECONNABORTED', 'ETIMEDOUT']) assert.equal(publicationReadErrorMessage(new AxiosError('timeout of 120000ms exceeded', code)), timedOut, code);
+  assert.equal(publicationReadErrorMessage(httpError()), 'No se pudo conectar con el servidor. Intenta nuevamente.');
+  assert.equal(publicationReadErrorMessage(new AxiosError('Network Error', 'ERR_NETWORK')), 'No se pudo conectar con el servidor. Intenta nuevamente.');
+  // A response always wins over the code.
+  const withResponse = new AxiosError('PRIVATE', 'ECONNABORTED', undefined, undefined, { status: 404, data: {} } as AxiosResponse);
+  assert.equal(publicationReadErrorMessage(withResponse), 'El bimestre ya no está disponible.');
+});
+
 const contract: Record<string, number[]> = {
   VALIDATION_ERROR: [400], REASON_REQUIRED: [400], PUBLICATION_CONFIRMATION_REQUIRED: [400], RESOURCE_NOT_FOUND: [404],
   BIMESTER_STATE_CONFLICT: [409], COURSES_NOT_REGISTERED: [409], RESULTS_PENDING: [409], PUBLICATION_STALE: [409], INTERNAL_ERROR: [500],
@@ -195,6 +222,17 @@ const submitForm = (h: Panel, label: string) => act(async () => { h.renderer.roo
 const check = (h: Panel) => act(async () => { h.renderer.root.findByProps({ 'aria-label': 'Entiendo que la publicación es definitiva' }).props.onChange({ target: { checked: true } }); });
 const typeReason = (h: Panel, value: string) => act(async () => { h.renderer.root.findByProps({ 'aria-label': 'Motivo de la reapertura' }).props.onChange({ target: { value } }); });
 
+test('panel read: the loading text warns about two minutes and a timeout shows its own Failure', async () => {
+  await panel({ getPublication: () => new Promise<BimesterPublicationView>(() => {}) }, async h => {
+    const status = h.renderer.root.findAll(n => n.type === 'p' && n.props.role === 'status').map(text);
+    assert.ok(status.includes('Consultando el estado de publicación. Esta consulta puede tardar hasta dos minutos.'), status.join(' | '));
+  });
+  await panel({ getPublication: async () => { throw new AxiosError('timeout of 120000ms exceeded', 'ECONNABORTED'); } }, async h => {
+    assert.match(h.shown(), /La consulta tardó más de lo esperado\. Intenta nuevamente en unos minutos\./);
+    assert.doesNotMatch(h.shown(), /No se pudo conectar con el servidor|Consultando el estado|timeout of/);
+  });
+});
+
 test('state × role matrix: actions only for ADMINISTRADOR in their state; pendings block review and publish; CERRADO needs publishedAt', async () => {
   const cases: [string, BimesterPublicationView, Record<string, boolean | undefined>, RegExp][] = [
     ['ABIERTO', prepared('ABIERTO'), { 'Pasar a revisión': true }, /Sin publicar/],
@@ -250,6 +288,7 @@ test('publish: explicit confirmation, the shown preparationRevision, one POST an
     await act(async () => { submit({ preventDefault() {} }); submit({ preventDefault() {} }); });
     assert.deepEqual(sent, ['hash-1']); assert.deepEqual(h.busy, [true]);
     assert.equal(h.button('Actualizar panel')?.props.disabled, true);
+    assert.match(h.shown(), /Procesando y consultando el estado de publicación\. Esto puede tardar hasta dos minutos\./);
     await act(async () => { pending.resolve(published()); });
     assert.equal(reads, 2); assert.equal(h.changed(), 1); assert.deepEqual(h.busy, [true, false]);
     assert.match(h.shown(), /Bimestre 4 quedó publicado\. Publicación confirmada mediante recarga\./);

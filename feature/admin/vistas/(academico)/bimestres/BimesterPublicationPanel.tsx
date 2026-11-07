@@ -115,7 +115,7 @@ export default function BimesterPublicationPanel({ bimester, canManage, locked, 
         <button type="button" className={secondaryButtonClass} disabled={busy} onClick={() => { if (!lock.current) onClose(); }}>Cerrar panel</button>
       </div>
     </div>
-    {loading ? <p role="status" className="text-xs text-muted">Consultando el estado de publicación...</p>
+    {loading ? <p role="status" className="text-xs text-muted">Consultando el estado de publicación. Esta consulta puede tardar hasta dos minutos.</p>
       : read?.error ? <Failure message={read.error} retry={refresh} />
       : data && <>
         <PublicationSummary view={data} />
@@ -132,7 +132,7 @@ export default function BimesterPublicationPanel({ bimester, canManage, locked, 
             : 'No se puede publicar mientras haya pendientes. Puedes reabrir el bimestre para que los docentes los completen.'}</p>}
         {data.publishedAt === null && <PublicationCourses view={data} names={names} namesFailed={namesFailed} />}
       </>}
-    {busy && <p role="status" className="text-xs text-muted">Procesando y consultando el estado de publicación...</p>}
+    {busy && <p role="status" className="text-xs text-muted">Procesando y consultando el estado de publicación. Esto puede tardar hasta dos minutos.</p>}
     {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
     {notice && <p role="status" className="text-sm text-emerald-700">{notice}</p>}
     {refreshRequired && !busy && <p role="alert" className="text-xs text-rose-700">Actualiza el panel antes de otra operación.</p>}

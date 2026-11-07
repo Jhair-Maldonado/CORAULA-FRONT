@@ -30,8 +30,8 @@ const annullable = (b: Bimester) => b.status === 'PLANIFICADO' || b.status === '
 const publishable = (b: Bimester) => b.status === 'ABIERTO' || b.status === 'EN_REVISION' || b.status === 'CERRADO';
 // #39 grade window panel: every bimester except ANULADO; DIRECTIVO reads it without actions.
 const hasGradeWindow = (b: Bimester) => b.status !== 'ANULADO';
-// Early alerts panel (BACK #52): every bimester except PLANIFICADO; only ADMINISTRADOR evaluates, and only ABIERTO.
-const hasEarlyAlerts = (b: Bimester) => b.status !== 'PLANIFICADO';
+// Early alerts panel (BACK #52): every bimester except PLANIFICADO and ANULADO; only ADMINISTRADOR evaluates, and only ABIERTO.
+const hasEarlyAlerts = (b: Bimester) => b.status !== 'PLANIFICADO' && b.status !== 'ANULADO';
 type PanelKind = 'publication' | 'gradeWindow' | 'earlyAlerts';
 const panelAvailable: Record<PanelKind, (b: Bimester) => boolean> = { publication: publishable, gradeWindow: hasGradeWindow, earlyAlerts: hasEarlyAlerts };
 

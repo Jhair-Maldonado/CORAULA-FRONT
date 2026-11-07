@@ -11,6 +11,8 @@ export type PublicationAction = 'review' | 'publish' | 'reopen';
 export const maxReopenReasonLength = 255;
 
 const base = '/v1/management/bimesters';
+// Only the publication read: the backend rebuilds the preparation and may take up to two minutes.
+export const PUBLICATION_READ_TIMEOUT_MS = 120_000;
 function invalid(): never { throw new Error('La respuesta de publicación no coincide con el contrato.'); }
 function id(value: unknown): number { if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) return invalid(); return value; }
 function nullableId(value: unknown): number | null { return value === null ? null : id(value); }
@@ -57,7 +59,7 @@ export function hasPublicationPendings(view: BimesterPublicationView): boolean {
 
 export const bimesterPublicationService = {
   async getPublication(bimesterId: number, signal?: AbortSignal): Promise<BimesterPublicationView> {
-    const response = await httpClient.get<unknown>(`${base}/${requestId(bimesterId)}/publication`, { signal });
+    const response = await httpClient.get<unknown>(`${base}/${requestId(bimesterId)}/publication`, { signal, timeout: PUBLICATION_READ_TIMEOUT_MS });
     if (response.status !== 200) throw new Error('Estado de publicación no confirmado.');
     return parseBimesterPublicationView(response.data, bimesterId);
   },
@@ -119,6 +121,7 @@ export function publicationActionErrorMessage(error: unknown, action: Publicatio
 
 export function publicationReadErrorMessage(error: unknown): string {
   if (!isAxiosError(error)) return 'El estado de publicación no pudo confirmarse. Actualiza el panel.';
+  if (!error.response && (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT')) return 'La consulta tardó más de lo esperado. Intenta nuevamente en unos minutos.';
   switch (error.response?.status) {
     case undefined: return 'No se pudo conectar con el servidor. Intenta nuevamente.';
     case 401: return 'Tu sesión ha expirado. Vuelve a iniciar sesión.';

@@ -88,7 +88,8 @@ test('lista las incidencias del hijo activo con fecha y hora de Lima, gravedad, 
     assert.match(out, /Gravedad: Moderada/); assert.match(out, /Gravedad: Leve/);
     assert.deepEqual(h.incidentCalls().map(c => [c.url, c.params]), [['/v1/guardian/students/57/incidents', { from: range.from, to: range.to, page: 0, size: 20 }]]);
     const badges = h.renderer.root.findAll(n => n.type === 'span' && /^Gravedad: /.test(text(n)));
-    assert.deepEqual(badges.map(b => [text(b), /rose/.test(b.props.className), /amber/.test(b.props.className), /sky/.test(b.props.className)]), [
+    // Paleta sincronizada con docente: emerald (leve), amber (moderada), rose (grave)
+    assert.deepEqual(badges.map(b => [text(b), /rose/.test(b.props.className), /amber/.test(b.props.className), /emerald/.test(b.props.className)]), [
       ['Gravedad: Grave', true, false, false], ['Gravedad: Moderada', false, true, false], ['Gravedad: Leve', false, false, true],
     ]);
     assert.equal(h.renderer.root.findAll(n => n.props['aria-label'] === 'Paginación de incidencias').length, 0);
@@ -150,6 +151,84 @@ test('rangos inválidos no hacen peticiones; sin hijos no se consulta nada', asy
   await view(() => { throw new Error('unexpected'); }, async h => {
     assert.match(h.text(), /No tiene estudiantes vinculados/); assert.equal(h.incidentCalls().length, 0);
   }, []);
+});
+
+test('filtro Todos mis hijos consulta en paralelo y muestra el nombre del estudiante en cada tarjeta', async () => {
+  await view(call => {
+    const isAna = call.url.includes('/57/');
+    return {
+      status: 200,
+      data: pageOf([
+        incident(isAna ? 10 : 20, {
+          description: isAna ? 'Incidencia de Ana' : 'Incidencia de Luis',
+          occurredAt: isAna ? '2026-10-06T15:05:00Z' : '2026-10-07T12:00:00Z',
+        }),
+      ]),
+    };
+  }, async h => {
+    await h.change('Seleccionar estudiante', 'ALL');
+    const urls = h.incidentCalls().slice(-2).map(c => c.url).sort();
+    assert.deepEqual(urls, ['/v1/guardian/students/57/incidents', '/v1/guardian/students/58/incidents']);
+    assert.match(h.text(), /Estudiante: Ana Arias Prueba/);
+    assert.match(h.text(), /Estudiante: Luis Arias Prueba/);
+  });
+});
+
+test('filtro por gravedad y botón Limpiar filtros', async () => {
+  await view(() => ({
+    status: 200,
+    data: pageOf([
+      incident(1, { severity: 'LEVE', description: 'Falta menor' }),
+      incident(2, { severity: 'GRAVE', description: 'Falta severa' }),
+    ]),
+  }), async h => {
+    assert.match(h.text(), /Falta menor/);
+    assert.match(h.text(), /Falta severa/);
+    await h.change('Filtrar por gravedad', 'GRAVE');
+    assert.doesNotMatch(h.text(), /Falta menor/);
+    assert.match(h.text(), /Falta severa/);
+
+    await h.click('Limpiar filtros');
+    assert.match(h.text(), /Falta menor/);
+    assert.match(h.text(), /Falta severa/);
+  });
+});
+
+test('con un solo hijo muestra el nombre sin selector; con múltiples hijos muestra el selector desplegable', async () => {
+  // Caso 1: Un solo hijo vinculado
+  await view(() => ({ status: 200, data: pageOf([]) }), async h => {
+    assert.match(h.text(), /Ana Arias Prueba/);
+    assert.match(h.text(), /Ana no tiene incidencias registradas en este periodo|Ana Arias Prueba no tiene incidencias/);
+    assert.equal(h.renderer.root.findAll(n => n.props['aria-label'] === 'Seleccionar estudiante').length, 0);
+  }, [ANA]);
+
+  // Caso 2: Dos hijos vinculados
+  await view(() => ({ status: 200, data: pageOf([]) }), async h => {
+    assert.equal(h.renderer.root.findAll(n => n.props['aria-label'] === 'Seleccionar estudiante').length, 1);
+    assert.match(h.text(), /Todos mis hijos \(2\)/);
+  }, [ANA, LUIS]);
+});
+
+test('modal de detalle: se abre al hacer clic en Ver detalle y se cierra con botón Cerrar', async () => {
+  await view(() => ({
+    status: 200,
+    data: pageOf([
+      incident(1, {
+        description: 'Descripción detallada de la falta.',
+        teacherName: 'Prof. Carlos Mendoza',
+      }),
+    ]),
+  }), async h => {
+    assert.equal(h.renderer.root.findAll(n => n.props['aria-labelledby'] === 'detalle-incidencia-title').length, 0);
+    await h.click('Ver detalle');
+    assert.equal(h.renderer.root.findAll(n => n.props['aria-labelledby'] === 'detalle-incidencia-title').length, 1);
+    assert.match(h.text(), /Detalle de Incidencia/);
+    assert.match(h.text(), /Prof\. Carlos Mendoza/);
+    assert.match(h.text(), /Descripción detallada de la falta\./);
+
+    await h.click('Cerrar');
+    assert.equal(h.renderer.root.findAll(n => n.props['aria-labelledby'] === 'detalle-incidencia-title').length, 0);
+  });
 });
 
 // Modos de ejecución (D1): el módulo está registrado, así que en MOCK y fuera de MOCK la página usa la vista

@@ -31,12 +31,12 @@ export interface MockRoute {
 export const ok = (data: unknown, status = 200, headers?: Record<string, string>): MockReply => ({ status, data, headers });
 
 const ERROR_NAMES: Record<number, string> = {
-  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict', 423: 'Locked', 501: 'Not Implemented',
+  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict', 422: 'Unprocessable Entity', 423: 'Locked', 501: 'Not Implemented',
 };
 
-/** Cuerpo de error como el del backend: {error, message, code?}. 401/403 nunca llevan code. */
-export function fail(status: number, message: string, code?: string): MockReply {
-  return { status, data: code ? { error: ERROR_NAMES[status] ?? 'Error', message, code } : { error: ERROR_NAMES[status] ?? 'Error', message } };
+/** Cuerpo de error como el del backend: {error, message, code?, details?}. 401/403 nunca llevan code. */
+export function fail(status: number, message: string, code?: string, details?: string[]): MockReply {
+  return { status, data: { error: ERROR_NAMES[status] ?? 'Error', message, ...(code ? { code } : {}), ...(details ? { details } : {}) } };
 }
 
 export function positiveInt(value: string | undefined): number | null {

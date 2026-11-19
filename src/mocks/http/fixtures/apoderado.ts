@@ -3,7 +3,7 @@ import type { GuardianAttendanceRecord } from '@/types/guardianAttendanceApi';
 import type { AttendanceJustification } from '@/types/guardianJustificationsApi';
 import { fail, ok, pageOf, pageParams, positiveInt, type MockReply, type MockRequest, type MockRoute } from '../mockHttp';
 import {
-  activeJustification, attendanceSessions, criteriaFor, findAttendanceSession, justificationDeadlineExpired, latestJustification, limaDayOf,
+  activeJustification, attendanceSessions, activeManualCriteria, findAttendanceSession, justificationDeadlineExpired, latestJustification, limaDayOf,
   mockJustificationAttachmentUrl, studentFullName, type MockStore,
 } from './shared';
 
@@ -35,7 +35,7 @@ function report(store: MockStore, studentId: number, bimesterId: number) {
   const publication = store.publications.find(p => p.bimesterId === bimesterId)!;
   const courses = store.sectionCourses.filter(sc => sc.sectionId === section.id).map(sc => {
     const course = store.courses.find(c => c.id === sc.courseId)!;
-    const criteria = criteriaFor(course.id).map(c => ({
+    const criteria = activeManualCriteria(store, course.id, bimester.academicPeriodId).map(c => ({
       name: c.name,
       grade: store.criterionGrades.find(g => g.enrollmentId === student.enrollmentId && g.sectionCourseId === sc.id && g.bimesterId === bimesterId && g.criterionId === c.id)?.grade ?? null,
     }));
@@ -75,7 +75,10 @@ function publishedReport(request: MockRequest): MockReply | ReturnType<typeof re
   if (!student) return studentNotFound();
   const bimesterId = positiveInt(request.params.bimesterId);
   if (!request.store.bimesters.some(b => b.id === bimesterId)) return fail(404, 'La libreta no existe.', 'REPORT_NOT_FOUND');
-  if (!request.store.publications.some(p => p.bimesterId === bimesterId)) return fail(409, 'La libreta no está publicada.', 'REPORT_NOT_PUBLISHED');
+  const publication = request.store.publications.find(p => p.bimesterId === bimesterId);
+  if (!publication) return fail(409, 'La libreta no está publicada.', 'REPORT_NOT_PUBLISHED');
+  // Como GetGuardianBimesterReportService: quien no estaba matriculado al publicar no tiene libreta de ese bimestre.
+  if (student.enrollmentId === null || !publication.enrollmentIds.includes(student.enrollmentId)) return fail(404, 'La libreta no existe.', 'REPORT_NOT_FOUND');
   return report(request.store, student.studentId, bimesterId!);
 }
 const isReply = (value: unknown): value is MockReply => typeof value === 'object' && value !== null && 'status' in value;
@@ -155,8 +158,10 @@ export const apoderadoRoutes: MockRoute[] = [
     method: 'GET', pattern: '/v1/guardian/students/:studentId/bimesters/published', roles: APODERADO,
     handler: request => {
       const { store } = request;
-      if (!linkedStudent(request)) return studentNotFound();
+      const student = linkedStudent(request);
+      if (!student) return studentNotFound();
       return ok(store.publications
+        .filter(p => student.enrollmentId !== null && p.enrollmentIds.includes(student.enrollmentId))
         .map(p => ({ p, b: store.bimesters.find(b => b.id === p.bimesterId)! }))
         .sort((x, y) => y.b.number - x.b.number)
         .map(({ p, b }) => ({

@@ -17,7 +17,13 @@ Closes #<!-- n.º --> <!-- o «Refs #n» si es un avance parcial -->
 - [ ] `npm run lint`
 - [ ] `npm test`
 - [ ] `npm run build`
-- [ ] Probado con: <!-- mocks (NEXT_PUBLIC_USE_MOCKS ≠ false) / backend real local -->
+- [ ] Probado con: <!-- mocks (`npm run dev:mock`) / backend real local -->
+
+## Contrato UI (#151)
+<!-- Si el PR no toca vistas ni services, escribe «no aplica». -->
+- [ ] R3: tabla elemento de UI → campo del backend → endpoint en el issue o aquí, o «no aplica»
+- [ ] R5: fixtures nuevos en `src/mocks/http/fixtures/`; la vista se ve completa en `npm run dev:mock`, sin «no tiene datos simulados»
+- [ ] R12: capturas antes (commit de referencia) y después (`dev:mock`) a 1440×900, y clases del diseño que no se conservaron con su motivo
 
 ## Seguridad
 - [ ] Sin `.env`, secretos ni credenciales en el diff

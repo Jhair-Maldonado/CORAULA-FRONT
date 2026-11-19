@@ -23,6 +23,11 @@ function compile(route: MockRoute): CompiledRoute {
   return { ...route, regex: new RegExp(`^${source}$`), names };
 }
 
+/** Ruta de la tabla que atiende el método y la ruta (relativa a /api), o undefined. Pura: no ejecuta el handler. */
+export function findMockRoute(method: MockMethod, path: string, routes: readonly MockRoute[] = MOCK_ROUTES): MockRoute | undefined {
+  return routes.find(route => route.method === method && compile(route).regex.test(path));
+}
+
 /** Ruta relativa a /api: acepta '/v1/...' o una URL absoluta del backend. */
 function requestPath(config: InternalAxiosRequestConfig): { path: string; query: Record<string, string> } {
   const url = new URL(config.url ?? '', 'http://mock.local');

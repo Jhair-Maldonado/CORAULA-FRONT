@@ -87,7 +87,12 @@ test('loads section before students, renders loading and real profile link', asy
     assert.match(h.text(), /Cargando alumnos/); assert.equal(calls, 1);
     await act(async () => { pendingList.resolve(page()); });
     assert.match(h.text(), /Alumno sintético/);
-    assert.ok(h.renderer.root.findAllByType('a').some(a => a.props.href === '/administrador/alumnos/estudiante/10'));
+    assert.ok(h.renderer.root.findAllByType('a').some(a => a.props.href === '/administrador/alumnos/grado/1/estudiante/10'));
+    // Encabezado restaurado: enlace de regreso, título y subtítulo con nivel y grado (sin duplicar el botón).
+    assert.equal(h.renderer.root.findAllByType('a').filter(a => text(a).includes('Regresar al panel general')).length, 1);
+    assert.match(h.text(), /Alumnos - Sección 1/);
+    assert.match(h.text(), /2° grado · Primaria · Matrículas activas/);
+    assert.match(h.text(), /Activo/);
   });
 });
 

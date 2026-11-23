@@ -6,6 +6,16 @@ export const studentLevelLabels: Record<StudentLevel, string> = { PRIMARY: 'Prim
 export const studentStatusLabels: Record<StudentStatus, string> = {
   ACTIVE: 'Activo', SUSPENDED: 'Suspendido', DEACTIVATED: 'De baja', WITHDRAWN: 'Retirado', GRADUATED: 'Egresado',
 };
+export type StudentStatusTone = 'success' | 'warning' | 'neutral';
+
+/**
+ * Tono visual del chip de estado del alumno: Activo en verde, Suspendido en ámbar y el resto en neutro.
+ * El texto del chip (estadoLabel) siempre se muestra: el color nunca es el único canal (R7).
+ */
+export function studentStatusTone(status: StudentStatus): StudentStatusTone {
+  if (status === 'ACTIVE') return 'success';
+  return status === 'SUSPENDED' ? 'warning' : 'neutral';
+}
 const enrollmentLabels: Record<EnrollmentStatus, string> = { ACTIVE: 'Activa', WITHDRAWN: 'Retirada', COMPLETED: 'Finalizada' };
 export const guardianRelationshipLabels: Record<GuardianRelationship, string> = {
   FATHER: 'Padre', MOTHER: 'Madre', TUTOR: 'Tutor', GUARDIAN: 'Apoderado', OTHER: 'Otro',

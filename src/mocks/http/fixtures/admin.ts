@@ -810,7 +810,7 @@ export const adminRoutes: MockRoute[] = [
       if (!teacher) return fail(404, 'El docente no existe.');
       const assignments = store.sectionCourses.filter(sc => sc.teacherId === teacher.id).map(sc => {
         const course = store.courses.find(c => c.id === sc.courseId)!;
-        return { id: 600 + sc.id, teacherId: teacher.id, sectionCourseId: sc.id, sectionId: sc.sectionId, courseId: course.id, courseCode: course.code, courseName: course.name, assignedAt: '2026-02-25T15:00:00Z', active: sc.active };
+        return { id: 600 + sc.id, teacherId: teacher.id, sectionCourseId: sc.id, sectionId: sc.sectionId, courseId: course.id, courseCode: course.code, courseName: course.name, assignedAt: `2026-02-${String(20 + (sc.id % 8)).padStart(2, '0')}T15:00:00Z`, active: sc.active };
       });
       return ok({ ...teacherView(teacher), assignments, account: teacher.email ? { userId: teacherUserId(teacher.id), email: teacher.email, active: teacher.accountActive } : null });
     },

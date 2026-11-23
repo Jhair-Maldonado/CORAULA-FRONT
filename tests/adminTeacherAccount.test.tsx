@@ -8,6 +8,7 @@ import PerfilDelDocente from '../feature/admin/vistas/(academico)/docente/perfil
 import { AuthContext } from '../src/contexts/AuthContext';
 import { accountEmailError, teacherAccountErrorMessage, teachersService } from '../src/services/admin/teachersService';
 import httpClient from '../src/services/httpClient';
+import { sectionsService } from '../src/services/admin/sectionsService';
 import { toAdminTeacherDetail } from '../src/adapters/teacherAdapter';
 import type { TeacherAccountResponse, TeacherAccountStatusResponse, TeacherDetailResponse } from '../src/types/teacherApi';
 
@@ -37,6 +38,8 @@ async function view(options: ViewOptions,
   run: (h: { text: () => string; button: (label: string) => ReactTestInstance | undefined; click: (label: string) => Promise<void>;
     type: (value: string) => Promise<void>; submit: () => Promise<void>; change: (placeholder: string, value: string) => Promise<void> }) => Promise<void>) {
   const oldRead = teachersService.getById, oldCreate = teachersService.createAccount, oldUpdate = teachersService.update;
+  const oldSections = sectionsService.list;
+  sectionsService.list = async () => [];
   let persisted = options.teacher ?? detail();
   teachersService.getById = options.read ?? (async () => persisted);
   teachersService.createAccount = async (id, payload) => {
@@ -65,6 +68,7 @@ async function view(options: ViewOptions,
   } finally {
     if (renderer) await act(async () => { renderer.unmount(); });
     teachersService.getById = oldRead; teachersService.createAccount = oldCreate; teachersService.update = oldUpdate;
+    sectionsService.list = oldSections;
     if (oldSelf) Object.defineProperty(globalThis, 'self', oldSelf); else Reflect.deleteProperty(globalThis, 'self');
   }
 }

@@ -8,6 +8,7 @@ import VistaTodosLosDocentes from '../feature/admin/vistas/(academico)/docente/v
 import PerfilDelDocente from '../feature/admin/vistas/(academico)/docente/perfilDelDocente';
 import { AuthContext } from '../src/contexts/AuthContext';
 import { teachersService } from '../src/services/admin/teachersService';
+import { sectionsService } from '../src/services/admin/sectionsService';
 import type { PagedTeachersResponse, TeacherDetailResponse, TeacherResponse, UpdateTeacherRequest } from '../src/types/teacherApi';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -26,6 +27,8 @@ type Harness = { renderer: ReactTestRenderer; text: () => string; dialog: () => 
 async function render(element: React.ReactElement, options: { active?: boolean; update?: typeof teachersService.update },
   run: (h: Harness, calls: UpdateTeacherRequest[]) => Promise<void>) {
   const old = { list: teachersService.list, getById: teachersService.getById, update: teachersService.update };
+  const oldSections = sectionsService.list;
+  sectionsService.list = async () => [];
   const calls: UpdateTeacherRequest[] = [];
   let active = options.active ?? true;
   teachersService.list = async () => page([teacher({ active })]);
@@ -58,6 +61,7 @@ async function render(element: React.ReactElement, options: { active?: boolean; 
   } finally {
     if (renderer) await act(async () => { renderer.unmount(); });
     Object.assign(teachersService, old);
+    sectionsService.list = oldSections;
     for (const [name, descriptor] of globals) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); }
   }
 }

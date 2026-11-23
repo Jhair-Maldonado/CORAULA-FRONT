@@ -3,7 +3,9 @@ import httpClient from '@/services/httpClient';
 import { contractErrorCode } from '@/services/admin/contractErrors';
 import type { AccountStateAction, AccountStateChangeResponse, AccountStateReasonCode, ChangeAccountStateRequest } from '@/types/staffAccountApi';
 
-// BACK #105: generic login-account state for DOCENTE and DIRECTIVO accounts, independent of teacher.active.
+// BACK #105: estado genérico de la cuenta de acceso, independiente de teacher.active.
+// TODO(backend): hoy solo acepta cuentas DIRECTIVO; para una cuenta DOCENTE responde 404 ACCOUNT_NOT_FOUND
+// (BACK #155, ADMIN-ESTADO-CUENTA-DOCENTE). Mientras tanto el 404 recarga los datos, como se maneja más abajo.
 // Wire details live here only, so a contract adjustment in the backend CONFIRMACIÓN touches this file.
 const transitions: Record<AccountStateAction, { path: string; from: boolean; to: boolean }> = {
   DEACTIVATE: { path: 'deactivate', from: true, to: false },

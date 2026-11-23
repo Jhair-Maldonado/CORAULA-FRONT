@@ -1,17 +1,17 @@
 'use client';
 
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft01Icon, PencilEdit01Icon, BookOpen01Icon, AlertCircleIcon, Clock01Icon } from 'hugeicons-react';
 import { Check, X } from 'lucide-react';
 import { teachersService, teacherErrorMessage, teacherErrorStatus } from '@/services/admin/teachersService';
+import { sectionsService } from '@/services/admin/sectionsService';
 import { toAdminTeacher, toAdminTeacherDetail, toUpdateTeacher } from '@/adapters/teacherAdapter';
-import type { AdminTeacherDetail, TeacherFormValues } from '@/types/adminTeacher';
-import type { TeacherAccountResponse } from '@/types/teacherApi';
+import { toSectionLabels, toTeacherAssignmentRows } from '@/adapters/teacherAssignmentAdapter';
+import type { AdminTeacherDetail, SectionLabel, TeacherAccountCreated, TeacherAccountStateAction, TeacherAccountStateRequest, TeacherFormValues } from '@/types/adminTeacher';
 import { AuthContext } from '@/contexts/AuthContext';
 import { accountStateActionFor, accountStateActionLabels, accountStateChangeReloads, accountStateErrorMessage, accountStateService, accountStateSuccessMessage } from '@/services/admin/accountStateService';
-import type { AccountStateAction, ChangeAccountStateRequest } from '@/types/staffAccountApi';
 import TeacherAccountModal from './TeacherAccountModal';
 import DeactivateTeacherDialog from './DeactivateTeacherDialog';
 import AccountStateDialog from '../../(sistema)/personal/AccountStateDialog';
@@ -24,6 +24,9 @@ type DetailResult = {
   assignmentsLoading?: boolean;
   assignmentsError?: string;
 };
+
+// Las etiquetas de grado y sección se cargan aparte del detalle: si fallan, el perfil sigue visible.
+type SectionsResult = { revision: number; labels?: ReadonlyMap<number, SectionLabel>; error?: boolean };
 
 function Info({ label, value }: { label: string; value: string | null }) {
   return (
@@ -50,8 +53,10 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
   const [accountRefreshError, setAccountRefreshError] = useState('');
-  const [accountStateAction, setAccountStateAction] = useState<AccountStateAction | null>(null);
+  const [accountStateAction, setAccountStateAction] = useState<TeacherAccountStateAction | null>(null);
   const [accountStateError, setAccountStateError] = useState('');
+  const [sectionsRevision, setSectionsRevision] = useState(0);
+  const [sectionsResult, setSectionsResult] = useState<SectionsResult | null>(null);
   const mutationRef = useRef(false);
   const auth = useContext(AuthContext);
   const canManageAccount = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
@@ -86,6 +91,24 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
       .catch(error => { if (current) setResult({ revision, error: teacherErrorMessage(error), notFound: teacherErrorStatus(error) === 404 }); });
     return () => { current = false; };
   }, [teacherId, revision]);
+
+  // PERF: una sola petición a sectionsService.list() por docente (sin paginar, todos los periodos e inactivas), en paralelo con el detalle.
+  // Es necesaria porque las asignaciones históricas pueden apuntar a secciones de periodos cerrados.
+  useEffect(() => {
+    let current = true;
+    sectionsService.list()
+      .then(sections => { if (current) setSectionsResult({ revision: sectionsRevision, labels: toSectionLabels(sections) }); })
+      .catch(() => { if (current) setSectionsResult({ revision: sectionsRevision, error: true }); });
+    return () => { current = false; };
+  }, [teacherId, sectionsRevision]);
+
+  const sectionsLoading = sectionsResult?.revision !== sectionsRevision;
+  const sectionLabels = sectionsLoading ? null : sectionsResult?.labels ?? null;
+  const sectionsFailed = !sectionsLoading && !!sectionsResult?.error;
+  const assignmentRows = useMemo(
+    () => toTeacherAssignmentRows(teacher?.assignments ?? [], sectionLabels),
+    [teacher?.assignments, sectionLabels],
+  );
 
   function startEditing() {
     if (!teacher) return;
@@ -202,8 +225,9 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
     }
   }
 
-  // Generic account endpoint (BACK #105): changes usuario.estado only, never teacher.active.
-  async function changeAccountState(request: ChangeAccountStateRequest) {
+  // Endpoint genérico de cuenta (BACK #105): cambia solo usuario.estado, nunca teacher.active.
+  // Limitación conocida con cuentas de docente: ver TODO(backend) en accountStateService.
+  async function changeAccountState(request: TeacherAccountStateRequest) {
     if (!account || !accountStateAction || mutationRef.current) return;
     mutationRef.current = true;
     setBusy(true);
@@ -229,7 +253,7 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
     if (reload) void refreshAccount();
   }
 
-  function handleAccountCreated(created: TeacherAccountResponse) {
+  function handleAccountCreated(created: TeacherAccountCreated) {
     setAccountOpen(false);
     setNotice(created.created
       ? `Cuenta de acceso creada para ${created.email}. La contraseña inicial es el DNI del docente; pídele que la cambie.`
@@ -248,8 +272,8 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
           <button onClick={() => setRevision(n => n + 1)} className="mt-4 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold min-h-10 shadow-sm hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Reintentar</button>
         </div>}
         {teacher && <>
-          <header className="flex flex-wrap items-center justify-between gap-4">
-            <div><span className="text-accent text-[11px] font-bold tracking-widest uppercase">Equipo académico</span><h1 className="text-ink text-2xl font-bold tracking-tight mt-1">Perfil de docente</h1></div>
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div><span className="text-accent text-[11px] font-bold tracking-widest uppercase">Equipo académico</span><h1 className="text-ink text-2xl font-bold tracking-tight mt-1">Perfil de docente</h1><p className="text-muted text-xs font-medium mt-0.5">Consulta sus datos, asignaciones y cuenta de acceso.</p></div>
             <div className="flex flex-wrap gap-2">
               {!editing ? (
                 <button disabled={busy} onClick={startEditing} className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold min-h-10 shadow-sm hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"><PencilEdit01Icon size={16} aria-hidden="true" />Editar docente</button>
@@ -262,25 +286,21 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
             </div>
           </header>
           {canCreateAccount && accountBlocked && <p className="text-xs text-muted">Para crear la cuenta de acceso, el docente debe estar activo y tener DNI registrado.</p>}
-          <p className="p-3 rounded-xl border border-line bg-neutral/40 text-sm text-ink break-words">
-            {account === null ? 'El docente no tiene cuenta de acceso.' : <>
-              Cuenta de acceso: <strong>{account.email}</strong>{' · '}
-              <span className={`font-bold ${account.active ? 'text-emerald-700' : 'text-muted'}`}>{account.active ? 'Cuenta activa' : 'Cuenta deshabilitada'}</span>
-            </>}
-          </p>
           {accountRefreshError && <div role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm break-words">
             <p>No se pudo actualizar el estado de la cuenta. {accountRefreshError}</p>
             <button disabled={busy} onClick={() => void refreshAccount()} className="font-bold mt-2 min-h-10 px-3 py-2 rounded-lg bg-white border border-line hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">Actualizar estado</button>
           </div>}
           {notice && <p role="status" className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm">{notice}</p>}
           {actionError && <p role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm break-words">{actionError} Puedes volver a intentar la acción.</p>}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <section className="lg:col-span-5 min-w-0 bg-white border border-line rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center gap-3 mb-5 pb-5 border-b border-line">
-                <span className="w-14 h-14 rounded-full border border-accent/20 bg-accent-soft text-accent flex items-center justify-center font-bold shrink-0 text-base">{teacher.iniciales}</span>
-                <div className="min-w-0 flex-1">
+          <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12">
+            <div className="lg:col-span-7 min-w-0 flex flex-col gap-6">
+              <section className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm flex flex-col md:flex-row gap-5 items-start">
+                <div className="w-full md:w-44 h-44 rounded-xl bg-neutral/80 border border-line shrink-0 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-accent-soft text-accent font-bold text-2xl flex items-center justify-center">{teacher.iniciales}</div>
+                </div>
+                <div className="flex-1 min-w-0 w-full">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-bold tracking-tight text-ink break-words">{teacher.nombreCompleto}</h2>
+                    <h2 className="text-ink font-bold text-lg md:text-xl leading-tight break-words">{teacher.nombreCompleto}</h2>
                     {/* Botón verde si activo, gris si inactivo */}
                     <button
                       type="button"
@@ -297,231 +317,254 @@ function TeacherProfile({ teacherId }: { teacherId: string }) {
                       {teacher.active ? 'Activo' : 'Inactivo'}
                     </button>
                   </div>
-                  <p className="text-xs text-muted mt-1">{teacher.specialty || 'Sin especialidad registrada'}</p>
+                  <p className="text-accent text-xs font-bold mt-0.5 break-words">{teacher.specialty ? `Docente de ${teacher.specialty}` : 'Sin especialidad registrada'}</p>
                 </div>
-              </div>
+              </section>
 
-              {!editing ? (
-                /* Modo lectura: misma distribución de 2 columnas por fila */
-                <dl className="flex flex-col gap-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Info label="DNI" value={teacher.dni} />
-                    <Info label="Nombres" value={teacher.firstNames} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Info label="Apellido paterno" value={teacher.paternalLastName} />
-                    <Info label="Apellido materno" value={teacher.maternalLastName} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Info label="Teléfono" value={teacher.phone} />
-                    <Info label="Especialidad" value={teacher.specialty} />
-                  </div>
-                  <Info label="Estado" value={teacher.estadoLabel} />
-                </dl>
-              ) : (
-                /* Modo edición: misma estructura de 2 columnas, input azul sin badge, icono ✓ o ✕ a la derecha */
-                <form className="flex flex-col gap-4" onSubmit={handleSaveInline}>
-                  <div className="flex items-center justify-between pb-2 border-b border-line">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-accent flex items-center gap-1.5">
-                      <PencilEdit01Icon size={14} aria-hidden="true" />
-                      Edición en panel
-                    </h3>
-                    <span className="text-[11px] text-muted font-medium">Modifica los campos requeridos</span>
-                  </div>
+              <section className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm flex flex-col gap-4">
+                <div className="flex items-center justify-between border-b border-line pb-3">
+                  <h2 className="text-ink font-bold text-sm flex items-center gap-2"><BookOpen01Icon size={16} aria-hidden="true" className="text-accent" />Asignación de cursos, grado y sección</h2>
+                </div>
+                {result?.assignmentsLoading || sectionsLoading ? <p role="status" className="text-sm text-muted p-4 border border-line bg-neutral/30 rounded-xl flex items-center gap-2"><Clock01Icon size={18} aria-hidden="true" className="shrink-0" />{result?.assignmentsLoading ? 'Actualizando asignaciones...' : 'Cargando asignaciones...'}</p> :
+                  result?.assignmentsError ? <div role="alert" className="text-sm text-rose-700 p-4 rounded-xl border border-rose-200 bg-rose-50 break-words">
+                    <p>No se pudieron actualizar las asignaciones. {result.assignmentsError}</p>
+                    <button onClick={() => setRevision(n => n + 1)} className="font-bold mt-3 min-h-10 px-3 py-2 rounded-lg bg-white border border-line hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Reintentar</button>
+                  </div> :
+                    assignmentRows.length === 0 ? <div className="p-6 border border-dashed border-line rounded-xl bg-neutral/30 text-center flex flex-col items-center gap-2"><BookOpen01Icon size={24} aria-hidden="true" className="text-muted" /><p className="text-sm font-bold text-ink">Sin asignaciones registradas.</p><p className="text-xs text-muted">No hay asignaciones actuales ni históricas para mostrar.</p></div> :
+                      <>
+                        {sectionsFailed && <div role="alert" className="text-sm text-rose-700 p-3 rounded-xl border border-rose-200 bg-rose-50 break-words">
+                          <p>No se pudieron cargar los grados y secciones. Las asignaciones se muestran sin ese dato.</p>
+                          <button onClick={() => setSectionsRevision(n => n + 1)} className="font-bold mt-2 min-h-10 px-3 py-2 rounded-lg bg-white border border-line hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Reintentar</button>
+                        </div>}
+                        <ul className="flex flex-col gap-2">
+                          {assignmentRows.map(row => <li key={row.id} className="p-3 rounded-xl bg-neutral/40 border border-line hover:bg-neutral/80 transition-colors flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 min-w-0">
+                            <span title={row.curso} className="text-ink font-bold text-xs sm:w-36 min-w-0 truncate">{row.curso}</span>
+                            {row.nivelGrado ? <span title={row.nivelGrado} className="text-muted text-xs font-semibold sm:w-28 min-w-0 truncate">{row.nivelGrado}</span> : <span aria-hidden="true" className="hidden sm:block sm:w-28" />}
+                            <span title={row.seccion} className="text-muted text-xs font-semibold min-w-0 truncate">{row.seccion}</span>
+                            <span className="flex items-center gap-2 sm:ml-auto shrink-0">
+                              {row.asignadoElIso ? <time dateTime={row.asignadoElIso} className="text-muted text-xs">{row.asignadoEl}</time> : <span className="text-muted text-xs">{row.asignadoEl}</span>}
+                              <span className={`font-bold text-[10px] border rounded-full px-2 py-1 ${row.activa ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-neutral text-muted border-line'}`}>{row.estadoLabel}</span>
+                            </span>
+                          </li>)}
+                        </ul>
+                      </>}
+              </section>
+            </div>
 
-                  {editError && (
-                    <p role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs flex items-start gap-2 break-words">
-                      <AlertCircleIcon size={16} aria-hidden="true" className="shrink-0" />
-                      {editError}
-                    </p>
+            <div className="lg:col-span-5 min-w-0">
+              <section className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm flex flex-col gap-4">
+                <div className="flex items-center justify-between border-b border-line pb-3">
+                  <h2 className="text-ink font-bold text-sm">Cuenta de acceso</h2>
+                </div>
+                <p className="text-sm text-ink break-words">
+                  {account === null ? 'El docente no tiene cuenta de acceso.' : <>
+                    Cuenta de acceso: <strong>{account.email}</strong>{' · '}
+                    <span className={`font-bold ${account.active ? 'text-emerald-700' : 'text-muted'}`}>{account.active ? 'Cuenta activa' : 'Cuenta deshabilitada'}</span>
+                  </>}
+                </p>
+                <div className="border-t border-line pt-4 mt-2">
+                  <h2 className="text-ink font-bold text-sm mb-3 border-b border-line pb-2">Datos personales</h2>
+                  {!editing ? (
+                    <dl className="flex flex-col gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Info label="DNI" value={teacher.dni} />
+                        <Info label="Nombres" value={teacher.firstNames} />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Info label="Apellido paterno" value={teacher.paternalLastName} />
+                        <Info label="Apellido materno" value={teacher.maternalLastName} />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Info label="Teléfono" value={teacher.phone} />
+                        <Info label="Especialidad" value={teacher.specialty} />
+                      </div>
+                      <Info label="Estado" value={teacher.estadoLabel} />
+                    </dl>
+                  ) : (
+                    <form className="flex flex-col gap-4" onSubmit={handleSaveInline}>
+                      <div className="flex items-center justify-between pb-2 border-b border-line">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-accent flex items-center gap-1.5">
+                          <PencilEdit01Icon size={14} aria-hidden="true" />
+                          Edición en panel
+                        </h3>
+                        <span className="text-[11px] text-muted font-medium">Modifica los campos requeridos</span>
+                      </div>
+
+                      {editError && (
+                        <p role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs flex items-start gap-2 break-words">
+                          <AlertCircleIcon size={16} aria-hidden="true" className="shrink-0" />
+                          {editError}
+                        </p>
+                      )}
+
+                      <fieldset disabled={busy} className="flex flex-col gap-3.5 disabled:opacity-70">
+                        {/* Fila 1: DNI y Nombres en 2 columnas */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* DNI con indicador ✓ o ✕ en el lado derecho */}
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                              DNI <span className="text-rose-500">*</span>
+                            </label>
+                            <div className="relative mt-1.5">
+                              <input
+                                required
+                                maxLength={12}
+                                value={editValues.dni}
+                                onChange={e => setEditValues(prev => ({ ...prev, dni: e.target.value }))}
+                                className={`w-full pl-3 pr-9 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                                  isModified('dni')
+                                    ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                                    : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                                }`}
+                                placeholder="Ej. 12345678"
+                              />
+                              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+                                {editValues.dni.trim().length === 8 ? (
+                                  <Check size={16} className="text-emerald-600 stroke-[2.5]" aria-hidden="true" />
+                                ) : (
+                                  <X size={16} className="text-rose-500 stroke-[2.5]" aria-hidden="true" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-[11px] mt-1 font-medium px-0.5">
+                              <span className={editValues.dni.trim().length === 8 ? 'text-emerald-700 font-bold' : 'text-muted'}>
+                                {editValues.dni.trim().length}/8
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Nombres */}
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                              Nombres <span className="text-rose-500">*</span>
+                            </label>
+                            <input
+                              required
+                              maxLength={120}
+                              value={editValues.firstNames}
+                              onChange={e => setEditValues(prev => ({ ...prev, firstNames: e.target.value }))}
+                              className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                                isModified('firstNames')
+                                  ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                                  : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                              }`}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Fila 2: Apellidos en 2 columnas */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Apellido paterno */}
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                              Apellido paterno <span className="text-rose-500">*</span>
+                            </label>
+                            <input
+                              required
+                              maxLength={120}
+                              value={editValues.paternalLastName}
+                              onChange={e => setEditValues(prev => ({ ...prev, paternalLastName: e.target.value }))}
+                              className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                                isModified('paternalLastName')
+                                  ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                                  : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                              }`}
+                            />
+                          </div>
+
+                          {/* Apellido materno */}
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                              Apellido materno
+                            </label>
+                            <input
+                              maxLength={120}
+                              value={editValues.maternalLastName}
+                              onChange={e => setEditValues(prev => ({ ...prev, maternalLastName: e.target.value }))}
+                              className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                                isModified('maternalLastName')
+                                  ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                                  : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                              }`}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Fila 3: Teléfono y Especialidad en 2 columnas */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Teléfono con indicador ✓ o ✕ en el lado derecho */}
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                              Teléfono
+                            </label>
+                            <div className="relative mt-1.5">
+                              <input
+                                maxLength={30}
+                                value={editValues.phone}
+                                onChange={e => setEditValues(prev => ({ ...prev, phone: e.target.value }))}
+                                className={`w-full pl-3 pr-9 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                                  isModified('phone')
+                                    ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                                    : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                                }`}
+                                placeholder="Ej. 987654321"
+                              />
+                              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+                                {editValues.phone.trim().length === 9 ? (
+                                  <Check size={16} className="text-emerald-600 stroke-[2.5]" aria-hidden="true" />
+                                ) : (
+                                  <X size={16} className="text-rose-500 stroke-[2.5]" aria-hidden="true" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-[11px] mt-1 font-medium px-0.5">
+                              <span className={editValues.phone.trim().length === 9 ? 'text-emerald-700 font-bold' : 'text-muted'}>
+                                {editValues.phone.trim().length}/9
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Especialidad */}
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                              Especialidad
+                            </label>
+                            <input
+                              maxLength={100}
+                              value={editValues.specialty}
+                              onChange={e => setEditValues(prev => ({ ...prev, specialty: e.target.value }))}
+                              className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                                isModified('specialty')
+                                  ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
+                                  : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      </fieldset>
+
+                      <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={cancelEditing}
+                          className="px-3.5 py-2 min-h-9 rounded-xl bg-white border border-line text-ink text-xs font-bold hover:bg-neutral disabled:opacity-50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={busy}
+                          className="px-4 py-2 min-h-9 rounded-xl bg-accent text-white text-xs font-bold shadow-sm hover:bg-accent/90 disabled:opacity-50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        >
+                          {busy ? 'Guardando...' : 'Guardar cambios'}
+                        </button>
+                      </div>
+                    </form>
                   )}
-
-                  <fieldset disabled={busy} className="flex flex-col gap-3.5 disabled:opacity-70">
-                    {/* Fila 1: DNI y Nombres en 2 columnas */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* DNI con indicador ✓ o ✕ en el lado derecho */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                          DNI <span className="text-rose-500">*</span>
-                        </label>
-                        <div className="relative mt-1.5">
-                          <input
-                            required
-                            maxLength={12}
-                            value={editValues.dni}
-                            onChange={e => setEditValues(prev => ({ ...prev, dni: e.target.value }))}
-                            className={`w-full pl-3 pr-9 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                              isModified('dni')
-                                ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
-                                : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
-                            }`}
-                            placeholder="Ej. 12345678"
-                          />
-                          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
-                            {editValues.dni.trim().length === 8 ? (
-                              <Check size={16} className="text-emerald-600 stroke-[2.5]" aria-hidden="true" />
-                            ) : (
-                              <X size={16} className="text-rose-500 stroke-[2.5]" aria-hidden="true" />
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-[11px] mt-1 font-medium px-0.5">
-                          <span className={editValues.dni.trim().length === 8 ? 'text-emerald-700 font-bold' : 'text-muted'}>
-                            {editValues.dni.trim().length}/8
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Nombres */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                          Nombres <span className="text-rose-500">*</span>
-                        </label>
-                        <input
-                          required
-                          maxLength={120}
-                          value={editValues.firstNames}
-                          onChange={e => setEditValues(prev => ({ ...prev, firstNames: e.target.value }))}
-                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                            isModified('firstNames')
-                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
-                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
-                          }`}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Fila 2: Apellidos en 2 columnas */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Apellido paterno */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                          Apellido paterno <span className="text-rose-500">*</span>
-                        </label>
-                        <input
-                          required
-                          maxLength={120}
-                          value={editValues.paternalLastName}
-                          onChange={e => setEditValues(prev => ({ ...prev, paternalLastName: e.target.value }))}
-                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                            isModified('paternalLastName')
-                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
-                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
-                          }`}
-                        />
-                      </div>
-
-                      {/* Apellido materno */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                          Apellido materno
-                        </label>
-                        <input
-                          maxLength={120}
-                          value={editValues.maternalLastName}
-                          onChange={e => setEditValues(prev => ({ ...prev, maternalLastName: e.target.value }))}
-                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                            isModified('maternalLastName')
-                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
-                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
-                          }`}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Fila 3: Teléfono y Especialidad en 2 columnas */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Teléfono con indicador ✓ o ✕ en el lado derecho */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                          Teléfono
-                        </label>
-                        <div className="relative mt-1.5">
-                          <input
-                            maxLength={30}
-                            value={editValues.phone}
-                            onChange={e => setEditValues(prev => ({ ...prev, phone: e.target.value }))}
-                            className={`w-full pl-3 pr-9 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                              isModified('phone')
-                                ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
-                                : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
-                            }`}
-                            placeholder="Ej. 987654321"
-                          />
-                          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
-                            {editValues.phone.trim().length === 9 ? (
-                              <Check size={16} className="text-emerald-600 stroke-[2.5]" aria-hidden="true" />
-                            ) : (
-                              <X size={16} className="text-rose-500 stroke-[2.5]" aria-hidden="true" />
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-[11px] mt-1 font-medium px-0.5">
-                          <span className={editValues.phone.trim().length === 9 ? 'text-emerald-700 font-bold' : 'text-muted'}>
-                            {editValues.phone.trim().length}/9
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Especialidad */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted block">
-                          Especialidad
-                        </label>
-                        <input
-                          maxLength={100}
-                          value={editValues.specialty}
-                          onChange={e => setEditValues(prev => ({ ...prev, specialty: e.target.value }))}
-                          className={`w-full mt-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                            isModified('specialty')
-                              ? 'border-blue-500 bg-blue-50/40 text-blue-900 focus-visible:outline-blue-600 ring-1 ring-blue-500/20'
-                              : 'border-line bg-neutral/50 text-ink focus-visible:outline-accent'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  </fieldset>
-
-                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={cancelEditing}
-                      className="px-3.5 py-2 min-h-9 rounded-xl bg-white border border-line text-ink text-xs font-bold hover:bg-neutral disabled:opacity-50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={busy}
-                      className="px-4 py-2 min-h-9 rounded-xl bg-accent text-white text-xs font-bold shadow-sm hover:bg-accent/90 disabled:opacity-50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    >
-                      {busy ? 'Guardando...' : 'Guardar cambios'}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </section>
-
-            <section className="lg:col-span-7 min-w-0 bg-white border border-line rounded-2xl p-6 shadow-sm">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2 mb-4 pb-3 border-b border-line"><BookOpen01Icon size={18} aria-hidden="true" className="text-accent shrink-0" />Asignaciones actuales / históricas</h2>
-              {result?.assignmentsLoading ? <p role="status" className="text-sm text-muted p-4 border border-line bg-neutral/30 rounded-xl flex items-center gap-2"><Clock01Icon size={18} aria-hidden="true" className="shrink-0" />Actualizando asignaciones...</p> :
-                result?.assignmentsError ? <div role="alert" className="text-sm text-rose-700 p-4 rounded-xl border border-rose-200 bg-rose-50 break-words">
-                  <p>No se pudieron actualizar las asignaciones. {result.assignmentsError}</p>
-                  <button onClick={() => setRevision(n => n + 1)} className="font-bold mt-3 min-h-10 px-3 py-2 rounded-lg bg-white border border-line hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Reintentar</button>
-                </div> :
-                  teacher.assignments.length === 0 ? <div className="p-6 border border-dashed border-line rounded-xl bg-neutral/30 text-center flex flex-col items-center gap-2"><BookOpen01Icon size={24} aria-hidden="true" className="text-muted" /><p className="text-sm font-bold text-ink">Sin asignaciones registradas.</p><p className="text-xs text-muted">No hay asignaciones actuales ni históricas para mostrar.</p></div> :
-                    <div className="flex flex-col gap-3">
-                      {teacher.assignments.map(assignment => <article key={assignment.id} className="border border-line bg-white rounded-xl p-4 shadow-sm min-w-0">
-                        <h3 className="font-bold text-sm text-ink break-words pb-3 border-b border-line">{assignment.courseCode} • {assignment.courseName}</h3>
-                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-xs break-words">
-                          <div><dt className="text-muted">ID de sección</dt><dd className="font-bold">{assignment.sectionId}</dd></div>
-                          <div><dt className="text-muted">Fecha de asignación</dt><dd><time dateTime={assignment.assignedAt}>{assignment.assignedAt}</time></dd></div>
-                          <div><dt className="text-muted">Estado</dt><dd className={`font-bold text-[10px] border rounded-full px-2 py-1 mt-1 w-fit ${assignment.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-neutral text-muted border-line'}`}>{assignment.active ? 'Activa' : 'Inactiva'}</dd></div>
-                        </dl>
-                      </article>)}
-                    </div>}
-            </section>
+                </div>
+              </section>
+            </div>
           </div>
 
           {accountOpen && canManageAccount && (

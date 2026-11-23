@@ -14,6 +14,7 @@ import {
   accountStateChangeReloads, accountStateErrorMessage, accountStateReasons, accountStateService, accountStateValidation, isUncertainAccountStateChange, toChangeAccountState,
 } from '../src/services/admin/accountStateService';
 import { teachersService } from '../src/services/admin/teachersService';
+import { sectionsService } from '../src/services/admin/sectionsService';
 import type { AccountStateAction, AccountStateChangeResponse, CreateStaffAccountResponse, StaffAccountSummary } from '../src/types/staffAccountApi';
 import type { TeacherDetailResponse } from '../src/types/teacherApi';
 
@@ -417,6 +418,8 @@ const teacher = (account: TeacherDetailResponse['account']): TeacherDetailRespon
 async function withTeacher(initial: TeacherDetailResponse['account'], change: typeof accountStateService.change | undefined,
   run: (calls: { change: unknown[][]; update: number }) => Promise<void>) {
   const old = { getById: teachersService.getById, update: teachersService.update, change: accountStateService.change };
+  const oldSections = sectionsService.list;
+  sectionsService.list = async () => [];
   const calls = { change: [] as unknown[][], update: 0 };
   let persisted = teacher(initial);
   teachersService.getById = async () => persisted;
@@ -427,7 +430,7 @@ async function withTeacher(initial: TeacherDetailResponse['account'], change: ty
     persisted = teacher(persisted.account && { ...persisted.account, active: result.active });
     return result;
   };
-  try { await run(calls); } finally { Object.assign(teachersService, { getById: old.getById, update: old.update }); accountStateService.change = old.change; }
+  try { await run(calls); } finally { Object.assign(teachersService, { getById: old.getById, update: old.update }); accountStateService.change = old.change; sectionsService.list = oldSections; }
 }
 
 test('teacher profile: the teacher toggle states that it does not affect the account', async () => {

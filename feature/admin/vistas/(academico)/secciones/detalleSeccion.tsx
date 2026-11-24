@@ -1,10 +1,10 @@
 'use client';
 
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft01Icon, BookOpen01Icon, Add01Icon, UserIcon, Delete01Icon } from 'hugeicons-react';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useCan } from '@/hooks/useCan';
 import type { SectionResponse } from '@/types/sectionApi';
 import type { SectionCourseResponse } from '@/types/sectionCourseApi';
 import { confirmDeactivation, deactivateSection, sectionsService } from '@/services/admin/sectionsService';
@@ -29,8 +29,8 @@ export default function DetalleSeccion() {
 }
 
 function SectionDetail({ sectionId }: { sectionId: string }) {
-  const auth = useContext(AuthContext);
-  const canManage = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
+  const canManage = useCan('section.manage');
+  const canSaveAttendance = useCan('attendance.contingency.save');
   const [manage, setManage] = useState<Manage | null>(null);
   const [manageError, setManageError] = useState('');
   const [sectionRevision, setSectionRevision] = useState(0);
@@ -199,7 +199,7 @@ function SectionDetail({ sectionId }: { sectionId: string }) {
                 <td className="py-3 px-4"><span className="flex items-start gap-1.5 break-words"><UserIcon size={14} aria-hidden="true" className="text-muted shrink-0" />{relation.teacherId === null || relation.teacherName === null ? 'Sin docente asignado' : relation.teacherName}</span></td>
                 <td className="py-3 px-4"><div className="flex flex-wrap gap-2">
                   {relation.active ? <>
-                    <button className={secondaryButtonClass} disabled={busy || !section} aria-label={`${canManage ? 'Asistencia' : 'Ver asistencia'} de ${relation.courseName}`} onClick={() => setAttendance(relation)}>{canManage ? 'Asistencia' : 'Ver asistencia'}</button>
+                    <button className={secondaryButtonClass} disabled={busy || !section} aria-label={`${canSaveAttendance ? 'Asistencia' : 'Ver asistencia'} de ${relation.courseName}`} onClick={() => setAttendance(relation)}>{canSaveAttendance ? 'Asistencia' : 'Ver asistencia'}</button>
                     <button className={secondaryButtonClass} disabled={busy || !section} aria-label={`Materiales de ${relation.courseName}`} onClick={() => setMaterials(relation)}>Materiales</button>
                     <button className={relation.teacherId === null ? primaryButtonClass : destructiveButtonClass} disabled={busy || !section} onClick={() => open({ kind: relation.teacherId === null ? 'assign' : 'unassign', relation })}>{relation.teacherId === null ? 'Asignar docente' : 'Retirar docente'}</button>
                     <button className={`${destructiveButtonClass} inline-flex items-center gap-1.5`} disabled={busy || !section} onClick={() => open({ kind: 'remove', relation })}><Delete01Icon size={14} aria-hidden="true" />Retirar curso</button>
@@ -224,7 +224,7 @@ function SectionDetail({ sectionId }: { sectionId: string }) {
           </div>
         </form>
       </SectionDialog>}
-      {attendance && section && <AsistenciaContingenciaDialog relation={attendance} canManage={canManage}
+      {attendance && section && <AsistenciaContingenciaDialog relation={attendance} canManage={canSaveAttendance}
         sectionLabel={`${sectionName(section.name)} • ${section.grade}° grado`} onClose={() => setAttendance(null)} />}
       {materials && section && <MaterialesGestionDialog relation={materials}
         sectionLabel={`${sectionName(section.name)} • ${section.grade}° grado`} onClose={() => setMaterials(null)} />}

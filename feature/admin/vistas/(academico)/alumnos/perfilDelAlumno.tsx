@@ -14,6 +14,7 @@ import AddGuardianDialog from './components/AddGuardianDialog';
 import StudentStateDialog from './components/StudentStateDialog';
 import { availableStudentStateActions, studentStateActionLabels, studentStateChangeReloads, studentStateErrorMessage, studentStateService, studentStateSuccessMessage } from '@/services/admin/studentStateService';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCan } from '@/hooks/useCan';
 import { enrollmentsService, enrollmentErrorMessage, enrollmentErrorStatus } from '@/services/admin/enrollmentsService';
 import type { WithdrawEnrollmentRequest } from '@/types/enrollmentApi';
 import type { ChangeStudentStateRequest, CreateStudentGuardianRequest, StudentStateAction } from '@/types/studentApi';
@@ -61,16 +62,19 @@ function StudentProfile({ studentId }: { studentId: string }) {
   const target = useRef<number | null>(null);
   const verification = useRef<{ enrollmentId: number; accepted: boolean; message: string } | null>(null);
   const lifetime = useRef({ active: true });
-  const canWithdraw = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
+  const canWithdraw = useCan('enrollment.withdraw');
+  const canEnrollAction = useCan('enrollment.create');
+  const canChangeState = useCan('student.changeState');
+  const canAddGuardian = useCan('guardian.create');
   const loading = result?.revision !== revision;
   const student = loading ? undefined : result?.student;
-  // Same ADMINISTRADOR gate as withdrawal; a previously withdrawn enrollment does not block a new one.
-  const canEnroll = canWithdraw && student?.studentStatus === 'ACTIVE' && !student.tieneMatriculaActiva;
+  // Own permission (enrollment.create); a previously withdrawn enrollment does not block a new one.
+  const canEnroll = canEnrollAction && student?.studentStatus === 'ACTIVE' && !student.tieneMatriculaActiva;
   // A profile reload unmounts every open dialog, so the guardian flow is mutually exclusive with withdrawal, enrollment and edition.
   const guardianLocked = addingGuardian || guardianBusy;
-  // Same exclusivity for the state change (ADMINISTRADOR only; DIRECTIVO only reads the state).
+  // Same exclusivity for the state change (student.changeState; DIRECTIVO only reads the state).
   const stateLocked = stateAction !== null || stateBusy;
-  const stateActions = canWithdraw && student ? availableStudentStateActions(student.studentStatus) : [];
+  const stateActions = canChangeState && student ? availableStudentStateActions(student.studentStatus) : [];
 
   useEffect(() => {
     const current = { active: true };
@@ -144,7 +148,7 @@ function StudentProfile({ studentId }: { studentId: string }) {
 
   // Single POST without automatic retries; success or an uncertain outcome closes the dialog and reloads the profile.
   async function addGuardian(request: CreateStudentGuardianRequest) {
-    if (!canWithdraw || !auth?.isSessionPhysicallyValid() || mutation.current || verification.current || !student) return;
+    if (!canAddGuardian || !auth?.isSessionPhysicallyValid() || mutation.current || verification.current || !student) return;
     const current = lifetime.current;
     if (!current.active) return;
     mutation.current = true;
@@ -168,7 +172,7 @@ function StudentProfile({ studentId }: { studentId: string }) {
   // Single PATCH without automatic retries; success, 404, 409 or an uncertain outcome closes the dialog and reloads the profile.
   async function changeState(request: ChangeStudentStateRequest) {
     const action = stateAction;
-    if (!action || !canWithdraw || !auth?.isSessionPhysicallyValid() || mutation.current || verification.current || !student
+    if (!action || !canChangeState || !auth?.isSessionPhysicallyValid() || mutation.current || verification.current || !student
       || !availableStudentStateActions(student.studentStatus).includes(action)) return;
     const current = lifetime.current;
     if (!current.active) return;
@@ -293,7 +297,7 @@ function StudentProfile({ studentId }: { studentId: string }) {
                     </dl>
                   </article>)}
                 </div>
-                {canWithdraw && <button className={`${primaryButtonClass} mt-4`} disabled={withdrawBusy || withdrawing || refreshRequired || editing || enrolling || enrollBusy || guardianLocked || stateLocked} onClick={() => {
+                {canAddGuardian && <button className={`${primaryButtonClass} mt-4`} disabled={withdrawBusy || withdrawing || refreshRequired || editing || enrolling || enrollBusy || guardianLocked || stateLocked} onClick={() => {
                   if (mutation.current || verification.current) return;
                   setSaved(false); setEnrollNotice(''); setWithdrawNotice(''); setWithdrawError(''); setGuardianNotice(''); setGuardianError('');
                   setAddingGuardian(true);
@@ -303,9 +307,9 @@ function StudentProfile({ studentId }: { studentId: string }) {
           </div>
           {withdrawing && canWithdraw && student.enrollmentId !== null && <WithdrawEnrollmentDialog name={student.nombreCompleto} enrollmentId={student.enrollmentId} enrollmentDate={student.enrollmentDate} busy={withdrawBusy} error={withdrawError}
             onCancel={() => { if (!mutation.current) { target.current = null; setWithdrawing(false); } }} onConfirm={request => void withdraw(request)} />}
-          {stateAction && canWithdraw && <StudentStateDialog action={stateAction} name={student.nombreCompleto} busy={stateBusy} error={stateError}
+          {stateAction && canChangeState && <StudentStateDialog action={stateAction} name={student.nombreCompleto} busy={stateBusy} error={stateError}
             onCancel={() => { if (!mutation.current) { setStateAction(null); setStateError(''); } }} onConfirm={request => void changeState(request)} />}
-          {addingGuardian && canWithdraw && <AddGuardianDialog name={student.nombreCompleto} guardians={student.guardians} busy={guardianBusy} error={guardianError}
+          {addingGuardian && canAddGuardian && <AddGuardianDialog name={student.nombreCompleto} guardians={student.guardians} busy={guardianBusy} error={guardianError}
             onCancel={() => { if (!mutation.current) { setAddingGuardian(false); setGuardianError(''); } }} onConfirm={request => void addGuardian(request)} />}
           {enrolling && canEnroll && <SectionDialog title="Matricular en sección" busy={enrollBusy} onClose={() => { setEnrolling(false); setRevision(n => n + 1); }}>
             <EnrollStudentForm studentId={Number(student.id)} studentStatus={student.studentStatus} hasActiveEnrollment={student.tieneMatriculaActiva}

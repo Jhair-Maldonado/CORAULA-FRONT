@@ -133,7 +133,7 @@ test('validation bounds grade by level and PATCH carries only changed fields', (
 });
 
 test('management errors are fixed Spanish texts and never echo the backend', () => {
-  const expected: Record<number, RegExp> = { 400: /Revisa los datos/, 401: /sesión expiró/, 403: /gestionar secciones/, 404: /no encontrado/, 409: /conflicto con el estado actual/, 500: /servidor no pudo/ };
+  const expected: Record<number, RegExp> = { 400: /Revisa los datos/, 401: /sesión expiró/, 403: /No tienes permiso para esta acción/, 404: /no encontrado/, 409: /conflicto con el estado actual/, 500: /servidor no pudo/ };
   for (const [status, pattern] of Object.entries(expected)) {
     const message = sectionManagementErrorMessage(httpError(Number(status)));
     assert.match(message, pattern); assert.doesNotMatch(message, /PRIVATE|confirmActiveEnrollments/);

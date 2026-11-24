@@ -4,7 +4,7 @@ import React, { useContext, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthContext } from '@/contexts/AuthContext';
 import { GlobalLoader } from '@/components/GlobalLoader';
-import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
+import { CHANGE_PASSWORD_ROUTE, isPortalUserRole, isStaffRole, portalPathForRole } from '@/utils/authRoutes';
 
 interface GuestGuardProps {
   children: React.ReactNode;
@@ -26,14 +26,8 @@ export const GuestGuard = ({ children }: GuestGuardProps) => {
       const role = authContext.role;
       if (authContext.passwordChangeRequired) {
         router.replace(CHANGE_PASSWORD_ROUTE);
-      } else if (role === 'ADMINISTRADOR' || role === 'DIRECTIVO') {
-        router.replace('/administrador');
-      } else if (role === 'DOCENTE') {
-        router.replace('/docente');
-      } else if (role === 'ESTUDIANTE') {
-        router.replace('/alumno');
-      } else if (role === 'APODERADO') {
-        router.replace('/padre');
+      } else if (isStaffRole(role) || isPortalUserRole(role)) {
+        router.replace(portalPathForRole(role));
       }
     }
   }, [authContext, router]);

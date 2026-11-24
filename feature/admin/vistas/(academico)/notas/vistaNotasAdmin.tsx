@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCan } from '@/hooks/useCan';
 import { sectionsService } from '@/services/admin/sectionsService';
 import { sectionCoursesService } from '@/services/admin/sectionCoursesService';
 import { evaluationService } from '@/services/admin/evaluationService';
@@ -15,9 +15,10 @@ import { button, input, useRead, Failure } from './components/notesShared';
 import ActivityGradesAdmin from './components/ActivityGradesAdmin';
 
 export default function VistaNotasAdmin() {
-  const auth = useContext(AuthContext);
-  if (auth?.status !== 'authenticated' || !auth.sessionValid || (auth.role !== 'ADMINISTRADOR' && auth.role !== 'DIRECTIVO')) return <p role="alert">No tienes acceso a la planilla administrativa.</p>;
-  return <NotesContexts key={auth.role} canCorrect={auth.role === 'ADMINISTRADOR'} />;
+  const canRead = useCan('grade.read');
+  const canCorrect = useCan('grade.correct');
+  if (!canRead) return <p role="alert">No tienes acceso a la planilla administrativa.</p>;
+  return <NotesContexts key={String(canCorrect)} canCorrect={canCorrect} />;
 }
 function NotesContexts({ canCorrect }: { canCorrect: boolean }) {
   const load = useCallback(() => sectionsService.list({ active: true }), []);

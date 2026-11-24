@@ -50,7 +50,7 @@ test('correction message: catalog first, then HTTP text; 401/403, network and 5x
   assert.match(adminGradeCorrectionErrorMessage(coded(409, 'GRADE_CHANGED_CONCURRENTLY')), /Otra persona cambió esta nota/);
   for (const error of [coded(400, 'VALIDATION_ERROR'), coded(409, 'UNKNOWN_CODE'), coded(401, 'BIMESTER_STATE_CONFLICT'), coded(403, 'BIMESTER_STATE_CONFLICT'),
     coded(500, 'INTERNAL_ERROR'), coded(503, 'BIMESTER_STATE_CONFLICT'), httpError(), new Error('x')]) {
-    assert.equal(adminGradeCorrectionErrorMessage(error), adminGradesErrorMessage(error));
+    assert.equal(adminGradeCorrectionErrorMessage(error), adminGradesErrorMessage(error, 'write'));
   }
   assert.match(adminGradeCorrectionErrorMessage(httpError()), /no pudo confirmarse/);
 });

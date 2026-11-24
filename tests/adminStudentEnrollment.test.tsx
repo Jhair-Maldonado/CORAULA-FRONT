@@ -117,7 +117,7 @@ test('HTTP enrollment whitelists the body and rejects responses that do not matc
 test('enrollment messages are own texts; 409 lists every possible cause without reading the backend text', () => {
   for (const status of [400, 401, 403, 404, 409, 500, undefined]) assert.doesNotMatch(enrollmentCreateErrorMessage(httpError(status)), /PRIVATE/);
   assert.equal(enrollmentCreateErrorMessage(httpError(409)), 'No se pudo matricular: la sección está inactiva o con la matrícula cerrada, no tiene vacantes, el alumno ya tiene una matrícula activa en el periodo o la sección pertenece a otro periodo.');
-  assert.match(enrollmentCreateErrorMessage(httpError(403)), /Solo el Director/);
+  assert.match(enrollmentCreateErrorMessage(httpError(403)), /No tienes permiso para esta acción/);
   assert.match(enrollmentCreateErrorMessage(httpError()), /Revisa el perfil del alumno/);
 });
 

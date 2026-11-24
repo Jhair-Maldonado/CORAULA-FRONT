@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import type {
@@ -105,7 +106,7 @@ export function academicPeriodErrorMessage(error: unknown): string {
   switch (error.response.status) {
     case 400: return 'Revisa los datos: nombre de 1 a 100 caracteres y fecha de fin posterior a la de inicio.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
-    case 403: return 'No tienes autorización para gestionar periodos académicos.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     case 404: return 'Periodo académico no encontrado. Actualiza la lista.';
     case 409: return 'No se pudo guardar: ya existe un periodo con ese nombre, las fechas se solapan con otro periodo activo, o las nuevas fechas dejan bimestres fuera del rango.';
     default: return 'El servidor no pudo completar la solicitud. Intenta nuevamente.';

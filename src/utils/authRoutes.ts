@@ -1,5 +1,24 @@
 import { BackendRole } from '@/types';
 
+/** Roles del personal institucional: acceden por los portales de administración y docente. */
+export type StaffRole = Extract<BackendRole, 'ADMINISTRADOR' | 'DIRECTIVO' | 'DOCENTE'>;
+/** Roles del portal de estudiantes y familias. */
+export type PortalUserRole = Extract<BackendRole, 'ESTUDIANTE' | 'APODERADO'>;
+
+/** Rol del personal institucional (ADMINISTRADOR, DIRECTIVO o DOCENTE). */
+export const isStaffRole = (role: BackendRole | null | undefined): role is StaffRole =>
+  role === 'ADMINISTRADOR' || role === 'DIRECTIVO' || role === 'DOCENTE';
+
+/** Rol del portal de estudiantes y familias (ESTUDIANTE o APODERADO). */
+export const isPortalUserRole = (role: BackendRole | null | undefined): role is PortalUserRole =>
+  role === 'ESTUDIANTE' || role === 'APODERADO';
+
+/** Docente. */
+export const isTeacherRole = (role: BackendRole | null | undefined): role is 'DOCENTE' => role === 'DOCENTE';
+
+/** Estudiante. */
+export const isStudentRole = (role: BackendRole | null | undefined): role is 'ESTUDIANTE' => role === 'ESTUDIANTE';
+
 export const CHANGE_PASSWORD_ROUTE = '/cambiar-contrasena';
 
 /** Portal de inicio de cada rol autenticado. */

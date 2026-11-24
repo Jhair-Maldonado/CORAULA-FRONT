@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { AuthContext } from '@/contexts/AuthContext';
+import { isStudentRole } from '@/utils/authRoutes';
 
 export interface AlumnoSession {
   id: string;
@@ -116,7 +117,7 @@ export const AlumnoSessionProvider: React.FC<{ children: React.ReactNode }> = ({
  */
 export const useHasRealStudentSession = (): boolean => {
   const auth = useContext(AuthContext);
-  return auth?.status === 'authenticated' && auth.role === 'ESTUDIANTE';
+  return auth?.status === 'authenticated' && isStudentRole(auth.role);
 };
 
 export const useAlumnoSession = (): AlumnoSessionContextType => {

@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { parseBimesterResponse } from '@/lib/manualGradesContract';
@@ -108,7 +109,7 @@ export function isUncertainActivityCorrection(error: unknown): boolean {
 
 export function adminActivityCorrectionErrorMessage(error: unknown): string {
   if (isUncertainActivityCorrection(error)) return 'No se pudo confirmar la corrección. Se consultó la planilla sin repetirla; revisa la nota vigente.';
-  return activityGradeErrorCodeMessage(error) ?? adminGradesErrorMessage(error);
+  return activityGradeErrorCodeMessage(error) ?? adminGradesErrorMessage(error, 'write');
 }
 
 export function adminActivityReadErrorMessage(error: unknown): string {

@@ -129,7 +129,7 @@ test('HTTP guardian create whitelists the body and rejects responses that do not
 });
 
 test('guardian messages are own texts per status; no response, 5xx and unexpected bodies are uncertain', () => {
-  const expected = new Map<number, RegExp>([[400, /DNI de 8 dígitos, nombres, apellido paterno y relación/], [401, /sesión expiró/], [403, /Solo el Director/], [404, /ya no existe/], [422, /Intenta nuevamente/]]);
+  const expected = new Map<number, RegExp>([[400, /DNI de 8 dígitos, nombres, apellido paterno y relación/], [401, /sesión expiró/], [403, /No tienes permiso para esta acción/], [404, /ya no existe/], [422, /Intenta nuevamente/]]);
   for (const [status, message] of expected) {
     assert.match(guardianCreateErrorMessage(httpError(status)), message);
     assert.doesNotMatch(guardianCreateErrorMessage(httpError(status)), /PRIVATE/);

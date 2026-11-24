@@ -1,9 +1,9 @@
 'use client';
 
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FilterIcon, BookOpen01Icon, ArrowRight01Icon, Add01Icon } from 'hugeicons-react';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useCan } from '@/hooks/useCan';
 import { sectionsService } from '@/services/admin/sectionsService';
 import { sectionErrorMessage } from '@/services/admin/sectionErrors';
 import type { SectionListParams, SectionResponse } from '@/types/sectionApi';
@@ -11,8 +11,7 @@ import { inputClass, labelClass, primaryButtonClass, secondaryButtonClass, Failu
 import SectionForm from './SectionForm';
 
 export default function VistaSecciones() {
-  const auth = useContext(AuthContext);
-  const canManage = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
+  const canManage = useCan('section.manage');
   const [creating, setCreating] = useState(false);
   const [notice, setNotice] = useState('');
   const [query, setQuery] = useState<SectionListParams>({});

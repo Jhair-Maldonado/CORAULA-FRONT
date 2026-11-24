@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { studentErrorCodeMessage } from '@/services/admin/studentErrors';
@@ -87,7 +88,7 @@ export function studentStateErrorMessage(error: unknown): string {
   switch (isAxiosError(error) ? error.response?.status : undefined) {
     case 400: return 'Revisa el motivo y la justificación (obligatoria, hasta 1000 caracteres).';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
-    case 403: return 'Solo el Director puede cambiar el estado de un alumno.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     case 404: return 'El alumno ya no existe. Vuelve al listado.';
     case 409: return 'El estado del alumno cambió y esta acción ya no está permitida. Se actualizó el perfil.';
     default: return 'No se pudo cambiar el estado del alumno. Intenta nuevamente.';

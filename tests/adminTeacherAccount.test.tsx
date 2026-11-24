@@ -111,7 +111,7 @@ test('email validation mirrors the backend policy', () => {
 
 test('error messages are fixed Spanish texts and never echo the backend body', () => {
   const expected: Record<number, RegExp> = {
-    400: /DNI registrado/, 401: /sesión expiró/, 403: /No tienes autorización/, 404: /Docente no encontrado/,
+    400: /DNI registrado/, 401: /sesión expiró/, 403: /No tienes permiso para esta acción/, 404: /Docente no encontrado/,
     409: /en uso por otra cuenta/, 422: /inactivo/, 500: /servidor no pudo/,
   };
   for (const [status, pattern] of Object.entries(expected)) {

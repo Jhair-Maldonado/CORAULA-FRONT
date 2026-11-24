@@ -107,10 +107,10 @@ test('ADMINISTRADOR sees an enabled confirm button and no Director notice', asyn
   });
 });
 
-test('403 on confirm shows the Director message and does not retry', async () => {
+test('403 on confirm shows the uniform forbidden message and does not retry', async () => {
   await importer('ADMINISTRADOR', async () => { throw httpError(403); }, async (renderer, calls) => {
     await act(async () => { button(renderer, 'Confirmar matrícula')!.props.onClick(); });
-    assert.match(text(renderer.root), /Solo el Director puede confirmar la importación\./);
+    assert.match(text(renderer.root), /No tienes permiso para esta acción\./);
     assert.doesNotMatch(text(renderer.root), /PRIVATE DETAIL/);
     assert.equal(button(renderer, 'Confirmar matrícula')!.props.disabled, true);
     await act(async () => { button(renderer, 'Confirmar matrícula')!.props.onClick(); });

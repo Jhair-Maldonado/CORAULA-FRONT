@@ -11,8 +11,8 @@ import type { MockMethod } from '../src/mocks/http/mockHttp';
 // src/mocks/http/fixtures/ o figurar en MOCK_COVERAGE_EXCEPTIONS con su motivo. La prueba lee los services con la API
 // de TypeScript (sin ejecutarlos), evalúa la ruta de cada llamada y la busca con findMockRoute.
 // Limitaciones conocidas:
-// - Compara método y ruta, no roles: que el rol de la ruta simulada coincida con el @PreAuthorize del backend se revisa a mano
-//   y se prueba en mockAdapter.test.tsx (solo se exige que toda ruta fuera de /v1/auth declare `roles`).
+// - Compara método y ruta, no roles: que los roles de las rutas /v1/management simuladas coincidan con la matriz del backend
+//   lo prueba permissions.test.tsx (FRONT #167); las demás rutas solo exigen declarar `roles` (mockAdapter.test.tsx).
 // - Un valor que TypeScript no resuelve a literales (parámetro, propiedad, llamada) se evalúa como `:param`; al buscarlo se
 //   sustituye por `1` y puede casar con una ruta genérica (p. ej. `/x/:id`) aunque el service apunte a otra ruta fija.
 // - Solo lee llamadas `httpClient.<método>(ruta)` dentro de src/services; las ramas que no se evalúan estáticamente se anotan en EXPANSIONS.

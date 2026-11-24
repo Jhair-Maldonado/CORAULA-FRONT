@@ -1,8 +1,8 @@
 'use client';
 
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Calendar01Icon, PlusSignIcon } from 'hugeicons-react';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useCan } from '@/hooks/useCan';
 import { evaluationService, evaluationErrorMessage, bimesterOpeningErrorMessage, bimesterAnnulmentErrorMessage } from '@/services/admin/evaluationService';
 import { academicPeriodLabel, academicPeriodsService, academicPeriodsLoadErrorMessage } from '@/services/admin/academicPeriodsService';
 import ScheduleDialog from '@/../feature/admin/vistas/(administrativo)/horario/components/ScheduleDialog';
@@ -36,8 +36,10 @@ type PanelKind = 'publication' | 'gradeWindow' | 'earlyAlerts';
 const panelAvailable: Record<PanelKind, (b: Bimester) => boolean> = { publication: publishable, gradeWindow: hasGradeWindow, earlyAlerts: hasEarlyAlerts };
 
 export default function VistaBimestres() {
-  const auth = useContext(AuthContext);
-  const canAnnul = auth?.status === 'authenticated' && auth.sessionValid && auth.role === 'ADMINISTRADOR';
+  const canAnnul = useCan('bimester.annul');
+  const canPublish = useCan('bimester.publish');
+  const canManageGradeWindow = useCan('bimester.gradeWindow.manage');
+  const canEvaluateAlerts = useCan('earlyAlert.evaluate');
   const [period, setPeriod] = useState('');
   const [query, setQuery] = useState<QueryContext | null>(null);
   const [periodError, setPeriodError] = useState<string | null>(null);
@@ -221,11 +223,11 @@ export default function VistaBimestres() {
           {result?.data?.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted">No hay bimestres registrados.</td></tr>}
         </tbody></table></div>}
     </section>
-    {panelTarget && panel?.kind === 'publication' && <BimesterPublicationPanel key={`${panelTarget.id}:${key}`} bimester={panelTarget} canManage={canAnnul} locked={busy || loading || refreshRequired}
+    {panelTarget && panel?.kind === 'publication' && <BimesterPublicationPanel key={`${panelTarget.id}:${key}`} bimester={panelTarget} canManage={canPublish} locked={busy || loading || refreshRequired}
       onClose={() => setPanel(null)} onChanged={() => { void reloadAfterPublication(); }} onBusyChange={setPanelBusy} />}
-    {panelTarget && panel?.kind === 'earlyAlerts' && <BimesterEarlyAlertsPanel key={`${panelTarget.id}:${key}`} bimester={panelTarget} periodId={periodId} canManage={canAnnul} locked={busy || loading || refreshRequired}
+    {panelTarget && panel?.kind === 'earlyAlerts' && <BimesterEarlyAlertsPanel key={`${panelTarget.id}:${key}`} bimester={panelTarget} periodId={periodId} canManage={canEvaluateAlerts} locked={busy || loading || refreshRequired}
       onClose={() => setPanel(null)} onBusyChange={setPanelBusy} />}
-    {panelTarget && panel?.kind === 'gradeWindow' &&<BimesterGradeWindowPanel key={`${panelTarget.id}:${key}`} bimester={panelTarget} canManage={canAnnul} locked={busy || loading || refreshRequired}
+    {panelTarget && panel?.kind === 'gradeWindow' &&<BimesterGradeWindowPanel key={`${panelTarget.id}:${key}`} bimester={panelTarget} canManage={canManageGradeWindow} locked={busy || loading || refreshRequired}
       onClose={() => setPanel(null)} onChanged={() => { void reloadAfterPublication(); }} onBusyChange={setPanelBusy} />}
     {busy && !form && <p role="status" className="text-xs text-muted">{busyLabel}</p>}
     {refreshRequired && !busy && <p role="alert" className="text-xs text-rose-700">Actualiza la lista para confirmar el estado antes de otra operación.</p>}

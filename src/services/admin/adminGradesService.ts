@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { parseCriterionGradesSheetResponse, parseCriterionGradeResponse } from '@/lib/manualGradesContract';
@@ -53,12 +54,13 @@ export const adminGradesService = {
     return rows;
   },
 };
-export function adminGradesErrorMessage(error: unknown): string {
+/** `operation: 'write'` (corrección de notas) usa el mensaje uniforme de 403; la lectura conserva el suyo. */
+export function adminGradesErrorMessage(error: unknown, operation: 'read' | 'write' = 'read'): string {
   const status = isAxiosError(error) ? error.response?.status : undefined;
   switch (status) {
     case 400: return 'Revisa la nota (0–20, hasta dos decimales), el motivo y el contexto.';
     case 401: return 'Tu sesión ha expirado. Vuelve a iniciar sesión.';
-    case 403: return 'No tienes autorización para esta operación.';
+    case 403: return operation === 'write' ? FORBIDDEN_ACTION_MESSAGE : 'No tienes autorización para esta operación.';
     case 404: return 'La planilla, nota o contexto ya no está disponible.';
     case 409: return 'Conflicto: la nota o el contexto cambiaron. Se consultará nuevamente la planilla; no se sobrescribirá el cambio.';
     default: return 'La operación no pudo confirmarse. Actualiza la planilla antes de otra corrección.';
@@ -67,5 +69,5 @@ export function adminGradesErrorMessage(error: unknown): string {
 // PATCH outcome: a recognized code with its contract status first; otherwise the HTTP text. Uncertain results
 // (no response, 5xx, inconsistent body) keep the generic text and are never retried.
 export function adminGradeCorrectionErrorMessage(error: unknown): string {
-  return gradeCorrectionErrorCodeMessage(error) ?? adminGradesErrorMessage(error);
+  return gradeCorrectionErrorCodeMessage(error) ?? adminGradesErrorMessage(error, 'write');
 }

@@ -141,7 +141,7 @@ test('action messages: catalog first, then HTTP; uncertain results never claim s
     [httpError(404, 'RESOURCE_NOT_FOUND'), 'extension', /ya no está disponible/],
     [httpError(409), 'extension', /El bimestre cambió/],
     [httpError(401), 'extension', /sesión ha expirado/],
-    [httpError(403), 'registrationDate', /Solo el Director/],
+    [httpError(403), 'registrationDate', /No tienes permiso para esta acción/],
     [httpError(), 'extension', /sin repetirla/], [httpError(500, 'INTERNAL_ERROR'), 'extension', /sin repetirla/],
     [httpError(502), 'registrationDate', /sin repetirla/], [new Error('La respuesta no confirma la ampliación.'), 'extension', /sin repetirla/],
   ];
@@ -276,7 +276,7 @@ test('every failure reloads the panel once, shows a fixed message and never retr
   const cases: [unknown, RegExp][] = [
     [httpError(409, 'BIMESTER_STATE_CONFLICT'), /solo puede ampliarse con el bimestre Abierto/],
     [httpError(400, 'VALIDATION_ERROR'), /Revisa la nueva fecha límite/], [httpError(400, 'REASON_REQUIRED'), /motivo de la ampliación/],
-    [httpError(404, 'RESOURCE_NOT_FOUND'), /ya no está disponible/], [httpError(403), /Solo el Director/],
+    [httpError(404, 'RESOURCE_NOT_FOUND'), /ya no está disponible/], [httpError(403), /No tienes permiso para esta acción/],
     [httpError(), /sin repetirla/], [httpError(500, 'INTERNAL_ERROR'), /sin repetirla/], [new Error('La respuesta no confirma la ampliación.'), /sin repetirla/],
   ];
   for (const [failure, expected] of cases) {

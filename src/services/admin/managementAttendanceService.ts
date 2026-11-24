@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { contractErrorCode } from '@/services/admin/contractErrors';
@@ -109,7 +110,7 @@ export function managementAttendanceErrorMessage(error: unknown, operation: 'loa
       case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
       case 403: return operation === 'load'
         ? 'No tienes autorización para consultar la asistencia de este curso.'
-        : 'Solo el Director puede registrar asistencia por contingencia.';
+        : FORBIDDEN_ACTION_MESSAGE;
       case 404: return 'El curso, la sección o el horario ya no está disponible. Actualiza la información.';
       case 409: return 'Conflicto al guardar la asistencia: los datos cambiaron. Revisa la sesión actualizada e intenta nuevamente.';
     }

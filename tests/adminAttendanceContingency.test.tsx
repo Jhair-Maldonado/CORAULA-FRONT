@@ -137,7 +137,7 @@ test('error messages: codes only with their contract status, never the server me
   assert.match(managementAttendanceErrorMessage(axiosError(400), 'load'), /dentro del periodo/);
   assert.match(managementAttendanceErrorMessage(axiosError(401), 'save'), /sesión expiró/);
   assert.match(managementAttendanceErrorMessage(axiosError(403), 'load'), /autorización para consultar/);
-  assert.match(managementAttendanceErrorMessage(axiosError(403), 'save'), /Solo el Director/);
+  assert.match(managementAttendanceErrorMessage(axiosError(403), 'save'), /No tienes permiso para esta acción/);
   assert.match(managementAttendanceErrorMessage(axiosError(404), 'save'), /ya no está disponible/);
   assert.match(managementAttendanceErrorMessage(axiosError(500), 'save'), /No se pudo procesar/);
   assert.match(managementAttendanceErrorMessage(axiosError(undefined), 'load'), /conectar con el servidor/);
@@ -201,7 +201,7 @@ test('ADMINISTRADOR save errors: sanitized message, no false success, reload on 
     [{ status: 400, data: { error: 'Bad Request', message: 'DETALLE INTERNO DEL SERVIDOR', code: 'ATTENDANCE_CONTINGENCY_CAUSE_REQUIRED' } }, CONTINGENCY_CAUSE_REQUIRED_MESSAGE, 1],
     [{ status: 400, data: { error: 'Bad Request', message: 'DETALLE INTERNO DEL SERVIDOR', code: 'ATTENDANCE_REASON_REQUIRED' } }, MANAGEMENT_REASON_REQUIRED_MESSAGE, 1],
     [{ status: 400, data: { error: 'Bad Request', message: 'DETALLE INTERNO DEL SERVIDOR' } }, 'revisa la fecha y la lista de estudiantes', 1],
-    [{ status: 403, data: { error: 'Forbidden', message: 'DETALLE INTERNO DEL SERVIDOR' } }, 'Solo el Director', 1],
+    [{ status: 403, data: { error: 'Forbidden', message: 'DETALLE INTERNO DEL SERVIDOR' } }, 'No tienes permiso para esta acción.', 1],
     [{ status: 409, data: { error: 'Conflict', message: 'DETALLE INTERNO DEL SERVIDOR' } }, 'Conflicto al guardar', 2],
   ] as const) {
     await withHttp(call => call.method === 'PUT' ? reply : { status: 200, data: attendance([null]) }, async calls => {

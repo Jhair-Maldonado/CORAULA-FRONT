@@ -1,9 +1,10 @@
 'use client';
 
-import { useContext, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { FileUp } from 'lucide-react';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useCan } from '@/hooks/useCan';
+import { FORBIDDEN_ACTION_MESSAGE, isForbidden } from '@/config/permissions';
 import { studentImportService, studentImportErrorMessage, studentImportErrorPreview } from '@/services/admin/studentImportService';
 import type { StudentImportConfirmation, StudentImportIssue, StudentImportPreview } from '@/types/studentImport';
 
@@ -18,9 +19,9 @@ function Issues({ issues, warning = false }: { issues: StudentImportIssue[]; war
 
 /** Single implementation; backend owns structure and business validation. */
 export default function ImportadorMatricula() {
-  const auth = useContext(AuthContext);
   // Confirming is ADMINISTRADOR (Director) only; DIRECTIVO keeps the preview (BACK #74).
-  const isAdmin = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
+  const isAdmin = useCan('student.import.confirm');
+  const canPreview = useCan('student.import.preview');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [preview, setPreview] = useState<StudentImportPreview | null>(null);
@@ -105,10 +106,10 @@ export default function ImportadorMatricula() {
         // An error response never re-enables confirmation, even if counters look valid.
         setNeedsNewPreview(true);
       }
-      const forbidden = isAxiosError(error) && error.response?.status === 403;
+      const forbidden = isForbidden(error);
       // A 403 is final for this file: the button stays disabled, no retry.
       if (forbidden) setConfirmForbidden(true);
-      setConfirmError(forbidden ? 'Solo el Director puede confirmar la importación.' : studentImportErrorMessage(error));
+      setConfirmError(forbidden ? FORBIDDEN_ACTION_MESSAGE : studentImportErrorMessage(error));
     } finally {
       requestInProgress.current = false;
       setConfirmLoading(false);
@@ -182,7 +183,7 @@ export default function ImportadorMatricula() {
           {isAdmin && <button type="button" className={buttonClass} disabled={!canConfirm} onClick={requestConfirmation}>
             {confirmLoading ? 'Confirmando...' : 'Confirmar matrícula'}
           </button>}
-          {auth?.role === 'DIRECTIVO' && <p className="text-sm text-muted">La confirmación de la importación la realiza el Director.</p>}
+          {canPreview && !isAdmin && <p className="text-sm text-muted">La confirmación de la importación la realiza el Director.</p>}
         </div>
       )}
       {selectedFile && !preview && !confirmation && !previewLoading && !previewError && (

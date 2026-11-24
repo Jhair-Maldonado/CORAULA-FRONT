@@ -108,7 +108,10 @@ Toda vista nueva, integrada o restaurada cumple R1–R12 de [FRONT #151](https:/
 - una excepción quedó obsoleta (la ruta ya tiene mock o el service ya no la llama): bórrala;
 - no puede evaluar la ruta de una llamada: usa una constante, una plantilla o los constructores locales (`endpoint`, `base`, `path`, `studentPath`); si la ruta sale de una tabla cerrada, agrégala a `EXPANSIONS` de la prueba.
 
-Límites de la prueba: compara método y ruta, no roles (solo exige que toda ruta fuera de `/v1/auth` declare `roles`), y un valor que TypeScript no resuelve a literales se evalúa como `:param`, así que puede casar con una ruta genérica. Copia los roles del `@PreAuthorize` del backend y cubre el 403 en `tests/mockAdapter.test.tsx`.
+Límites de la prueba: compara método y ruta, no roles (solo exige que toda ruta fuera de `/v1/auth` declare `roles`), y un valor que TypeScript no resuelve a literales se evalúa como `:param`, así que puede casar con una ruta genérica. Copia los roles del `@PreAuthorize` del backend y cubre el 403 en `tests/mockAdapter.test.tsx`. Los roles de las rutas `/v1/management` simuladas se comparan con la matriz del backend en `tests/permissions.test.tsx`.
+
+### Permisos en la interfaz
+Los roles de cada acción de la UI viven solo en `src/config/permissions.ts` (ver [docs/permisos.md](docs/permisos.md)): no escribas `role === '…'` en vistas ni componentes. Un cambio de `docs/permisos/matriz.yaml` en el backend abre un issue en el frontend para actualizar `tests/fixtures/permisos-matriz.yaml` y el catálogo.
 
 ### Datos de `dev:mock` que conviene conocer
 - **Asistencia del docente**: solo hay sesiones de lunes a viernes dentro del periodo académico (hasta el 2026-12-18), igual que el backend. Sábados, domingos y fechas fuera del periodo salen sin sesiones o con error de fecha, no es una falla del mock.

@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { contractErrorCode } from '@/services/admin/contractErrors';
@@ -94,7 +95,7 @@ export function accountStateErrorMessage(error: unknown): string {
   switch (isAxiosError(error) ? error.response?.status : undefined) {
     case 400: return 'Revisa el motivo y la justificación (obligatoria, hasta 1000 caracteres).';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
-    case 403: return 'Solo el Director puede cambiar el estado de una cuenta de acceso.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     case 404: return 'La cuenta ya no existe o no se puede gestionar. Se actualizaron los datos.';
     case 409: return 'El estado de la cuenta cambió y esta acción ya no está permitida. Se actualizaron los datos.';
     default: return 'No se pudo cambiar el estado de la cuenta. Intenta nuevamente.';

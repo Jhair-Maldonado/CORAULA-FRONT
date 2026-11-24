@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import type { StudentImportConfirmation, StudentImportHttpError, StudentImportPreview } from '@/types/studentImport';
@@ -29,7 +30,7 @@ export function studentImportErrorMessage(error: unknown): string {
       ? body.message : null;
   if (status === 400) return message || 'El archivo o su estructura no son válidos.';
   if (status === 401) return 'La sesión no permite completar la solicitud.';
-  if (status === 403) return message || 'No tienes autorización para importar matrículas.';
+  if (status === 403) return FORBIDDEN_ACTION_MESSAGE;
   if (status === 409) return message || 'Existe un conflicto al confirmar la matrícula. Revisa el archivo.';
   return message ? `${message} — Intenta nuevamente.` : 'No se pudo conectar o completar la solicitud. Intenta nuevamente.';
 }

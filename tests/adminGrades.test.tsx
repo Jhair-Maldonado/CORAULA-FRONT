@@ -140,7 +140,7 @@ test('400/401/403/404 and network failure are sanitized and reload without autom
     let reads = 0, patches = 0;
     await view({ getSheet: async () => { reads++; return sheet(); }, correctGrade: async () => { patches++; throw httpError(status); } }, async h => {
       await h.click('Corregir Estudiante · Criterio manual'); await h.change('Nueva nota', '15'); await h.change('Motivo', 'Motivo'); await h.submit();
-      assert.equal(patches, 1); assert.equal(reads, 2); assert.ok(text(h.renderer.root).includes(adminGradesErrorMessage(httpError(status)))); assert.doesNotMatch(text(h.renderer.root), /secret detail|Corrección confirmada/);
+      assert.equal(patches, 1); assert.equal(reads, 2); assert.ok(text(h.renderer.root).includes(adminGradesErrorMessage(httpError(status), 'write'))); assert.doesNotMatch(text(h.renderer.root), /secret detail|Corrección confirmada/);
     });
   }
 });

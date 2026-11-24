@@ -145,7 +145,7 @@ const codeCases = [
   [409, 'ACADEMIC_CATALOG_CONFLICT', /configuración académica/],
   [500, 'INTERNAL_ERROR', /servidor no pudo completar la anulación/],
   [401, undefined, /sesión ha expirado/],
-  [403, undefined, /autorización para anular/],
+  [403, undefined, /No tienes permiso para esta acción/],
   [409, undefined, /cambió o entra en conflicto/],
 ] as const;
 

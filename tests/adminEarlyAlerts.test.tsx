@@ -129,7 +129,7 @@ test('error messages: codes only with their contract status, never the server me
   assert.equal(managementEarlyAlertsErrorMessage(httpError(404, 'ALERT_CONTEXT_UNAVAILABLE'), 'list'), 'El bimestre o el curso ya no está disponible. Actualiza la información.');
   assert.equal(managementEarlyAlertsErrorMessage(httpError(409, 'ALERT_CONTEXT_UNAVAILABLE'), 'list'), 'No se pudieron consultar las alertas tempranas. Intenta nuevamente.');
   assert.equal(managementEarlyAlertsErrorMessage(httpError(403), 'list'), 'No tienes autorización para consultar las alertas.');
-  assert.equal(managementEarlyAlertsErrorMessage(httpError(403), 'evaluate'), 'Solo el Director puede evaluar alertas.');
+  assert.equal(managementEarlyAlertsErrorMessage(httpError(403), 'evaluate'), 'No tienes permiso para esta acción.');
   assert.match(managementEarlyAlertsErrorMessage(httpError(401), 'evaluate'), /sesión ha expirado/);
   assert.match(managementEarlyAlertsErrorMessage(httpError(undefined), 'list'), /conectar con el servidor/);
   for (const error of [httpError(500, 'ALERT_INTERNAL_ERROR'), httpError(502), httpError(undefined)]) assert.equal(managementEarlyAlertsErrorMessage(error, 'evaluate'), EVALUATION_UNCONFIRMED_MESSAGE);
@@ -170,7 +170,7 @@ test('evaluation failures: unconfirmed results reload without success; a 403 doe
     [{ status: 500, data: { error: 'X', message: 'DETALLE INTERNO DEL SERVIDOR', code: 'ALERT_INTERNAL_ERROR' } }, EVALUATION_UNCONFIRMED_MESSAGE, 2],
     ['network', EVALUATION_UNCONFIRMED_MESSAGE, 2],
     [{ status: 404, data: { error: 'X', message: 'DETALLE INTERNO DEL SERVIDOR', code: 'ALERT_CONTEXT_UNAVAILABLE' } }, 'El bimestre o el curso ya no está disponible', 2],
-    [{ status: 403, data: { error: 'Forbidden', message: 'DETALLE INTERNO DEL SERVIDOR' } }, 'Solo el Director puede evaluar alertas.', 1],
+    [{ status: 403, data: { error: 'Forbidden', message: 'DETALLE INTERNO DEL SERVIDOR' } }, 'No tienes permiso para esta acción.', 1],
   ] as const) {
     await withHttp(call => call.method === 'POST' ? reply : { status: 200, data: pageOf([]) }, async calls => {
       await renderPanel({}, async p => {

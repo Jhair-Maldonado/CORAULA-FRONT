@@ -145,7 +145,7 @@ test('400 keeps form editable; 401/403/404/409 and ambiguous network failures re
         assert.equal(h.button('Retirar matrícula')?.props.disabled, true);
         await h.click('Actualizar matrícula'); assert.equal(reads, 3); assert.equal(patches, 1);
       }
-      const messages = new Map<number | undefined, RegExp>([[400, /Revisa la fecha/], [401, /Tu sesión/], [403, /No tienes autorización/], [404, /ya no están disponibles/], [409, /no pertenece.*no está activa/], [undefined, /sin repetir la solicitud/]]);
+      const messages = new Map<number | undefined, RegExp>([[400, /Revisa la fecha/], [401, /Tu sesión/], [403, /No tienes permiso para esta acción/], [404, /ya no están disponibles/], [409, /no pertenece.*no está activa/], [undefined, /sin repetir la solicitud/]]);
       assert.match(h.text(), messages.get(status)!);
     });
   }

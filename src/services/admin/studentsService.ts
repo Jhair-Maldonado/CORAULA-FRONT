@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { studentErrorCode, studentErrorCodeMessage } from '@/services/admin/studentErrors';
@@ -55,7 +56,7 @@ export function studentCreateErrorMessage(error: unknown): string {
   switch (studentErrorStatus(error)) {
     case 400: return 'Revisa los datos del alumno: DNI de 8 dígitos, nombres, apellido paterno y fecha de nacimiento válidos.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
-    case 403: return 'Solo el Director puede registrar alumnos.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     case 409: return 'No se pudo registrar: el DNI ya está registrado para otra persona.';
     default: return 'No se pudo registrar al alumno. Intenta nuevamente.';
   }
@@ -71,7 +72,7 @@ export function guardianCreateErrorMessage(error: unknown): string {
   switch (studentErrorStatus(error)) {
     case 400: return 'Revisa los datos del apoderado: DNI de 8 dígitos, nombres, apellido paterno y relación.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
-    case 403: return 'Solo el Director puede agregar apoderados.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     case 404: return 'El alumno ya no existe. Vuelve al listado.';
     case 409: return 'No se pudo agregar: el DNI ya está registrado (por ejemplo, como apoderado de un hermano), la persona ya es apoderado de este alumno, o ya existe un apoderado principal. Si es el apoderado de un hermano, por ahora no se puede vincular desde aquí.';
     default: return 'No se pudo agregar al apoderado. Intenta nuevamente.';

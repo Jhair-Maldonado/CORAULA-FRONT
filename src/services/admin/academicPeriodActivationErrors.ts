@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import { contractErrorCode } from '@/services/admin/contractErrors';
 import type { AcademicPeriodDependency, AcademicPeriodDependencyType } from '@/types/academicPeriodApi';
@@ -81,7 +82,7 @@ export function academicPeriodActivationErrorMessage(error: unknown): string {
   switch (isAxiosError(error) ? error.response?.status : undefined) {
     case 400: return 'Revisa el motivo (obligatorio, hasta 255 caracteres).';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
-    case 403: return 'Solo el Administrador puede desactivar o reactivar periodos académicos.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     case 404: return 'El periodo académico ya no existe. Se actualizó la lista.';
     case 409: return 'El periodo cambió y la operación ya no está permitida. Se actualizó la lista; revísala antes de continuar.';
     default: return 'No se pudo cambiar el estado del periodo. Intenta nuevamente.';

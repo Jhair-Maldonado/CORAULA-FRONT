@@ -183,7 +183,7 @@ test('error messages are fixed texts and classify uncertain outcomes', () => {
   assert.doesNotMatch(staffCreateErrorMessage(httpError(409, 'PERSON_DNI_CONFLICT')), generic);
   assert.match(staffCreateErrorMessage(httpError(400, 'PERSON_DNI_CONFLICT')), /Revisa los datos/);
   assert.match(staffCreateErrorMessage(httpError(400, 'EMAIL_ALREADY_EXISTS')), /Revisa los datos/);
-  assert.match(accountStateErrorMessage(httpError(403)), /Solo el Director/);
+  assert.match(accountStateErrorMessage(httpError(403)), /No tienes permiso para esta acción/);
   assert.match(accountStateErrorMessage(httpError(404, 'ACCOUNT_NOT_FOUND')), /no existe o no se puede gestionar desde aquí/);
   assert.match(accountStateErrorMessage(httpError(404)), /ya no existe o no se puede gestionar/);
   assert.match(accountStateErrorMessage(httpError(409, 'ACCOUNT_STATE_CONFLICT')), /ya tenía ese estado/);

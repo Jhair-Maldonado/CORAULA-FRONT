@@ -4,7 +4,7 @@ import React, { useState, useContext } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AuthContext } from '@/contexts/AuthContext';
-import type { BackendRole } from '@/types';
+import { canWithSession, type Action } from '@/config/permissions';
 import {
   DashboardSquare01Icon, 
   TeacherIcon, 
@@ -42,8 +42,8 @@ type MenuItem = {
   icon: any;
   badge?: string | number;
   subItems?: SubItem[];
-  // When set, only these roles see the item.
-  roles?: BackendRole[];
+  // When set, the item is shown only if the session can perform this action (src/config/permissions.ts).
+  action?: Action;
 };
 
 type MenuSection = {
@@ -65,7 +65,7 @@ const MENU_SECTIONS: MenuSection[] = [
       { name: 'Alumnos', path: '/administrador/alumnos', icon: UserGroupIcon },
       { name: 'Cursos', path: '/administrador/cursos', icon: BookOpen01Icon },
       { name: 'Secciones', path: '/administrador/secciones', icon: GridViewIcon },
-      { name: 'Periodos', path: '/administrador/periodos', icon: Calendar03Icon, roles: ['ADMINISTRADOR', 'DIRECTIVO'] },
+      { name: 'Periodos', path: '/administrador/periodos', icon: Calendar03Icon, action: 'period.read' },
       { name: 'Bimestres', path: '/administrador/bimestres', icon: Calendar01Icon },
       { name: 'Notas', path: '/administrador/notas', icon: Task01Icon },
     ]
@@ -75,16 +75,16 @@ const MENU_SECTIONS: MenuSection[] = [
     items: [
         { name: 'Horarios', path: '/administrador/horario', icon: Calendar01Icon },
       { name: 'Matrícula', path: '/administrador/matricula', icon: LicenseIcon },
-      { name: 'Justificaciones', path: '/administrador/justificaciones', icon: LicenseIcon, roles: ['ADMINISTRADOR', 'DIRECTIVO'] },
+      { name: 'Justificaciones', path: '/administrador/justificaciones', icon: LicenseIcon, action: 'justification.read' },
       { name: 'Vacantes', path: '/administrador/vacantes', icon: UserAdd01Icon, badge: 12 },
     ]
   },
   {
     sectionTitle: 'Sistema',
     items: [
-      { name: 'Personal', path: '/administrador/personal', icon: UserMultiple02Icon, roles: ['ADMINISTRADOR'] },
+      { name: 'Personal', path: '/administrador/personal', icon: UserMultiple02Icon, action: 'staff.manage' },
       { name: 'Huella Digital', path: '/administrador/registroHuella', icon: FingerPrintIcon },
-      { name: 'Auditoría', path: '/administrador/auditoria', icon: Shield01Icon },
+      { name: 'Auditoría', path: '/administrador/auditoria', icon: Shield01Icon, action: 'audit.read' },
       { name: 'Chat', path: '/administrador/mensajeria', icon: Comment01Icon, badge: 3 },
     ]
   }
@@ -188,7 +188,7 @@ export const AdminSidebar = () => {
             )}
 
             {/* Items */}
-            {section.items.filter(item => !item.roles || (!!authContext?.role && item.roles.includes(authContext.role))).map((item) => {
+            {section.items.filter(item => !item.action || canWithSession(authContext, item.action)).map((item) => {
               const isActive = pathname === item.path || (item.path !== '/administrador' && item.path && pathname.startsWith(item.path));
               
               return (

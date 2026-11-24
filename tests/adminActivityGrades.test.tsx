@@ -134,7 +134,7 @@ test('correction and read messages: catalog first; any 5xx, network or unverifia
   assert.match(adminActivityCorrectionErrorMessage(httpError(409, 'BIMESTER_WINDOW_CLOSED')), /En revisión o Cerrado/);
   assert.equal(adminActivityCorrectionErrorMessage(httpError(400, 'ACTIVITY_REQUEST_INVALID')), adminGradesErrorMessage(httpError(400)));
   assert.equal(adminActivityCorrectionErrorMessage(httpError(409, 'UNKNOWN')), adminGradesErrorMessage(httpError(409)));
-  assert.equal(adminActivityCorrectionErrorMessage(httpError(403, 'ACTIVITY_GRADE_STALE')), adminGradesErrorMessage(httpError(403)));
+  assert.equal(adminActivityCorrectionErrorMessage(httpError(403, 'ACTIVITY_GRADE_STALE')), adminGradesErrorMessage(httpError(403), 'write'));
   for (const error of [httpError(), httpError(500, 'ACTIVITY_INTERNAL_ERROR'), httpError(503), new Error('Respuesta de corrección inconsistente.')]) {
     assert.match(adminActivityCorrectionErrorMessage(error), /No se pudo confirmar la corrección\. Se consultó la planilla sin repetirla/);
   }
@@ -263,7 +263,7 @@ test('rejected corrections reload the sheet with a fixed text, never retry and l
     [httpError(409, 'BIMESTER_WINDOW_CLOSED'), /En revisión o Cerrado/], [httpError(409, 'ACTIVITY_NOT_GRADEABLE'), /actividades publicadas/],
     [httpError(409, 'ACTIVITY_GRADE_UNCHANGED'), /igual a la vigente/], [httpError(409, 'ENROLLMENT_NOT_ELIGIBLE'), /matrícula ya no es válida/],
     [httpError(404, 'ACTIVITY_CONTEXT_UNAVAILABLE'), /ya no están disponibles/], [httpError(400, 'ACTIVITY_REQUEST_INVALID'), adminGradesErrorMessage(httpError(400))],
-    [httpError(403), adminGradesErrorMessage(httpError(403))], [httpError(401), adminGradesErrorMessage(httpError(401))],
+    [httpError(403), adminGradesErrorMessage(httpError(403), 'write')], [httpError(401), adminGradesErrorMessage(httpError(401))],
   ];
   for (const [failure, expected] of cases) {
     let patches = 0, reads = 0;

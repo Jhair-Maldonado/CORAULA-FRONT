@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { parseBimesterResponse } from '@/lib/manualGradesContract';
@@ -112,7 +113,7 @@ export function publicationActionErrorMessage(error: unknown, action: Publicatio
   switch (isAxiosError(error) ? error.response?.status : undefined) {
     case 400: return invalidRequest[action];
     case 401: return 'Tu sesión ha expirado. Vuelve a iniciar sesión.';
-    case 403: return 'Solo el Director puede pasar a revisión, publicar o reabrir un bimestre.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     case 404: return 'El bimestre ya no está disponible. Se recargó el panel.';
     case 409: return 'El bimestre cambió. Se recargó el panel; revísalo antes de continuar.';
     default: return 'No se pudo completar la operación. Se recargó el panel.';

@@ -118,7 +118,7 @@ test('create messages are own texts per status; no response, 5xx and unexpected 
     assert.equal(isUncertainStudentCreate(httpError(status)), false);
   }
   assert.match(studentCreateErrorMessage(httpError(409)), /DNI ya está registrado/);
-  assert.match(studentCreateErrorMessage(httpError(403)), /Solo el Director/);
+  assert.match(studentCreateErrorMessage(httpError(403)), /No tienes permiso para esta acción/);
   for (const error of [httpError(), httpError(500), httpError(503), new Error('mismatch')]) {
     assert.equal(isUncertainStudentCreate(error), true);
     assert.match(studentCreateErrorMessage(error), /Busca al alumno en el listado/);
@@ -196,7 +196,7 @@ test('create shows the catalog text for a recognized code and keeps HTTP texts a
     assert.equal(isUncertainStudentCreate(httpError(500, code)), true);
     assert.match(studentCreateErrorMessage(httpError(500, code)), /Busca al alumno en el listado/);
   }
-  assert.match(studentCreateErrorMessage(httpError(403, 'DNI_ALREADY_EXISTS')), /Solo el Director/);
+  assert.match(studentCreateErrorMessage(httpError(403, 'DNI_ALREADY_EXISTS')), /No tienes permiso para esta acción/);
   let creates = 0;
   await view('ADMINISTRADOR', { create: async () => { creates++; throw httpError(409, 'STUDENT_CODE_EXHAUSTED'); } }, async h => {
     await h.click('Nuevo alumno'); await h.fill(); await h.submit();

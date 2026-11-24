@@ -1,0 +1,429 @@
+# Copia de coraula-backend docs/permisos/matriz.yaml @ ce1d766; actualizar cuando cambie en el backend.
+# Matriz de permisos de CORAULA (fuente única, BACK #136).
+# Protección efectiva = SecurityConfiguration (prefijo) combinada con @PreAuthorize.
+# "Cualquier autenticado" se escribe como los cinco roles.
+version: 1
+fuente: "Código de develop (protección efectiva: prefijo de SecurityConfiguration ∩ @PreAuthorize); diferencias con BACK #135 en docs/adr/001-matriz-permisos-fuente-unica.md"
+roles: [ADMINISTRADOR, DIRECTIVO, DOCENTE, APODERADO, ESTUDIANTE]
+endpoints:
+  - metodo: GET
+    ruta: /actuator/health
+    publico: true
+    fuera_de_mvc: true
+  - metodo: GET
+    ruta: /api/test/ping
+    roles: [ADMINISTRADOR, DIRECTIVO, DOCENTE, APODERADO, ESTUDIANTE]
+  - metodo: POST
+    ruta: /api/v1/auth/change-password
+    roles: [ADMINISTRADOR, DIRECTIVO, DOCENTE, APODERADO, ESTUDIANTE]
+  - metodo: POST
+    ruta: /api/v1/auth/login
+    publico: true
+  - metodo: GET
+    ruta: /api/v1/auth/test
+    publico: true
+  - metodo: GET
+    ruta: /api/v1/guardian/students
+    roles: [APODERADO]
+  - metodo: GET
+    ruta: /api/v1/guardian/students/{studentId}/attendance
+    roles: [APODERADO]
+  - metodo: POST
+    ruta: /api/v1/guardian/students/{studentId}/attendance/{attendanceId}/justifications
+    roles: [APODERADO]
+  - metodo: GET
+    ruta: /api/v1/guardian/students/{studentId}/bimesters/published
+    roles: [APODERADO]
+  - metodo: GET
+    ruta: /api/v1/guardian/students/{studentId}/bimesters/{bimesterId}/report
+    roles: [APODERADO]
+  - metodo: GET
+    ruta: /api/v1/guardian/students/{studentId}/bimesters/{bimesterId}/report.pdf
+    roles: [APODERADO]
+  - metodo: GET
+    ruta: /api/v1/guardian/students/{studentId}/incidents
+    roles: [APODERADO]
+  - metodo: GET
+    ruta: /api/v1/guardian/students/{studentId}/justifications
+    roles: [APODERADO]
+  - metodo: GET
+    ruta: /api/v1/guardian/students/{studentId}/justifications/{id}
+    roles: [APODERADO]
+  - metodo: POST
+    ruta: /api/v1/guardian/students/{studentId}/justifications/{id}/attachment/download-url
+    roles: [APODERADO]
+  - metodo: POST
+    ruta: /api/v1/guardian/students/{studentId}/justifications/{id}/response
+    roles: [APODERADO]
+  - metodo: GET
+    ruta: /api/v1/management/academic-areas
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/academic-areas/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/academic-periods
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/academic-periods
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/academic-periods/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/academic-periods/{id}
+    roles: [ADMINISTRADOR]
+  - metodo: POST
+    ruta: /api/v1/management/academic-periods/{id}/deactivate
+    roles: [ADMINISTRADOR]
+  - metodo: POST
+    ruta: /api/v1/management/academic-periods/{id}/reactivate
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/academic-periods/{periodId}/bimesters
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/academic-periods/{periodId}/bimesters
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/accounts/{userId}/deactivate
+    roles: [ADMINISTRADOR]
+  - metodo: PATCH
+    ruta: /api/v1/management/accounts/{userId}/reactivate
+    roles: [ADMINISTRADOR]
+  - metodo: PATCH
+    ruta: /api/v1/management/activity-grades/{gradeId}
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/activity-grades/{gradeId}/history
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/attendance-justifications
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/attendance-justifications/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/attendance-justifications/{id}/attachment/download-url
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/attendance-justifications/{id}/decision
+    roles: [DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/attendance/daily
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/audit
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/audit/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/bimesters/{bimesterId}/early-alerts
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/bimesters/{bimesterId}/early-alerts/evaluate
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/bimesters/{b}/publication
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/bimesters/{b}/publish
+    roles: [ADMINISTRADOR]
+  - metodo: POST
+    ruta: /api/v1/management/bimesters/{b}/reopen
+    roles: [ADMINISTRADOR]
+  - metodo: POST
+    ruta: /api/v1/management/bimesters/{b}/review
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/bimesters/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/bimesters/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/bimesters/{id}/annul
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/bimesters/{id}/grade-window
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/bimesters/{id}/grade-window/extension
+    roles: [ADMINISTRADOR]
+  - metodo: PUT
+    ruta: /api/v1/management/bimesters/{id}/grade-window/registration-date
+    roles: [ADMINISTRADOR]
+  - metodo: POST
+    ruta: /api/v1/management/bimesters/{id}/open
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/courses
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/courses
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/courses/{courseId}/evaluation-criteria
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/courses/{courseId}/evaluation-criteria
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/courses/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/courses/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/criterion-grades/{gradeId}
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/criterion-grades/{gradeId}/history
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/evaluation-criteria/{criterionId}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/evaluation-criteria/{criterionId}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/schedules
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: DELETE
+    ruta: /api/v1/management/schedules/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/schedules/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/section-courses/{sectionCourseId}/attendance
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PUT
+    ruta: /api/v1/management/section-courses/{sectionCourseId}/attendance/{scheduleId}
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/section-courses/{sectionCourseId}/bimesters/{bimesterId}/activities
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/section-courses/{sectionCourseId}/bimesters/{bimesterId}/activities/{activityId}/grades
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/section-courses/{sectionCourseId}/bimesters/{bimesterId}/criterion-grades
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/section-courses/{sectionCourseId}/bimesters/{bimesterId}/results
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/section-courses/{sectionCourseId}/materials
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/section-courses/{sectionCourseId}/materials/{materialId}/download-url
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/sections
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/sections
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/sections/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/sections/{id}
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/sections/{sectionId}/courses
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/sections/{sectionId}/courses
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: DELETE
+    ruta: /api/v1/management/sections/{sectionId}/courses/{sectionCourseId}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/sections/{sectionId}/schedule
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/staff
+    roles: [ADMINISTRADOR]
+  - metodo: POST
+    ruta: /api/v1/management/staff
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/staff/{userId}
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/students
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/students
+    roles: [ADMINISTRADOR]
+  - metodo: POST
+    ruta: /api/v1/management/students/import/confirm
+    roles: [ADMINISTRADOR]
+  - metodo: POST
+    ruta: /api/v1/management/students/import/preview
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/students/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/students/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/students/{studentId}/bimesters/published
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/students/{studentId}/bimesters/{bimesterId}/report
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/students/{studentId}/bimesters/{bimesterId}/report.pdf
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/students/{studentId}/deactivate
+    roles: [ADMINISTRADOR]
+  - metodo: POST
+    ruta: /api/v1/management/students/{studentId}/enrollments
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/students/{studentId}/enrollments/{enrollmentId}/certificate.pdf
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/students/{studentId}/enrollments/{enrollmentId}/complete
+    roles: [ADMINISTRADOR]
+  - metodo: PATCH
+    ruta: /api/v1/management/students/{studentId}/enrollments/{enrollmentId}/withdraw
+    roles: [ADMINISTRADOR]
+  - metodo: POST
+    ruta: /api/v1/management/students/{studentId}/guardians
+    roles: [ADMINISTRADOR]
+  - metodo: PATCH
+    ruta: /api/v1/management/students/{studentId}/reactivate
+    roles: [ADMINISTRADOR]
+  - metodo: PATCH
+    ruta: /api/v1/management/students/{studentId}/suspend
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/teachers
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/teachers
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/management/teachers/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/teachers/{id}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/teachers/{id}/assignments
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: DELETE
+    ruta: /api/v1/management/teachers/{id}/assignments/{assignmentId}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: POST
+    ruta: /api/v1/management/teachers/{teacherId}/account
+    roles: [ADMINISTRADOR]
+  - metodo: GET
+    ruta: /api/v1/management/vacancies
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: PATCH
+    ruta: /api/v1/management/vacancies/sections/{sectionId}
+    roles: [ADMINISTRADOR, DIRECTIVO]
+  - metodo: GET
+    ruta: /api/v1/student/section-courses/{sectionCourseId}/materials
+    roles: [ESTUDIANTE]
+  - metodo: POST
+    ruta: /api/v1/student/section-courses/{sectionCourseId}/materials/{materialId}/download-url
+    roles: [ESTUDIANTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses
+    roles: [DOCENTE]
+  - metodo: PATCH
+    ruta: /api/v1/teacher/courses/{sc}/bimesters/{b}/criterion-grades/{gradeId}
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sc}/bimesters/{b}/registration
+    roles: [DOCENTE]
+  - metodo: POST
+    ruta: /api/v1/teacher/courses/{sc}/bimesters/{b}/registration
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sectionCourseId}
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/attendance
+    roles: [DOCENTE]
+  - metodo: PUT
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/attendance/{scheduleId}
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/activities
+    roles: [DOCENTE]
+  - metodo: POST
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/activities
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/activities/{activityId}
+    roles: [DOCENTE]
+  - metodo: PATCH
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/activities/{activityId}
+    roles: [DOCENTE]
+  - metodo: POST
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/activities/{activityId}/annul
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/activities/{activityId}/grades
+    roles: [DOCENTE]
+  - metodo: PUT
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/activities/{activityId}/grades
+    roles: [DOCENTE]
+  - metodo: PUT
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/activities/{activityId}/grades/{enrollmentId}
+    roles: [DOCENTE]
+  - metodo: POST
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/activities/{activityId}/publish
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/criterion-grades
+    roles: [DOCENTE]
+  - metodo: POST
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/criterion-grades
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/early-alerts
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/bimesters/{bimesterId}/results
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/materials
+    roles: [DOCENTE]
+  - metodo: POST
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/materials
+    roles: [DOCENTE]
+  - metodo: POST
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/materials/{materialId}/download-url
+    roles: [DOCENTE]
+  - metodo: POST
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/materials/{materialId}/withdraw
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/courses/{sectionCourseId}/students
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/incidents
+    roles: [DOCENTE]
+  - metodo: POST
+    ruta: /api/v1/teacher/incidents
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/incidents/{incidentId}
+    roles: [DOCENTE]
+  - metodo: GET
+    ruta: /api/v1/teacher/me
+    roles: [DOCENTE]

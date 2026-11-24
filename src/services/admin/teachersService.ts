@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import type { CreateTeacherAccountRequest, CreateTeacherRequest, PagedTeachersResponse, TeacherAccountResponse, TeacherDetailResponse, TeacherListParams, TeacherResponse, UpdateTeacherRequest } from '@/types/teacherApi';
@@ -48,7 +49,7 @@ export function teacherAccountErrorMessage(error: unknown): string {
   switch (error.response.status) {
     case 400: return 'No se pudo crear la cuenta: verifica que el correo sea válido y que el docente tenga DNI registrado.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
-    case 403: return 'No tienes autorización para crear cuentas de docentes.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     case 404: return 'Docente no encontrado. Recarga la página.';
     case 409: return 'El correo ya está en uso por otra cuenta, o el docente ya tiene una cuenta vinculada con otro correo.';
     case 422: return 'El docente está inactivo; reactívalo antes de crear su cuenta.';

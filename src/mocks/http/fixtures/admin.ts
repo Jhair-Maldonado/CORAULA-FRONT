@@ -692,7 +692,7 @@ export const adminRoutes: MockRoute[] = [
       && (query.active === undefined || String(s.active) === query.active))),
   },
   {
-    method: 'POST', pattern: '/v1/management/sections', roles: MANAGEMENT,
+    method: 'POST', pattern: '/v1/management/sections', roles: ADMIN_ONLY,
     handler: ({ store, body }) => {
       const b = asObject(body);
       if (typeof b.name !== 'string' || !b.name.trim() || !Number.isSafeInteger(b.grade) || !Number.isSafeInteger(b.maxCapacity)) return fail(400, 'Revisa los datos de la sección.', 'VALIDATION_ERROR');
@@ -707,7 +707,7 @@ export const adminRoutes: MockRoute[] = [
     handler: ({ store, params }) => { const s = store.sections.find(x => x.id === positiveInt(params.sectionId)); return s ? ok(s) : fail(404, 'La sección no existe.'); },
   },
   {
-    method: 'PATCH', pattern: '/v1/management/sections/:sectionId', roles: MANAGEMENT,
+    method: 'PATCH', pattern: '/v1/management/sections/:sectionId', roles: ADMIN_ONLY,
     handler: ({ store, params, body }) => {
       const s = store.sections.find(x => x.id === positiveInt(params.sectionId));
       return s ? ok(patch(s, body, ['level', 'grade', 'name', 'maxCapacity', 'enrollmentOpen', 'active'])) : fail(404, 'La sección no existe.');
@@ -765,7 +765,7 @@ export const adminRoutes: MockRoute[] = [
     },
   },
   {
-    method: 'POST', pattern: '/v1/management/students', roles: MANAGEMENT,
+    method: 'POST', pattern: '/v1/management/students', roles: ADMIN_ONLY,
     handler: ({ store, body }) => {
       const b = asObject(body);
       if (typeof b.dni !== 'string' || !/^\d{8}$/.test(b.dni) || typeof b.firstNames !== 'string' || !b.firstNames.trim() || typeof b.paternalLastName !== 'string' || !b.paternalLastName.trim()) {

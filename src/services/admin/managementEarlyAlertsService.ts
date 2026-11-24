@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { contractErrorCode } from '@/services/admin/contractErrors';
@@ -80,7 +81,7 @@ export function managementEarlyAlertsErrorMessage(error: unknown, action: 'list'
     case undefined: return 'No se pudo conectar con el servidor. Intenta nuevamente.';
     case 400: return 'El bimestre, el curso o la página no son válidos.';
     case 401: return 'Tu sesión ha expirado. Vuelve a iniciar sesión.';
-    case 403: return action === 'evaluate' ? 'Solo el Director puede evaluar alertas.' : 'No tienes autorización para consultar las alertas.';
+    case 403: return action === 'evaluate' ? FORBIDDEN_ACTION_MESSAGE : 'No tienes autorización para consultar las alertas.';
     case 404: return 'El bimestre o el curso ya no está disponible. Actualiza la información.';
     default: return 'No se pudieron consultar las alertas tempranas. Intenta nuevamente.';
   }

@@ -1,8 +1,8 @@
 'use client';
 
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PlusSignIcon, UserMultiple02Icon } from 'hugeicons-react';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useCan } from '@/hooks/useCan';
 import { staffAccountsService, staffLoadErrorMessage } from '@/services/admin/staffAccountsService';
 import { accountStateActionFor, accountStateActionLabels, accountStateChangeReloads, accountStateErrorMessage, accountStateService, accountStateSuccessMessage } from '@/services/admin/accountStateService';
 import type { AccountStateAction, ChangeAccountStateRequest, CreateStaffAccountResponse, StaffAccountStatusFilter, StaffAccountSummary, StaffListParams } from '@/types/staffAccountApi';
@@ -14,8 +14,8 @@ const legacyName = 'Cuenta sin datos personales';
 
 // Front #41 criterion 1: only ADMINISTRADOR sees the view, even through a direct URL.
 export default function VistaPersonal() {
-  const auth = useContext(AuthContext);
-  if (auth?.status !== 'authenticated' || !auth.sessionValid || auth.role !== 'ADMINISTRADOR') {
+  const canManage = useCan('staff.manage');
+  if (!canManage) {
     return <p role="alert" className="m-6 p-4 rounded-xl border border-rose-200 bg-rose-50 text-sm text-rose-700">No tienes acceso a la gestión de personal.</p>;
   }
   return <StaffAccounts />;

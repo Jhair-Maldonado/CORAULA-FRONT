@@ -114,7 +114,7 @@ test('PATCH payload contains only the changed fields', () => {
 });
 
 test('error messages are fixed Spanish texts; 409 is generic and never echoes the backend', () => {
-  const expected: Record<number, RegExp> = { 400: /Revisa los datos/, 401: /sesión expiró/, 403: /gestionar periodos/, 404: /no encontrado/, 409: /nombre.*solapan.*bimestres/, 500: /servidor no pudo/ };
+  const expected: Record<number, RegExp> = { 400: /Revisa los datos/, 401: /sesión expiró/, 403: /No tienes permiso para esta acción/, 404: /no encontrado/, 409: /nombre.*solapan.*bimestres/, 500: /servidor no pudo/ };
   for (const [status, pattern] of Object.entries(expected)) {
     const message = academicPeriodErrorMessage(httpError(Number(status)));
     assert.match(message, pattern); assert.doesNotMatch(message, /PRIVATE|Ya existe un periodo académico con ese nombre/);
@@ -273,7 +273,7 @@ test('activation codes count only with their contract status; texts never echo t
   assert.match(academicPeriodActivationErrorMessage(codeError(400, 'ACADEMIC_PERIOD_OVERLAP')), /Revisa el motivo/);
   assert.match(academicPeriodActivationErrorMessage(codeError(409, 'SOMETHING_ELSE')), /El periodo cambió/);
   assert.match(academicPeriodActivationErrorMessage(httpError(401)), /sesión expiró/);
-  assert.match(academicPeriodActivationErrorMessage(httpError(403)), /Solo el Administrador/);
+  assert.match(academicPeriodActivationErrorMessage(httpError(403)), /No tienes permiso para esta acción/);
   for (const uncertain of [httpError(), httpError(500), codeError(500, 'INTERNAL_ERROR'), new Error('La respuesta no refleja el cambio')]) {
     assert.equal(isUncertainAcademicPeriodActivation(uncertain), true);
     assert.match(academicPeriodActivationErrorMessage(uncertain), /sin repetir la solicitud/);

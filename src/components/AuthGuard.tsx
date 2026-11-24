@@ -5,11 +5,11 @@ import { useRouter, usePathname } from 'next/navigation';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BackendRole } from '@/types';
 import { GlobalLoader } from '@/components/GlobalLoader';
-import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
+import { CHANGE_PASSWORD_ROUTE, portalPathForRole } from '@/utils/authRoutes';
 
 interface AuthGuardProps {
   children: React.ReactNode;
-  allowedRoles: BackendRole[];
+  allowedRoles: readonly BackendRole[];
 }
 
 /**
@@ -78,17 +78,7 @@ export const AuthGuard = ({ children, allowedRoles }: AuthGuardProps) => {
           return;
         }
 
-        if (userRole === 'ADMINISTRADOR' || userRole === 'DIRECTIVO') {
-          router.replace('/administrador');
-        } else if (userRole === 'DOCENTE') {
-          router.replace('/docente');
-        } else if (userRole === 'ESTUDIANTE') {
-          router.replace('/alumno');
-        } else if (userRole === 'APODERADO') {
-          router.replace('/padre');
-        } else {
-          router.replace('/login');
-        }
+        router.replace(portalPathForRole(userRole));
       }
     }
   }, [authContext, pathname, router, allowedRoles]);

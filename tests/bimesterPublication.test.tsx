@@ -162,7 +162,7 @@ test('action messages: catalog first, then HTTP; uncertain results never claim s
   assert.match(publicationActionErrorMessage(httpError(400, 'REASON_REQUIRED'), 'reopen'), /motivo de la reapertura/);
   assert.match(publicationActionErrorMessage(httpError(400, 'VALIDATION_ERROR'), 'reopen'), /255 caracteres/);
   assert.match(publicationActionErrorMessage(httpError(400), 'publish'), /publicación no es válida/);
-  assert.match(publicationActionErrorMessage(httpError(403, 'PUBLICATION_STALE'), 'publish'), /Solo el Director/);
+  assert.match(publicationActionErrorMessage(httpError(403, 'PUBLICATION_STALE'), 'publish'), /No tienes permiso para esta acción/);
   assert.match(publicationActionErrorMessage(httpError(401), 'review'), /sesión/);
   assert.match(publicationActionErrorMessage(httpError(409), 'review'), /El bimestre cambió/);
   for (const error of [httpError(), httpError(500, 'INTERNAL_ERROR'), httpError(503, 'PUBLICATION_STALE'), new Error('Respuesta incoherente')]) {
@@ -314,7 +314,7 @@ test('every publish failure reloads the panel once, shows a fixed message and ne
     [httpError(409, 'PUBLICATION_STALE'), /La preparación cambió/], [httpError(409, 'RESULTS_PENDING'), /resultados pendientes/],
     [httpError(409, 'COURSES_NOT_REGISTERED'), /cursos sin registro final/], [httpError(409, 'BIMESTER_STATE_CONFLICT'), /estado del bimestre cambió/],
     [httpError(400, 'PUBLICATION_CONFIRMATION_REQUIRED'), /confirmar explícitamente/], [httpError(404, 'RESOURCE_NOT_FOUND'), /ya no está disponible/],
-    [httpError(403), /Solo el Director/], [httpError(401), /sesión/], [httpError(), /sin repetirla/], [httpError(500, 'INTERNAL_ERROR'), /sin repetirla/],
+    [httpError(403), /No tienes permiso para esta acción/], [httpError(401), /sesión/], [httpError(), /sin repetirla/], [httpError(500, 'INTERNAL_ERROR'), /sin repetirla/],
     [new Error('La respuesta no confirma la publicación.'), /sin repetirla/],
   ];
   for (const [failure, expected] of cases) {

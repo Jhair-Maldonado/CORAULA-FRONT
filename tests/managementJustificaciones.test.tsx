@@ -293,7 +293,7 @@ function axiosFailure(status: number, code?: string) {
 
 test('errores de gestión: mensajes propios por acción, sin textos del apoderado ni del servidor', () => {
   const cases: [unknown, Parameters<typeof managementJustificationErrorMessage>[1], RegExp][] = [
-    [axiosFailure(403), 'decide', /Solo un directivo puede resolver justificaciones/],
+    [axiosFailure(403), 'decide', /No tienes permiso para esta acción/],
     [axiosFailure(403), 'list', /no tiene permiso para consultar las justificaciones/],
     [axiosFailure(409, 'INVALID_JUSTIFICATION_TRANSITION'), 'decide', /ya fue resuelta o cambió de estado/],
     [axiosFailure(409, 'ATTENDANCE_NOT_ELIGIBLE'), 'decide', /ya no admite justificación/],
@@ -403,7 +403,7 @@ test('modal detalle: una decisión rechazada (409/403) muestra un mensaje fijo d
   assert.ok(!conflict.text.includes(SERVER_TEXT));
   assert.equal(conflict.successCalls, 0);
   const forbidden = await decideWith(403);
-  assert.match(forbidden.text, /Solo un directivo puede resolver justificaciones/);
+  assert.match(forbidden.text, /No tienes permiso para esta acción/);
   assert.doesNotMatch(forbidden.text, /apoderado/);
 });
 

@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { contractErrorCode } from '@/services/admin/contractErrors';
@@ -96,7 +97,7 @@ export function staffCreateErrorMessage(error: unknown): string {
   switch (error.response.status) {
     case 400: return 'Revisa los datos: DNI de 8 dígitos, nombres, apellido paterno y un correo válido.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
-    case 403: return 'Solo el Director puede crear cuentas de Secretaría.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     // Fallback for a 409 without a recognized code.
     case 409: return 'El correo ya está en uso por otra cuenta, o el DNI ya está registrado.';
     default: return 'El servidor no pudo completar el alta. Actualiza el listado antes de volver a intentarlo.';

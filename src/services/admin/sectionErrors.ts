@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 
 export function sectionErrorStatus(error: unknown): number | undefined {
@@ -34,7 +35,7 @@ export function sectionManagementErrorMessage(error: unknown): string {
   switch (error.response.status) {
     case 400: return 'Revisa los datos: nombre de 1 a 10 caracteres, capacidad mayor que 0 y grado válido para el nivel.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
-    case 403: return 'No tienes autorización para gestionar secciones.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     case 404: return 'Sección o periodo académico no encontrado. Actualiza la información.';
     case 409: return 'No se pudo guardar por un conflicto con el estado actual: sección duplicada en el periodo, capacidad menor que las matrículas activas, periodo inactivo, sección inactiva o con matrículas o cursos asociados. Actualiza la información e intenta nuevamente.';
     default: return 'El servidor no pudo completar la solicitud. Intenta nuevamente.';

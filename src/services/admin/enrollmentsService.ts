@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
 import { studentErrorCodeMessage } from '@/services/admin/studentErrors';
@@ -99,7 +100,7 @@ export function enrollmentErrorMessage(error: unknown): string {
   switch (enrollmentErrorStatus(error)) {
     case 400: return 'No se pudo retirar la matrícula. Revisa la fecha y los datos ingresados.';
     case 401: return 'Tu sesión no permite completar el retiro. Vuelve a iniciar sesión.';
-    case 403: return 'No tienes autorización para retirar matrículas.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     case 404: return 'El estudiante o la matrícula ya no están disponibles.';
     case 409: return 'La matrícula no pertenece al estudiante o ya no está activa. Se consultará su estado actual.';
     default: return 'No se pudo confirmar el resultado del retiro. Se consultará el perfil sin repetir la solicitud.';
@@ -113,7 +114,7 @@ export function enrollmentCreateErrorMessage(error: unknown): string {
   switch (enrollmentErrorStatus(error)) {
     case 400: return 'Revisa el periodo, la sección y la fecha de matrícula.';
     case 401: return 'Tu sesión expiró. Vuelve a iniciar sesión.';
-    case 403: return 'Solo el Director puede matricular alumnos.';
+    case 403: return FORBIDDEN_ACTION_MESSAGE;
     case 404: return 'El alumno, el periodo o la sección ya no están disponibles. Actualiza los datos.';
     case 409: return 'No se pudo matricular: la sección está inactiva o con la matrícula cerrada, no tiene vacantes, el alumno ya tiene una matrícula activa en el periodo o la sección pertenece a otro periodo.';
     default: return 'No se pudo confirmar la matrícula. Revisa el perfil del alumno antes de intentarlo de nuevo.';

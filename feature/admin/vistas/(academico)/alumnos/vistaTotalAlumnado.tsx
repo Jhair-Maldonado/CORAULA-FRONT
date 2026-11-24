@@ -1,8 +1,8 @@
 ﻿'use client';
 
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search01Icon, ArrowLeft01Icon, ArrowRight02Icon, UserCircleIcon, AlertCircleIcon, Clock01Icon, UserAdd01Icon } from 'hugeicons-react';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useCan } from '@/hooks/useCan';
 import CreateStudentDialog from './components/CreateStudentDialog';
 import { studentsService, studentErrorMessage } from '@/services/admin/studentsService';
 import { studentLevelLabels, studentStatusLabels, toAdminStudent } from '@/adapters/studentAdapter';
@@ -17,9 +17,8 @@ export default function VistaTotalAlumnado() {
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<ListResult | null>(null);
   const [creating, setCreating] = useState(false);
-  const auth = useContext(AuthContext);
   // Individual registration is ADMINISTRADOR only; DIRECTIVO keeps read access to the list.
-  const canCreate = auth?.role === 'ADMINISTRADOR' && auth.status === 'authenticated' && auth.sessionValid;
+  const canCreate = useCan('student.create');
   const key = JSON.stringify([query, revision]);
   const loading = result?.key !== key;
   const data = loading ? undefined : result?.data;

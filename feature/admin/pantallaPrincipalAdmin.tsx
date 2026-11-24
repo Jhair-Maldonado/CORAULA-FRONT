@@ -1,8 +1,8 @@
 'use client';
 
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DashboardSquare01Icon } from 'hugeicons-react';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useCan } from '@/hooks/useCan';
 import { academicPeriodLabel, academicPeriodsLoadErrorMessage, academicPeriodsService, formatPeriodDate } from '@/services/admin/academicPeriodsService';
 import {
   dailyAttendanceErrorMessage, dailyAttendanceService, defaultAcademicPeriod, defaultAttendanceDate, formatAttendancePercentage, limaToday,
@@ -27,8 +27,8 @@ const statusMessages: Partial<Record<DailyAttendanceStatus, string>> = {
 const sectionName = (section: SectionResponse) => `${section.grade}° ${section.name} · ${section.level === 'PRIMARY' ? 'Primaria' : 'Secundaria'}`;
 
 export default function PantallaPrincipalAdmin() {
-  const auth = useContext(AuthContext);
-  if (auth?.status !== 'authenticated' || !auth.sessionValid || (auth.role !== 'ADMINISTRADOR' && auth.role !== 'DIRECTIVO')) {
+  const canAccess = useCan('portal.admin');
+  if (!canAccess) {
     return <p role="alert" className="m-6 p-4 rounded-xl border border-rose-200 bg-rose-50 text-sm text-rose-700">No tienes acceso al panel de gestión.</p>;
   }
   return <Dashboard />;

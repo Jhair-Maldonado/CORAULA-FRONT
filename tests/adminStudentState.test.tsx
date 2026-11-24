@@ -145,7 +145,7 @@ test('error messages: codes first, HTTP fallback, 401/403 ignore codes, 5xx and 
   assert.match(studentStateErrorMessage(httpError(400, 'VALIDATION_ERROR')), /motivo y la justificación/);
   assert.match(studentStateErrorMessage(httpError(400, 'STUDENT_HAS_ACTIVE_ENROLLMENT')), /motivo y la justificación/);
   assert.match(studentStateErrorMessage(httpError(404, 'STUDENT_NOT_FOUND')), /ya no existe/);
-  assert.match(studentStateErrorMessage(httpError(403, 'STUDENT_STATUS_CONFLICT')), /Solo el Director/);
+  assert.match(studentStateErrorMessage(httpError(403, 'STUDENT_STATUS_CONFLICT')), /No tienes permiso para esta acción/);
   assert.match(studentStateErrorMessage(httpError(401)), /sesión expiró/);
   for (const error of [httpError(), httpError(500, 'INTERNAL_ERROR'), httpError(500, 'INVALID_PARAMETER'), new Error('mismatch')]) {
     assert.equal(isUncertainStudentStateChange(error), true);
@@ -246,7 +246,7 @@ test('409 STUDENT_HAS_ACTIVE_ENROLLMENT closes, reloads and leaves «Retirar mat
 
 test('400/401/403 keep the dialog without reload; 404, 409 and uncertain outcomes reload without repeating the PATCH', async () => {
   const cases: [unknown, boolean, RegExp][] = [
-    [httpError(400, 'VALIDATION_ERROR'), false, /motivo y la justificación/], [httpError(401), false, /sesión expiró/], [httpError(403), false, /Solo el Director/],
+    [httpError(400, 'VALIDATION_ERROR'), false, /motivo y la justificación/], [httpError(401), false, /sesión expiró/], [httpError(403), false, /No tienes permiso para esta acción/],
     [httpError(404, 'STUDENT_NOT_FOUND'), true, /Alumno no encontrado|ya no existe/], [httpError(409, 'STUDENT_STATUS_CONFLICT'), true, /ya no está permitida/],
     [httpError(), true, /No se pudo confirmar el cambio de estado/], [httpError(500, 'INTERNAL_ERROR'), true, /No se pudo confirmar el cambio de estado/],
     [new Error('mismatch'), true, /No se pudo confirmar el cambio de estado/],

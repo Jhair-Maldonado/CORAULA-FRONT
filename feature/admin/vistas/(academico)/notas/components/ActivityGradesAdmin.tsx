@@ -10,6 +10,7 @@ import type { ManagementActivityGradesRow, ManagementActivityGradesSheet } from 
 import ScheduleDialog from '../../../(administrativo)/horario/components/ScheduleDialog';
 import { publishedAtLabel } from '@/components/evaluation/ResultadosBimestre';
 import { button, input, useRead, Failure } from './notesShared';
+import { useCan } from '@/hooks/useCan';
 
 type Shared = {
   canCorrect: boolean;
@@ -48,6 +49,7 @@ type Target = { gradeId: number; grade: number; version: number; enrollmentId: n
 
 function ActivitySheet({ context, activityId, canCorrect, locked, publishedAt, isCurrent, onBusyChange, onGradeChanged }: Shared & { context: ActivityContext; activityId: number }) {
   const { sectionCourseId, bimesterId } = context;
+  const canReadHistory = useCan('activityGrade.history.read');
   const load = useCallback(() => adminActivityGradesService.getSheet({ sectionCourseId, bimesterId }, activityId), [sectionCourseId, bimesterId, activityId]);
   const sheet = useRead(load, adminActivityReadErrorMessage);
   const [target, setTarget] = useState<Target | null>(null), targetRef = useRef<Target | null>(null);
@@ -113,8 +115,8 @@ function ActivitySheet({ context, activityId, canCorrect, locked, publishedAt, i
       {status === 'ABIERTO' ? <p role="note" className="text-xs text-muted">Mientras el bimestre está abierto, las notas de actividades las corrige el docente.</p>
         : !correctableBimesterStatuses.includes(data.bimester.status) && <p className="text-xs text-muted">Bimestre de solo lectura: las correcciones del Director requieren EN_REVISION o CERRADO.</p>}
       <div className="overflow-x-auto"><table className="w-full text-xs text-left"><thead className="bg-neutral/40 text-muted"><tr>
-        <th scope="col" className="p-3">Estudiante</th><th scope="col" className="p-3">Nota</th><th scope="col" className="p-3">Registró</th>{canCorrect && <th scope="col" className="p-3">Acciones</th>}</tr></thead>
-        <tbody className="divide-y divide-line">{data.students.map(row => <ActivityRow key={row.enrollmentId} row={row} canCorrect={canCorrect} busy={busy}
+        <th scope="col" className="p-3">Estudiante</th><th scope="col" className="p-3">Nota</th><th scope="col" className="p-3">Registró</th>{(canCorrect || canReadHistory) && <th scope="col" className="p-3">Acciones</th>}</tr></thead>
+        <tbody className="divide-y divide-line">{data.students.map(row => <ActivityRow key={row.enrollmentId} row={row} canCorrect={canCorrect} canReadHistory={canReadHistory} busy={busy}
           correctable={!!row.gradeId && eligible(toTarget(row)!)} disabled={disabled}
           onCorrect={() => { const t = toTarget(row); if (!t || lock.current || !isCurrent() || !eligible(t)) return; targetRef.current = t; setTarget(t); setNewGrade(''); setReason(''); setError(''); setNotice(''); }}
           onHistory={() => setHistoryId(row.gradeId)} />)}</tbody></table></div>
@@ -133,7 +135,7 @@ function ActivitySheet({ context, activityId, canCorrect, locked, publishedAt, i
         {reasonError && <p role="status" className="text-xs text-muted">{reasonError}</p>}
         <div className="flex gap-3"><button type="submit" disabled={disabled || !!reasonError} className={`${button} bg-accent text-white`}>Confirmar corrección</button><button type="button" className={`${button} bg-white`} onClick={close}>Cancelar</button></div>
       </form></ScheduleDialog>}
-    {canCorrect && historyId !== null && <ActivityGradeHistory key={historyId} gradeId={historyId} close={() => setHistoryId(null)} />}
+    {canReadHistory && historyId !== null && <ActivityGradeHistory key={historyId} gradeId={historyId} close={() => setHistoryId(null)} />}
   </div>;
 }
 
@@ -141,16 +143,16 @@ function toTarget(row: ManagementActivityGradesRow): Target | null {
   return row.gradeId !== null && row.grade !== null && row.version !== null ? { gradeId: row.gradeId, grade: row.grade, version: row.version, enrollmentId: row.enrollmentId, student: row.fullName } : null;
 }
 
-function ActivityRow({ row, canCorrect, correctable, busy, disabled, onCorrect, onHistory }: {
-  row: ManagementActivityGradesRow; canCorrect: boolean; correctable: boolean; busy: boolean; disabled: boolean; onCorrect: () => void; onHistory: () => void;
+function ActivityRow({ row, canCorrect, canReadHistory, correctable, busy, disabled, onCorrect, onHistory }: {
+  row: ManagementActivityGradesRow; canCorrect: boolean; canReadHistory: boolean; correctable: boolean; busy: boolean; disabled: boolean; onCorrect: () => void; onHistory: () => void;
 }) {
   return <tr>
     <th scope="row" className="p-3">{row.fullName}{row.studentCode && <span className="block text-muted font-normal">{row.studentCode}</span>}</th>
     <td className="p-3">{row.grade ?? 'Sin nota'}</td>
     <td className="p-3 text-muted">{row.gradeId === null ? '—' : <>{row.registeredByTeacherName ?? `Docente #${row.registeredByTeacherId}`}{row.registeredAt && <> · <time dateTime={row.registeredAt}>{publishedAtLabel(row.registeredAt)}</time></>}</>}</td>
-    {canCorrect && <td className="p-3">{row.gradeId !== null && <div className="flex flex-wrap gap-2">
-      {correctable && <button type="button" disabled={disabled} className={`${button} bg-accent text-white`} onClick={onCorrect}>Corregir actividad {row.fullName}</button>}
-      <button type="button" disabled={busy} className={`${button} bg-white`} onClick={onHistory}>Historial de actividad #{row.gradeId}</button>
+    {(canCorrect || canReadHistory) && <td className="p-3">{row.gradeId !== null && <div className="flex flex-wrap gap-2">
+      {canCorrect && correctable && <button type="button" disabled={disabled} className={`${button} bg-accent text-white`} onClick={onCorrect}>Corregir actividad {row.fullName}</button>}
+      {canReadHistory && <button type="button" disabled={busy} className={`${button} bg-white`} onClick={onHistory}>Historial de actividad #{row.gradeId}</button>}
     </div>}</td>}
   </tr>;
 }

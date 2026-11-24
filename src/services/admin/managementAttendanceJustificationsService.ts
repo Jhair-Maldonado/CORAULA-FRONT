@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 // Bandeja de justificaciones de gestión (#57): lectura para ADMINISTRADOR y DIRECTIVO; decisión solo DIRECTIVO.
 import { isAxiosError } from 'axios';
 import httpClient from '@/services/httpClient';
@@ -55,7 +56,7 @@ export type ManagementJustificationAction = 'list' | 'detail' | 'decide' | 'down
 
 export const MANAGEMENT_JUSTIFICATION_FORBIDDEN = {
   read: 'Tu cuenta no tiene permiso para consultar las justificaciones.',
-  decide: 'Solo un directivo puede resolver justificaciones.',
+  decide: FORBIDDEN_ACTION_MESSAGE,
 } as const;
 
 const managementGeneric: Record<ManagementJustificationAction, string> = {

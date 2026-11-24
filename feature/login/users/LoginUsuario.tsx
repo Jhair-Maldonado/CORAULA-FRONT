@@ -20,6 +20,7 @@ import { ModalRecuperacionContrasena } from '../component/modalRecuperacionContr
 import { authService } from '@/services/authService';
 import { AuthContext } from '@/contexts/AuthContext';
 import { isAxiosError } from 'axios';
+import { isPortalUserRole, isStaffRole, portalPathForRole } from '@/utils/authRoutes';
 
 export default function LoginUsuario() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function LoginUsuario() {
     try {
       const response = await authService.login(email, password);
       
-      if (response.role === 'ADMINISTRADOR' || response.role === 'DIRECTIVO' || response.role === 'DOCENTE') {
+      if (isStaffRole(response.role)) {
         setErrorMsg('Esta cuenta corresponde al portal institucional.');
         setTimeout(() => router.push('/login/security/administrador'), 2000);
         return;
@@ -50,10 +51,8 @@ export default function LoginUsuario() {
       
       if (authContext) {
         authContext.login(response.token, response.role);
-        if (response.role === 'ESTUDIANTE') {
-          router.push('/alumno');
-        } else if (response.role === 'APODERADO') {
-          router.push('/padre');
+        if (isPortalUserRole(response.role)) {
+          router.push(portalPathForRole(response.role));
         }
       }
     } catch (error) {

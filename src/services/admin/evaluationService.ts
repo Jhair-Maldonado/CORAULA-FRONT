@@ -1,3 +1,4 @@
+import { FORBIDDEN_ACTION_MESSAGE } from '@/config/permissions';
 import httpClient from '@/services/httpClient';
 import { isAxiosError } from 'axios';
 import { parseBimesterResponse, parseBimestersResponse } from '@/lib/manualGradesContract';
@@ -79,7 +80,7 @@ export function bimesterAnnulmentErrorMessage(error: unknown): string {
   if (!isAxiosError(error)) return 'La anulación no pudo confirmarse. Revisa el estado en la lista antes de volver a intentar.';
   if (!error.response) return 'No se recibió respuesta del servidor: el resultado de la anulación es incierto. Revisa el estado en la lista antes de volver a intentar.';
   if (error.response.status === 401) return 'Tu sesión ha expirado. Vuelve a iniciar sesión.';
-  if (error.response.status === 403) return 'No tienes autorización para anular bimestres.';
+  if (error.response.status === 403) return FORBIDDEN_ACTION_MESSAGE;
   const code = catalogErrorCode(error);
   if (code && annulmentCodeMessages[code]) return annulmentCodeMessages[code];
   if (error.response.status === 409) return 'No se puede anular: el bimestre cambió o entra en conflicto con otro registro. Actualiza la lista.';

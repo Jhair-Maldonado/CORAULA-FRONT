@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useContext, useEffect, useState } from 'react';
-import { AuthContext } from '@/contexts/AuthContext';
+import React, { useEffect, useState } from 'react';
+import { useCan } from '@/hooks/useCan';
 import {
   Alert02Icon,
   ArrowLeft01Icon,
@@ -37,13 +37,10 @@ const FILTER_TABS: Array<{ id: JustificationStatus | 'TODAS'; label: string }> =
 ];
 
 export default function VistaBandejaJustificaciones() {
-  const auth = useContext(AuthContext);
+  const canRead = useCan('justification.read');
+  const canDecide = useCan('justification.decide');
 
-  if (
-    auth?.status !== 'authenticated' ||
-    !auth.sessionValid ||
-    (auth.role !== 'ADMINISTRADOR' && auth.role !== 'DIRECTIVO')
-  ) {
+  if (!canRead) {
     return (
       <div className="p-6">
         <p
@@ -56,7 +53,6 @@ export default function VistaBandejaJustificaciones() {
     );
   }
 
-  const canDecide = auth.role === 'DIRECTIVO';
   return <BandejaJustificacionesContent canDecide={canDecide} />;
 }
 

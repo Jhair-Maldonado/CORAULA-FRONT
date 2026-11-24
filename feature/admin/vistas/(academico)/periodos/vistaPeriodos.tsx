@@ -1,9 +1,9 @@
 'use client';
 
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Calendar03Icon, PlusSignIcon } from 'hugeicons-react';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useCan } from '@/hooks/useCan';
 import { academicPeriodsLoadErrorMessage, academicPeriodsService, formatPeriodDate } from '@/services/admin/academicPeriodsService';
 import {
   academicPeriodActivationErrorMessage, academicPeriodActivationReloads, academicPeriodDependencies, academicPeriodDependencyGuide,
@@ -19,11 +19,12 @@ type Activation = { action: AcademicPeriodActivationAction; period: AcademicPeri
 
 // ADMINISTRADOR manages; DIRECTIVO reads (the backend GETs accept both, #104).
 export default function VistaPeriodos() {
-  const auth = useContext(AuthContext);
-  if (auth?.status !== 'authenticated' || !auth.sessionValid || (auth.role !== 'ADMINISTRADOR' && auth.role !== 'DIRECTIVO')) {
+  const canRead = useCan('period.read');
+  const canManage = useCan('period.manage');
+  if (!canRead) {
     return <p role="alert" className="m-6 p-4 rounded-xl border border-rose-200 bg-rose-50 text-sm text-rose-700">No tienes acceso a la gestión de periodos académicos.</p>;
   }
-  return <AcademicPeriods canManage={auth.role === 'ADMINISTRADOR'} />;
+  return <AcademicPeriods canManage={canManage} />;
 }
 
 function AcademicPeriods({ canManage }: { canManage: boolean }) {

@@ -16,6 +16,12 @@ export interface AdminStudentDetail extends AdminStudent {
   personId: number;
   phone: string | null;
   enrollmentDate: string | null;
+  /** Fecha de nacimiento legible (es-PE); null si no hay dato o no es válido. */
+  birthDateLabel: string | null;
+  /** Fecha de matrícula legible (es-PE); null si no hay dato o no es válido. */
+  enrollmentDateLabel: string | null;
+  /** Aula, por ejemplo «3.° A · Primaria»; null sin matrícula activa. */
+  aulaLabel: string | null;
   guardians: StudentDetailResponse['guardians'];
 }
 

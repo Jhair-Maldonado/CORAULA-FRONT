@@ -1,11 +1,12 @@
 'use client';
 
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft01Icon, PencilEdit02Icon, UserCircleIcon, BookOpen01Icon, HeartAddIcon, AlertCircleIcon, Clock01Icon } from 'hugeicons-react';
+import { ArrowLeft01Icon, PencilEdit02Icon, UserCircleIcon, BookOpen01Icon, HeartAddIcon, AlertCircleIcon, Clock01Icon, Calendar01Icon, SmartPhone01Icon, CheckmarkCircle01Icon } from 'hugeicons-react';
 import { guardianCreateErrorMessage, isUncertainGuardianCreate, studentsService, studentErrorMessage, studentErrorStatus } from '@/services/admin/studentsService';
-import { guardianRelationshipLabels, studentFullName, toAdminStudentDetail } from '@/adapters/studentAdapter';
+import { guardianRelationshipLabels, studentFullName, studentStatusTone, toAdminStudentDetail } from '@/adapters/studentAdapter';
+import { studentStatusToneClass } from '@/adapters/studentUi';
 import type { AdminStudentDetail } from '@/types/adminStudent';
 import StudentEditForm from './components/StudentEditForm';
 import WithdrawEnrollmentDialog from './components/WithdrawEnrollmentDialog';
@@ -18,25 +19,32 @@ import { useCan } from '@/hooks/useCan';
 import { enrollmentsService, enrollmentErrorMessage, enrollmentErrorStatus } from '@/services/admin/enrollmentsService';
 import type { WithdrawEnrollmentRequest } from '@/types/enrollmentApi';
 import type { ChangeStudentStateRequest, CreateStudentGuardianRequest, StudentStateAction } from '@/types/studentApi';
-import { Failure, SectionDialog, destructiveButtonClass, primaryButtonClass, secondaryButtonClass } from '../secciones/sectionUi';
+import { Failure, SectionDialog, destructiveButtonClass, primaryButtonClass, secondaryButtonClass, sectionName } from '../secciones/sectionUi';
 
 type DetailResult = { revision: number; student?: AdminStudentDetail; error?: string; notFound?: boolean };
 
 const display = (value: string | number | null) => value === null ? 'No registrado' : value;
-function Info({ label, value }: { label: string; value: string | number | null }) {
-  return <div className="p-3 bg-neutral/40 border border-line/60 rounded-xl min-w-0">
-    <dt className="text-[10px] font-bold text-muted uppercase tracking-wider">{label}</dt>
-    <dd className="text-xs font-bold text-ink mt-1 break-words">{display(value)}</dd>
+/** Fila de dato con icono; el valor largo se trunca y el texto completo queda en el `title`. */
+function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value: string | number | null }) {
+  const text = String(display(value));
+  return <div className="flex items-center gap-3.5 p-3 bg-neutral/50 rounded-xl min-w-0">
+    <div aria-hidden="true" className="w-9 h-9 rounded-full bg-white border border-line flex items-center justify-center text-muted shrink-0 shadow-xs">{icon}</div>
+    <div className="min-w-0 flex-1">
+      <p className="text-[10px] font-bold text-muted uppercase tracking-wider">{label}</p>
+      <p title={text} className="text-xs font-bold text-ink mt-0.5 truncate">{text}</p>
+    </div>
   </div>;
 }
 
 export default function PerfilDelAlumno() {
-  const { estudianteId } = useParams<{ estudianteId: string }>();
+  // `id` solo existe en la ruta grado/[id]/estudiante/[estudianteId]: con él, el enlace de vuelta lleva al aula.
+  const { estudianteId, id } = useParams<{ estudianteId: string; id?: string }>();
   const auth = useContext(AuthContext);
-  return <StudentProfile key={JSON.stringify([estudianteId, auth?.role, auth?.status, auth?.sessionValid, auth?.token])} studentId={estudianteId} />;
+  const sectionId = id !== undefined && /^\d+$/.test(id) ? id : undefined;
+  return <StudentProfile key={JSON.stringify([estudianteId, auth?.role, auth?.status, auth?.sessionValid, auth?.token])} studentId={estudianteId} sectionId={sectionId} />;
 }
 
-function StudentProfile({ studentId }: { studentId: string }) {
+function StudentProfile({ studentId, sectionId }: { studentId: string; sectionId?: string }) {
   const auth = useContext(AuthContext);
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<DetailResult | null>(null);
@@ -202,75 +210,77 @@ function StudentProfile({ studentId }: { studentId: string }) {
     return () => { current = false; };
   }, [studentId, revision]);
 
+  const notice = 'rounded-xl p-3 bg-success text-success-ink text-sm';
+  // El principal va primero; el orden relativo del resto se conserva.
+  const guardians = student ? [...student.guardians].sort((a, b) => Number(b.primary) - Number(a.primary)) : [];
+  const chip = 'px-2.5 py-1 rounded-lg flex items-center gap-1.5';
   return (
     <div className="w-full h-full flex flex-col bg-canvas overflow-y-auto font-sans">
       <div className="h-28 bg-accent relative shrink-0">
-        <Link href="/administrador/alumnos" className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-black/20 backdrop-blur-xs text-white rounded-xl text-xs font-bold min-h-10 hover:bg-black/30 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><ArrowLeft01Icon size={16} aria-hidden="true" />Todos los alumnos</Link>
+        <div className="absolute top-6 left-6 md:left-8 z-10 flex gap-2">
+          <Link href={sectionId ? `/administrador/alumnos/grado/${sectionId}` : '/administrador/alumnos'} className="flex items-center gap-2 px-3.5 py-1.5 bg-black/20 backdrop-blur-xs text-white rounded-xl text-xs font-bold min-h-10 hover:bg-black/30 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><ArrowLeft01Icon size={16} aria-hidden="true" />{sectionId ? 'Volver al aula' : 'Todos los alumnos'}</Link>
+        </div>
       </div>
-      <div className="max-w-5xl w-full mx-auto px-6 pb-12 -mt-12 relative flex flex-col gap-6">
+      <div className="max-w-5xl w-full mx-auto px-6 md:px-8 pb-12 -mt-12 relative z-20 flex-1 flex flex-col gap-6">
         {!withdrawing && withdrawBusy && <p role="status" className="bg-white rounded-xl p-4">Verificando el estado de la matrícula...</p>}
         {!withdrawing && withdrawError && <Failure message={withdrawError} />}
-        {withdrawNotice && <p role="status" className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">{withdrawNotice}</p>}
-        {enrollNotice && <p role="status" className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">{enrollNotice}</p>}
+        {withdrawNotice && <p role="status" className={notice}>{withdrawNotice}</p>}
+        {enrollNotice && <p role="status" className={notice}>{enrollNotice}</p>}
         {!addingGuardian && guardianError && <Failure message={guardianError} />}
-        {guardianNotice && <p role="status" className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">{guardianNotice}</p>}
+        {guardianNotice && <p role="status" className={notice}>{guardianNotice}</p>}
         {!stateAction && stateError && <Failure message={stateError} />}
-        {stateNotice && <p role="status" className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">{stateNotice}</p>}
+        {stateNotice && <p role="status" className={notice}>{stateNotice}</p>}
         {refreshRequired && !withdrawBusy && canWithdraw && <button className={secondaryButtonClass} onClick={() => void refreshWithdrawal()}>Actualizar matrícula</button>}
         {loading && <div role="status" className="bg-white rounded-2xl border border-line p-6 shadow-sm text-sm text-muted flex items-center gap-2"><Clock01Icon size={18} aria-hidden="true" className="text-accent" />Cargando alumno...</div>}
-        {!loading && result?.error && <div role="alert" className="bg-rose-50 rounded-2xl border border-rose-200 p-6 shadow-sm">
+        {!loading && result?.error && <div role="alert" className="bg-accent-soft/60 rounded-2xl border border-accent-soft p-6 shadow-sm">
           <h1 className="text-xl font-bold">{result.notFound ? 'Alumno no encontrado' : 'No se pudo cargar el alumno'}</h1>
-          <p className="mt-2 text-sm text-rose-700 flex items-start gap-2 break-words"><AlertCircleIcon size={18} aria-hidden="true" className="shrink-0" />{result.error}</p>
+          <p className="mt-2 text-sm text-accent flex items-start gap-2 break-words"><AlertCircleIcon size={18} aria-hidden="true" className="shrink-0" />{result.error}</p>
           <button onClick={() => setRevision(n => n + 1)} className="mt-4 px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold min-h-10 shadow-sm hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Reintentar</button>
         </div>}
         {student && <>
-          <header className="bg-white rounded-2xl border border-line p-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4 min-w-0 flex-1">
-              <div className="w-16 h-16 rounded-full border border-accent/20 bg-accent/10 text-accent font-bold flex items-center justify-center shrink-0">{student.nombres.charAt(0)}{student.apellidoPaterno.charAt(0)}</div>
-              <div className="min-w-0"><h1 className="text-xl md:text-2xl font-bold tracking-tight text-ink break-words">{student.nombreCompleto}</h1><span className="text-[10px] font-bold text-ink bg-neutral border border-line px-2 py-1 rounded-full inline-block mt-2">{student.estadoLabel}</span></div>
+          <header className="bg-white rounded-2xl shadow-sm border border-line p-5 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto min-w-0">
+              <div aria-hidden="true" className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-neutral border-4 border-white shadow-md flex items-center justify-center text-2xl font-bold text-accent shrink-0">{student.nombres.charAt(0)}{student.apellidoPaterno.charAt(0)}</div>
+              <div className="flex-1 min-w-0 text-center sm:text-left w-full sm:w-auto">
+                <h1 className="text-xl md:text-2xl font-bold tracking-tight text-ink break-words mb-1">{student.nombreCompleto}</h1>
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-bold text-muted">
+                  {student.aulaLabel && <span className={`${chip} bg-neutral text-ink`}><BookOpen01Icon size={14} aria-hidden="true" />{student.aulaLabel}</span>}
+                  <span className={`${chip} bg-neutral text-ink`}><UserCircleIcon size={14} aria-hidden="true" />DNI: {display(student.dni)}</span>
+                  <span className={`${chip} border ${studentStatusToneClass[studentStatusTone(student.studentStatus)]}`}>{student.estadoLabel}</span>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 shrink-0">
               {stateActions.map(action => <button key={action} className={action === 'REACTIVATE' ? secondaryButtonClass : destructiveButtonClass}
                 disabled={withdrawBusy || withdrawing || refreshRequired || editing || enrolling || enrollBusy || guardianLocked || stateLocked} onClick={() => {
                   if (mutation.current || verification.current) return;
                   setSaved(false); setEnrollNotice(''); setWithdrawNotice(''); setWithdrawError(''); setGuardianNotice(''); setGuardianError('');
                   setStateNotice(''); setStateError(''); setStateAction(action);
                 }}>{studentStateActionLabels[action].button}</button>)}
-              <button disabled={withdrawBusy || withdrawing || refreshRequired || guardianLocked || stateLocked} onClick={() => { setSaved(false); setEditing(true); }} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold min-h-10 shadow-sm hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><PencilEdit02Icon size={16} aria-hidden="true" />Editar alumno</button>
+              <button disabled={withdrawBusy || withdrawing || refreshRequired || guardianLocked || stateLocked} onClick={() => { setSaved(false); setEditing(true); }} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold min-h-10 shadow-sm hover:bg-accent/90 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><PencilEdit02Icon size={16} aria-hidden="true" />Editar alumno</button>
             </div>
           </header>
-          {saved && <p role="status" className="rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">Cambios guardados por el servidor.</p>}
+          {saved && <p role="status" className={notice}>Cambios guardados por el servidor.</p>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <section className="bg-white rounded-2xl border border-line p-6 shadow-sm">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2 mb-4 pb-3 border-b border-line"><UserCircleIcon size={18} aria-hidden="true" className="text-accent shrink-0" />Identidad</h2>
-              <dl className="grid grid-cols-1 gap-3">
-                <Info label="Código estudiante" value={student.studentCode} />
-                <Info label="Nombres" value={student.nombres} />
-                {/* Apellido paterno y materno en una sola fila */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Info label="Apellido paterno" value={student.apellidoPaterno} />
-                  <Info label="Apellido materno" value={student.apellidoMaterno} />
-                </div>
-                {/* DNI y fecha de nacimiento en una sola fila */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Info label="DNI" value={student.dni} />
-                  <Info label="Fecha de nacimiento" value={student.birthDate} />
-                </div>
-                <Info label="Teléfono" value={student.phone} />
-                <Info label="Estado estudiante" value={student.estadoLabel} />
-              </dl>
+            <section className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm flex flex-col">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2 mb-4"><UserCircleIcon size={18} aria-hidden="true" className="text-accent shrink-0" />Datos personales</h2>
+              <div className="grid grid-cols-1 gap-3">
+                <InfoRow icon={<UserCircleIcon size={16} />} label="Código estudiante" value={student.studentCode} />
+                <InfoRow icon={<Calendar01Icon size={16} />} label="F. Nacimiento" value={student.birthDateLabel} />
+                <InfoRow icon={<SmartPhone01Icon size={16} />} label="Teléfono" value={student.phone} />
+              </div>
             </section>
             <div className="flex flex-col gap-6">
-              <section className="bg-white rounded-2xl border border-line p-6 shadow-sm">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2 mb-4 pb-3 border-b border-line"><BookOpen01Icon size={18} aria-hidden="true" className="text-accent shrink-0" />Matrícula actual</h2>
-                {student.tieneMatriculaActiva ? <dl className="grid grid-cols-1 gap-3">
-                  <Info label="Estado matrícula" value={student.matriculaLabel} />
-                  <Info label="Periodo" value={student.academicPeriodName} />
-                  <Info label="Nivel" value={student.nivelLabel} />
-                  <Info label="Grado" value={student.grade} />
-                  <Info label="Sección" value={student.sectionName} />
-                  <Info label="Fecha matrícula" value={student.enrollmentDate} />
-                </dl> : <p className="text-sm text-muted border border-dashed border-line rounded-xl p-4 bg-neutral/30 flex items-center gap-2"><BookOpen01Icon size={20} aria-hidden="true" className="shrink-0" />Sin matrícula activa</p>}
+              <section className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2 mb-4"><BookOpen01Icon size={18} aria-hidden="true" className="text-accent shrink-0" />Matrícula actual</h2>
+                {student.tieneMatriculaActiva ? <div className="grid grid-cols-1 gap-3">
+                  <InfoRow icon={<Calendar01Icon size={16} />} label="Periodo" value={student.academicPeriodName} />
+                  <InfoRow icon={<BookOpen01Icon size={16} />} label="Nivel" value={student.nivelLabel} />
+                  <InfoRow icon={<BookOpen01Icon size={16} />} label="Grado" value={student.grade === null ? null : `${student.grade}.° grado`} />
+                  <InfoRow icon={<BookOpen01Icon size={16} />} label="Sección" value={student.sectionName ? sectionName(student.sectionName) : null} />
+                  <InfoRow icon={<Calendar01Icon size={16} />} label="Fecha de matrícula" value={student.enrollmentDateLabel} />
+                  <InfoRow icon={<CheckmarkCircle01Icon size={16} />} label="Estado de matrícula" value={student.matriculaLabel} />
+                </div> : <p className="text-sm text-muted border border-dashed border-line rounded-xl p-4 bg-neutral/30 flex items-center gap-2"><BookOpen01Icon size={20} aria-hidden="true" className="shrink-0" />Sin matrícula activa</p>}
                 {canWithdraw && student.tieneMatriculaActiva && student.enrollmentId !== null && <button className={`${destructiveButtonClass} mt-4`} disabled={withdrawBusy || refreshRequired || editing || guardianLocked || stateLocked} onClick={() => {
                   if (mutation.current || verification.current) return;
                   target.current = student.enrollmentId;
@@ -281,20 +291,26 @@ function StudentProfile({ studentId }: { studentId: string }) {
                   setEnrollNotice(''); setWithdrawNotice(''); setEnrolling(true);
                 }}>Matricular en sección</button>}
               </section>
-              <section className="bg-white rounded-2xl border border-line p-6 shadow-sm">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2 mb-4 pb-3 border-b border-line"><HeartAddIcon size={18} aria-hidden="true" className="text-accent shrink-0" />Apoderados</h2>
-                {student.guardians.length === 0 && <p className="text-sm text-muted border border-dashed border-line rounded-xl p-4 bg-neutral/30 flex items-center gap-2"><HeartAddIcon size={20} aria-hidden="true" className="shrink-0" />Sin apoderados registrados.</p>}
-                <div className="flex flex-col gap-4">
-                  {student.guardians.map(guardian => <article key={guardian.guardianId} className="border border-line rounded-xl p-4 shadow-sm min-w-0">
-                    <h3 className="text-sm font-bold text-ink break-words mb-3 pb-3 border-b border-line">{studentFullName(guardian)}</h3>
-                    <dl className="grid grid-cols-1 gap-2">
-                      <Info label="DNI" value={guardian.dni} />
-                      <Info label="Teléfono" value={guardian.phone} />
-                      <Info label="Relación" value={guardianRelationshipLabels[guardian.relationship]} />
-                      <Info label="Principal" value={guardian.primary ? 'Sí' : 'No'} />
-                      <Info label="Autorizado para recoger" value={guardian.authorizedPickup ? 'Sí' : 'No'} />
-                      <Info label="Estado de relación" value={guardian.active ? 'Activa' : 'Inactiva'} />
-                    </dl>
+              <section className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2 mb-4"><HeartAddIcon size={18} aria-hidden="true" className="text-accent shrink-0" />Familiar / Apoderado</h2>
+                {guardians.length === 0 && <p className="text-sm text-muted border border-dashed border-line rounded-xl p-4 bg-neutral/30 flex items-center gap-2"><HeartAddIcon size={20} aria-hidden="true" className="shrink-0" />Sin apoderados registrados.</p>}
+                <div className="flex flex-col gap-3">
+                  {guardians.map(guardian => <article key={guardian.guardianId} className="p-3 bg-accent-soft/60 rounded-xl border border-accent-soft border-l-4 border-l-accent flex flex-col gap-2.5 min-w-0">
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-bold text-ink break-words">{studentFullName(guardian)}</h3>
+                        <p className="text-[11px] font-bold text-muted mt-0.5">{guardianRelationshipLabels[guardian.relationship]}{guardian.primary && <span className="ml-1.5 text-accent">· Principal</span>}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] font-bold text-accent uppercase tracking-wider">Celular</p>
+                        <p className="text-sm font-bold text-ink tracking-tight mt-0.5">{display(guardian.phone)}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded-lg bg-white border border-line text-ink">DNI: {display(guardian.dni)}</span>
+                      <span className="px-2 py-0.5 rounded-lg bg-white border border-line text-ink">{guardian.authorizedPickup ? 'Autorizado para recoger' : 'No autorizado para recoger'}</span>
+                      <span className={`px-2 py-0.5 rounded-lg border ${guardian.active ? 'bg-success text-success-ink border-success' : 'bg-neutral text-muted border-line'}`}>{guardian.active ? 'Activo' : 'Inactivo'}</span>
+                    </div>
                   </article>)}
                 </div>
                 {canAddGuardian && <button className={`${primaryButtonClass} mt-4`} disabled={withdrawBusy || withdrawing || refreshRequired || editing || enrolling || enrollBusy || guardianLocked || stateLocked} onClick={() => {

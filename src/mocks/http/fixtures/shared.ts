@@ -184,14 +184,14 @@ const PADRE: GuardianSummaryResponse = {
 
 function student(
   studentId: number, firstNames: string, paternalLastName: string, sectionId: number, enrollmentId: number, guardians: GuardianSummaryResponse[] = [],
-  enrollmentDate = '2026-02-20',
+  enrollmentDate = '2026-02-20', phone: string | null = null,
 ): StudentDetailResponse {
   const section = SECTIONS.find(s => s.id === sectionId)!;
   return {
     studentId, personId: 1000 + studentId, studentCode: `C26${String(studentId).padStart(6, '0')}`, dni: `7${String(studentId).padStart(7, '0')}`,
     firstNames, paternalLastName, maternalLastName: 'Demo', birthDate: section.level === 'PRIMARY' ? '2016-04-12' : '2013-09-03',
     studentStatus: 'ACTIVE', enrollmentId, enrollmentStatus: 'ACTIVE', academicPeriodId: 1, academicPeriodName: PERIOD.name,
-    sectionId, level: section.level, grade: section.grade, sectionName: section.name, phone: null, enrollmentDate, guardians,
+    sectionId, level: section.level, grade: section.grade, sectionName: section.name, phone, enrollmentDate, guardians,
   };
 }
 
@@ -240,7 +240,7 @@ export function createMockStore(now: () => Date = () => new Date()): MockStore {
   let id = 10_000;
   const nextId = () => ++id;
   const students = [
-    student(57, 'Ana', 'Arias', 10, 501, [PADRE]),
+    student(57, 'Ana', 'Arias', 10, 501, [PADRE], '2026-02-20', '900000157'),
     student(58, 'Luis', 'Arias', 12, 502, [PADRE]),
     student(59, 'María', 'Torres', 10, 503),
     student(60, 'Jorge', 'Salas', 10, 504),

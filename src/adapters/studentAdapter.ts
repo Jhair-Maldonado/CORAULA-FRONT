@@ -37,9 +37,37 @@ export function toAdminStudent(student: StudentSummaryResponse): AdminStudent {
   };
 }
 
+const dateFormat = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeZone: 'UTC' });
+
+/**
+ * Fecha LocalDate (`YYYY-MM-DD`) en formato legible es-PE (por ejemplo, «1 ene 2016»).
+ * Se formatea en UTC para que la zona horaria del navegador no mueva el día. Devuelve null si es nula o inválida.
+ */
+export function formatStudentDate(value: string | null): string | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  // El viaje de ida y vuelta descarta fechas inexistentes (30 de febrero), que Date corrige en silencio.
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? null : dateFormat.format(date);
+}
+
+/**
+ * Etiqueta del aula del alumno, por ejemplo «3.° A · Primaria». Solo existe con matrícula activa;
+ * omite las partes que el servidor no envía y devuelve null si no queda ninguna.
+ */
+export function studentClassroomLabel(student: Pick<AdminStudent, 'tieneMatriculaActiva' | 'grade' | 'sectionName' | 'nivelLabel'>): string | null {
+  if (!student.tieneMatriculaActiva) return null;
+  const section = student.sectionName?.replace(/^secci[oó]n\s+/i, '').trim();
+  const classroom = [student.grade === null ? null : `${student.grade}.°`, section || null].filter(Boolean).join(' ');
+  return [classroom || null, student.nivelLabel].filter(Boolean).join(' · ') || null;
+}
+
+/** Detalle para el panel del administrador; conserva las fechas crudas (las usan el retiro y la edición) y añade las legibles. */
 export function toAdminStudentDetail(student: StudentDetailResponse): AdminStudentDetail {
-  return { ...toAdminStudent(student), personId: student.personId, phone: student.phone,
-    enrollmentDate: student.enrollmentDate, guardians: student.guardians };
+  const base = toAdminStudent(student);
+  return { ...base, personId: student.personId, phone: student.phone,
+    enrollmentDate: student.enrollmentDate, guardians: student.guardians,
+    birthDateLabel: formatStudentDate(student.birthDate), enrollmentDateLabel: formatStudentDate(student.enrollmentDate),
+    aulaLabel: studentClassroomLabel(base) };
 }
 
 export function toStudentEditValues(student: AdminStudentDetail): StudentEditValues {

@@ -2,16 +2,10 @@
 
 import Link from 'next/link';
 import { UserCircleIcon, BookOpen01Icon, ArrowRight01Icon } from 'hugeicons-react';
-import { studentStatusTone, type StudentStatusTone } from '@/adapters/studentAdapter';
+import { studentStatusTone } from '@/adapters/studentAdapter';
+import { studentStatusToneClass } from '@/adapters/studentUi';
 import type { AdminStudent } from '@/types/adminStudent';
 import { sectionName } from '../../secciones/sectionUi';
-
-// Tonos del chip con tokens de globals.css; el texto del estado siempre se muestra (R7).
-const toneClass: Record<StudentStatusTone, string> = {
-  success: 'bg-success text-success-ink border-success',
-  warning: 'bg-white text-warning-ink border-line',
-  neutral: 'bg-neutral text-ink border-line',
-};
 
 /**
  * Tarjeta de alumno. Con `sectionId` enlaza a `grado/{sectionId}/estudiante/{id}` (se conserva el panel de la sección);
@@ -37,7 +31,7 @@ export const TarjetaEstudiante = ({ student, sectionId }: { student: AdminStuden
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-1.5 min-w-0">
             <h2 title={student.nombreCompleto} className="text-ink text-xs font-bold truncate group-hover:text-accent transition-colors">{student.nombreCompleto}</h2>
-            <span className={`text-[9px] font-bold border px-1.5 py-0.5 rounded-full shrink-0 ${toneClass[studentStatusTone(student.studentStatus)]}`}>{student.estadoLabel}</span>
+            <span className={`text-[9px] font-bold border px-1.5 py-0.5 rounded-full shrink-0 ${studentStatusToneClass[studentStatusTone(student.studentStatus)]}`}>{student.estadoLabel}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[10px] font-bold text-muted">
             {student.dni !== null && <span className="flex items-center gap-1"><UserCircleIcon size={12} aria-hidden="true" className="text-muted shrink-0" />DNI: {student.dni}</span>}

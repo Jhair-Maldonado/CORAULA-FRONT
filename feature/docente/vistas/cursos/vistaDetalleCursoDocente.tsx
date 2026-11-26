@@ -69,7 +69,7 @@ function CourseDetail({ routeId }: { routeId: string }) {
           Cargando curso...
         </p>
       ) : error ? (
-        <div role="alert" className="p-5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700">
+        <div role="alert" className="p-5 bg-accent-soft border border-accent/30 rounded-xl text-accent">
           <p>{error}</p>
           {validId && (
             <button

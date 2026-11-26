@@ -186,9 +186,9 @@ test('escritura en memoria: lo que registra el docente se refleja en su vista y 
   assert.equal(after.totalElements, before.totalElements + 1);
   assert.equal(after.content[0].severity, 'GRAVE');
 
-  await api.put('/v1/teacher/courses/301/attendance/401', { records: [{ enrollmentId: 501, status: 'INASISTENCIA' }, { enrollmentId: 503, status: 'PRESENTE' }, { enrollmentId: 504, status: 'TARDANZA' }] }, { ...docente, params: { date: '2026-11-02' } });
+  await api.put('/v1/teacher/courses/301/attendance/401', { records: [{ enrollmentId: 501, status: 'INASISTENCIA' }, { enrollmentId: 503, status: 'PRESENTE' }, { enrollmentId: 504, status: 'TARDANZA' }, { enrollmentId: 505, status: 'PRESENTE' }], reason: 'Registro manual', contingencyCause: 'LECTOR_NO_DISPONIBLE' }, { ...docente, params: { date: '2026-11-02' } });
   const session = (await api.get('/v1/teacher/courses/301/attendance', { ...docente, params: { date: '2026-11-02' } })).data.sessions[0];
-  assert.deepEqual(session.students.map((s: { status: string }) => s.status), ['INASISTENCIA', 'PRESENTE', 'TARDANZA', null]);
+  assert.deepEqual(session.students.map((s: { status: string }) => s.status), ['INASISTENCIA', 'PRESENTE', 'TARDANZA', 'PRESENTE']);
   const today = (await api.get('/v1/guardian/students/57/attendance', { ...padre, params: { from: '2026-11-02', to: '2026-11-02' } })).data;
   assert.deepEqual(today.records.map((r: { status: string }) => r.status), ['INASISTENCIA']);
 
@@ -279,7 +279,7 @@ test('justificaciones (#57) en MOCK: flujo completo apoderado ↔ directivo con 
   }
 
   // Envío: el docente registra una inasistencia hoy y el apoderado la justifica con un PDF.
-  await api.put('/v1/teacher/courses/301/attendance/401', { records: [{ enrollmentId: 501, status: 'INASISTENCIA' }, { enrollmentId: 503, status: 'PRESENTE' }, { enrollmentId: 504, status: 'PRESENTE' }] }, { ...docente, params: { date: '2026-11-02' } });
+  await api.put('/v1/teacher/courses/301/attendance/401', { records: [{ enrollmentId: 501, status: 'INASISTENCIA' }, { enrollmentId: 503, status: 'PRESENTE' }, { enrollmentId: 504, status: 'PRESENTE' }, { enrollmentId: 505, status: 'PRESENTE' }], reason: 'Registro manual', contingencyCause: 'LECTOR_NO_DISPONIBLE' }, { ...docente, params: { date: '2026-11-02' } });
   const [today] = (await attendance('2026-11-02', '2026-11-02')).records;
   assert.equal(today.status, 'INASISTENCIA');
   const pdf = new File(['%PDF-1.4'], 'constancia.pdf', { type: 'application/pdf' });
@@ -737,4 +737,45 @@ test('materiales del docente: retirar pasa por el service real y su parser; 400,
   await asRole('secretaria@demo.local', async () => {
     await assert.rejects(teacherMaterialsService.withdraw(301, list[0].id, 'Sin permiso.'), (e: unknown) => isAxiosError(e) && e.response?.status === 403);
   });
+});
+
+test('docente: el PUT de asistencia exige causa y motivo como el backend y respeta las justificaciones APROBADAS', async () => {
+  const api = client(fresh());
+  const auth = async (email: string) => ({ headers: { Authorization: `Bearer ${(await loginAs(api, email)).token}` } });
+  const [docente, padre] = await Promise.all([auth('docente@demo.local'), auth('padre@demo.local')]);
+  const codeOf = async (promise: Promise<unknown>) => {
+    try { await promise; return 'OK'; } catch (error) { assert.ok(isAxiosError(error)); return `${error.response?.status} ${error.response?.data?.code ?? ''}`.trim(); }
+  };
+  const put = (course: number, schedule: number, date: string, body: object) => api.put(`/v1/teacher/courses/${course}/attendance/${schedule}`, body, { ...docente, params: { date } });
+  const records = [501, 503, 504, 505].map(enrollmentId => ({ enrollmentId, status: 'PRESENTE' }));
+
+  // Lista completa de matrículas activas, sin duplicados (validateRecords del backend).
+  const full = { contingencyCause: 'LECTOR_NO_DISPONIBLE', reason: 'Sin lector' };
+  assert.equal(await codeOf(put(301, 401, '2026-11-02', { ...full, records: records.slice(0, 2) })), '400 VALIDATION_ERROR', 'lista incompleta');
+  assert.equal(await codeOf(put(301, 401, '2026-11-02', { ...full, records: [...records, records[0]] })), '400 VALIDATION_ERROR', 'duplicada');
+  assert.equal(await codeOf(put(301, 401, '2026-11-02', { ...full, records: [...records.slice(0, 3), { enrollmentId: 999, status: 'PRESENTE' }] })), '400 VALIDATION_ERROR', 'matrícula ajena');
+  // La causa inválida se rechaza siempre; el tope del motivo se mide sin recortar.
+  assert.equal(await codeOf(put(301, 401, '2026-11-02', { ...full, records, contingencyCause: 'OTRA' })), '400 VALIDATION_ERROR');
+  assert.equal(await codeOf(put(301, 401, '2026-11-02', { ...full, records, reason: ` ${'x'.repeat(255)}` })), '400 VALIDATION_ERROR');
+
+  // Primera toma (hoy sin registrar): causa y motivo.
+  assert.equal(await codeOf(put(301, 401, '2026-11-02', { records, reason: 'Sin lector' })), '400 ATTENDANCE_CONTINGENCY_CAUSE_REQUIRED');
+  assert.equal(await codeOf(put(301, 401, '2026-11-02', { records, contingencyCause: 'LECTOR_NO_DISPONIBLE' })), '400 ATTENDANCE_REASON_REQUIRED');
+  assert.equal(await codeOf(put(301, 401, '2026-11-02', { records, contingencyCause: 'LECTOR_NO_DISPONIBLE', reason: 'x'.repeat(256) })), '400 VALIDATION_ERROR');
+  assert.equal(await codeOf(put(301, 401, '2026-11-02', { records, contingencyCause: 'LECTOR_NO_DISPONIBLE', reason: 'Sin lector' })), 'OK');
+
+  // Sobre una justificación APROBADA el backend responde 409; el resto de cambios con motivo se aceptan.
+  const approved = (await api.get('/v1/guardian/students/57/justifications', { ...padre, params: { page: 0, size: 20 } })).data.content.find((j: { status: string }) => j.status === 'APROBADA');
+  const course = (await api.get('/v1/teacher/courses', docente)).data.find((c: { name: string }) => c.name === approved.courseName);
+  assert.ok(course, 'el curso de la justificación aprobada es del docente');
+  const day = (await api.get(`/v1/teacher/courses/${course.sectionCourseId}/attendance`, { ...docente, params: { date: approved.date } })).data;
+  const session = day.sessions[0];
+  assert.equal(session.students.find((s: { enrollmentId: number }) => s.enrollmentId === 501).justificationStatus, 'APROBADA');
+  assert.ok(session.students.some((s: { justificationStatus: string | null }) => s.justificationStatus === null));
+  const flip = (status: string) => ({ records: session.students.map((s: { enrollmentId: number; status: string }) => ({ enrollmentId: s.enrollmentId, status: s.enrollmentId === 501 ? status : s.status ?? 'PRESENTE' })), reason: 'Corrección', contingencyCause: 'LECTOR_NO_DISPONIBLE' });
+  const other = approved.attendanceStatus === 'INASISTENCIA' ? 'PRESENTE' : 'INASISTENCIA';
+  assert.equal(await codeOf(put(course.sectionCourseId, session.scheduleId, approved.date, flip(other))), '409 ATTENDANCE_JUSTIFICATION_APPROVED');
+  assert.equal(await codeOf(put(course.sectionCourseId, session.scheduleId, approved.date, { records: flip(other).records, contingencyCause: 'LECTOR_NO_DISPONIBLE' })), '400 ATTENDANCE_REASON_REQUIRED');
+  const others = { records: session.students.map((s: { enrollmentId: number; status: string }) => ({ enrollmentId: s.enrollmentId, status: s.enrollmentId === 503 ? 'TARDANZA' : s.status ?? 'PRESENTE' })), reason: 'Corrección', contingencyCause: 'LECTOR_NO_DISPONIBLE' };
+  assert.equal(await codeOf(put(course.sectionCourseId, session.scheduleId, approved.date, others)), 'OK');
 });

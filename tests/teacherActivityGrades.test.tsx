@@ -193,7 +193,7 @@ async function view(overrides: Partial<typeof teacherActivitiesService>, run: (h
     const change = async (label: string, value: string) => { await act(async () => { byLabel(label).props.onChange({ target: { value } }); }); };
     const click = async (name: string) => { const node = button(name); assert.ok(node, name); assert.equal(!!node.props.disabled, false, name); await act(async () => { node.props.onClick(); }); };
     await change('Bimestre de actividades', '1');
-    await click('Ver detalle #1');
+    await click('Ver detalle de Práctica 1');
     await run({ renderer, root: () => text(renderer.root), byLabel, button, click, change });
   } finally { if (renderer) await act(async () => { renderer.unmount(); }); Object.assign(teacherActivitiesService, original); teacherGradesService.getBimesters = oldBimesters; }
 }

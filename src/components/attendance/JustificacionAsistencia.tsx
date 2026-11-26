@@ -32,9 +32,9 @@ export default function JustificacionAsistencia({
             htmlFor="contingency-cause-select"
             className="flex items-center gap-1.5 text-xs font-bold text-ink mb-1.5"
           >
-            <ShieldAlert size={14} className="text-amber-600 shrink-0" />
+            <ShieldAlert size={14} className="text-warning-ink shrink-0" />
             <span>Causa de contingencia</span>
-            <span className="text-rose-500">*</span>
+            <span className="text-accent">*</span>
           </label>
           <select
             id="contingency-cause-select"
@@ -52,7 +52,7 @@ export default function JustificacionAsistencia({
         </div>
       ) : (
         <div className="flex items-center gap-1.5 text-xs font-medium text-muted">
-          <ShieldAlert size={14} className="text-blue-500 shrink-0" />
+          <ShieldAlert size={14} className="text-muted shrink-0" />
           <span>Modo corrección de asistencia (se conserva causa original de contingencia)</span>
         </div>
       )}
@@ -65,9 +65,9 @@ export default function JustificacionAsistencia({
           >
             <FileText size={14} className="text-accent shrink-0" />
             <span>Motivo / Justificación</span>
-            {reasonRequired && <span className="text-rose-500">*</span>}
+            {reasonRequired && <span className="text-accent">*</span>}
           </label>
-          <span className={`text-[10px] font-bold ${reason.length > ATTENDANCE_REASON_MAX_LENGTH ? 'text-rose-600' : 'text-muted'}`}>
+          <span className={`text-[10px] font-bold ${reason.length > ATTENDANCE_REASON_MAX_LENGTH ? 'text-accent' : 'text-muted'}`}>
             {reason.length}/{ATTENDANCE_REASON_MAX_LENGTH}
           </span>
         </div>
@@ -85,7 +85,7 @@ export default function JustificacionAsistencia({
           }
           className={`w-full text-xs text-ink bg-white border rounded-lg px-2.5 py-2 placeholder:text-muted/70 focus:outline-none focus:ring-2 ${
             reason.length > ATTENDANCE_REASON_MAX_LENGTH
-              ? 'border-rose-400 focus:ring-rose-400'
+              ? 'border-accent focus:ring-accent'
               : 'border-line focus:ring-accent'
           }`}
         />

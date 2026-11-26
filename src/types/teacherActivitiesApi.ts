@@ -4,6 +4,7 @@ export const ACADEMIC_ACTIVITY_TYPES = ['TAREA', 'PRACTICA', 'EXAMEN', 'PROYECTO
 export type AcademicActivityType = typeof ACADEMIC_ACTIVITY_TYPES[number];
 export const ACADEMIC_ACTIVITY_STATUSES = ['PLANIFICADA', 'PUBLICADA', 'ANULADA'] as const;
 export type AcademicActivityStatus = typeof ACADEMIC_ACTIVITY_STATUSES[number];
+export const academicActivityTypeLabels: Record<AcademicActivityType, string> = { TAREA: 'Tarea', PRACTICA: 'Práctica', EXAMEN: 'Examen', PROYECTO: 'Proyecto' };
 export const academicActivityStatusLabels: Record<AcademicActivityStatus, string> = { PLANIFICADA: 'Planificada', PUBLICADA: 'Publicada', ANULADA: 'Anulada' };
 export type ActivityContext = { sectionCourseId: number; bimesterId: number };
 export type CreateAcademicActivityRequest = {

@@ -109,7 +109,7 @@ test('successful creation sends configured fields once and reloads the actual li
     assert.equal(h.renderer.root.findByProps({ 'aria-label': 'Bimestre de actividades' }).props.disabled, true);
     assert.doesNotMatch(text(h.renderer.root), /creada en estado/);
     await act(async () => { pending.resolve(activity()); });
-    assert.equal(reads, 2); assert.match(text(h.renderer.root), /creada en estado PLANIFICADA/);
+    assert.equal(reads, 2); assert.match(text(h.renderer.root), /creada en estado Planificada/);
     assert.equal(h.renderer.root.findByProps({ 'aria-label': 'Título de actividad' }).props.value, '');
   });
 });
@@ -117,7 +117,7 @@ test('successful creation sends configured fields once and reloads the actual li
 test('detail is read from its endpoint, supports retry and renders every field including null updatedAt', async () => {
   let reads = 0;
   await view({ getActivities: async () => [activity()], getActivity: async () => { if (++reads === 1) throw httpError(404); return activity(1, { description: 'Descripción completa' }); } }, async h => {
-    await h.select('1'); await h.click('Ver detalle #1'); assert.match(text(h.renderer.root), /no está disponible/);
+    await h.select('1'); await h.click('Ver detalle de Práctica de álgebra'); assert.match(text(h.renderer.root), /no está disponible/);
     await h.click('Reintentar detalle'); assert.match(text(h.renderer.root), /Descripción completa/); assert.match(text(h.renderer.root), /Sin actualización/);
     await h.click('Cerrar detalle'); assert.equal(h.renderer.root.findAllByProps({ 'aria-label': 'Detalle de actividad' }).length, 0);
   });
@@ -166,7 +166,7 @@ test('late collection and detail responses cannot populate another bimester', as
     await h.select('1'); await h.select('2');
     await act(async () => { pending.resolve([activity(1, { title: 'OLD LIST' })]); });
     assert.doesNotMatch(text(h.renderer.root), /OLD LIST/);
-    await h.click('Ver detalle #2'); await h.select('1');
+    await h.click('Ver detalle de Práctica de álgebra'); await h.select('1');
     await act(async () => { detail.resolve(activity(2, { title: 'OLD DETAIL', bimesterId: 2 })); });
     assert.doesNotMatch(text(h.renderer.root), /OLD DETAIL/);
   });
@@ -374,4 +374,52 @@ test('default selection prefers ABIERTO and never lands on ANULADO', async () =>
       finally { await act(async () => { renderer.unmount(); }); }
     }
   } finally { teacherGradesService.getBimesters = original; teacherActivitiesService.getActivities = originalList; }
+});
+
+test('R8: la lista, el detalle y los formularios no muestran enums crudos ni identificadores', async () => {
+  const list = [
+    activity(1, { title: 'Proyecto final', type: 'PROYECTO' }),
+    activity(2, { title: 'Tarea semanal', type: 'TAREA', status: 'PUBLICADA', publishedAt: '2026-10-11T15:00:00Z' }),
+    activity(3, { title: 'Práctica dos', type: 'PRACTICA', status: 'ANULADA', annulledAt: '2026-10-12T15:00:00Z', annulledByUserId: 3, annulmentReason: 'Error de fecha' }),
+    activity(4, { title: 'Examen parcial', type: 'EXAMEN' })
+  ];
+  await view({ getActivities: async () => list }, async h => {
+    await h.select('1');
+    const shown = text(h.renderer.root);
+    for (const raw of ['PLANIFICADA', 'PUBLICADA', 'ANULADA', 'PROYECTO', 'TAREA', 'PRACTICA']) assert.ok(!shown.includes(raw), raw);
+    for (const label of ['Proyecto', 'Tarea', 'Práctica', 'Examen', 'Estado: Planificada', 'Estado: Publicada', 'Estado: Anulada']) assert.ok(shown.includes(label), label);
+    assert.ok(h.renderer.root.findAllByType('button').some(b => b.props['aria-label'] === 'Ver detalle de Proyecto final'));
+    assert.ok(!shown.includes('Ver detalle #'));
+    assert.deepEqual(h.renderer.root.findByProps({ 'aria-label': 'Tipo de actividad' }).findAllByType('option').map(o => text(o)), ['Tarea', 'Práctica', 'Examen', 'Proyecto']);
+    await h.click('Ver detalle de Proyecto final');
+    assert.ok(!/Tipo: ?PROYECTO/.test(text(h.renderer.root)));
+    assert.match(text(h.renderer.root), /Proyecto/);
+  });
+});
+
+test('R8: el detalle no muestra ids ni fechas ISO; el bimestre sale por su nombre y las fechas en es-PE', async () => {
+  const annulled = activity(7, {
+    title: 'Práctica anulada', status: 'ANULADA', createdAt: '2026-10-10T15:00:00Z', updatedAt: '2026-10-11T16:30:00Z',
+    publishedAt: '2026-10-11T15:00:00Z', annulledAt: '2026-10-12T15:00:00Z', annulledByUserId: 3, annulmentReason: 'Error de fecha'
+  });
+  await view({ getActivities: async () => [annulled], getActivity: async () => annulled }, async h => {
+    await h.select('1');
+    await h.click('Ver detalle de Práctica anulada');
+    const detail = text(h.renderer.root.findByProps({ 'aria-label': 'Detalle de actividad' }));
+    assert.doesNotMatch(detail, /#\d+/);
+    assert.doesNotMatch(detail, /ID docente|Curso-sección/);
+    assert.doesNotMatch(detail, /\d{4}-\d{2}-\d{2}T|\dZ\b/);
+    assert.match(detail, /Bimestre\s*Bimestre 1/);
+    assert.match(detail, /oct/i);
+    assert.match(detail, /Motivo de anulación\s*Error de fecha/);
+  });
+  const planned = activity(8, { title: 'Práctica nueva' });
+  await view({ getActivities: async () => [planned], getActivity: async () => planned }, async h => {
+    await h.select('1');
+    await h.click('Ver detalle de Práctica nueva');
+    const detail = text(h.renderer.root.findByProps({ 'aria-label': 'Detalle de actividad' }));
+    assert.match(detail, /Sin actualización/);
+    assert.match(detail, /Sin publicar/);
+    assert.doesNotMatch(detail, /#\d+|T\d{2}:\d{2}/);
+  });
 });

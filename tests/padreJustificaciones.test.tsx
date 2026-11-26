@@ -369,7 +369,10 @@ test('modal formulario: rechaza en el cliente archivos de más de 15 MB o de tip
 
 async function renderVista(params: string, adapter: (config: InternalAxiosRequestConfig) => Promise<AxiosResponse>, replaced: string[] = []) {
   const original = httpClient.defaults.adapter;
-  httpClient.defaults.adapter = adapter;
+  // El calendario y la tarjeta de hoy consultan la asistencia: aquí se responde vacía y no entra en lo que mide cada prueba.
+  httpClient.defaults.adapter = async (config: InternalAxiosRequestConfig) => String(config.url).endsWith('/attendance')
+    ? ({ data: { studentId: 57, from: config.params.from, to: config.params.to, summary: { total: 0, present: 0, late: 0, absent: 0 }, records: [] }, status: 200, statusText: '', headers: {}, config } as AxiosResponse)
+    : adapter(config);
   const spyRouter = { ...router, replace: (href: string) => { replaced.push(href); } } as unknown as AppRouterInstance;
   let renderer!: ReactTestRenderer;
   await act(async () => {

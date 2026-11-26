@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { usePadre } from '@/components/padres/PadreContext';
@@ -18,7 +18,12 @@ import {
   guardianJustificationsErrorMessage,
 } from '@/services/padres/guardianJustificationsService';
 import { formatLimaDateTime } from '@/services/padres/guardianIncidentsService';
+import { monthLabel, shiftMonth, type CalendarCell, type CalendarSession } from '@/adapters/guardianAttendanceCalendarAdapter';
+import { useGuardianAttendanceMonth, useGuardianAttendanceToday } from '@/hooks/useGuardianAttendanceMonth';
+import { formatDayLong, limaToday } from '@/lib/limaClock';
 import { ModalFormularioJustificacion } from './component/modalFormularioJustificacion';
+import { CalendarioAsistencia } from './component/calendarioAsistencia';
+import { EstadoHoyCard } from './component/estadoHoyCard';
 import type {
   AttendanceJustification,
   AttendanceJustificationsPage,
@@ -26,10 +31,10 @@ import type {
 } from '@/types/guardianJustificationsApi';
 
 const STATUS_BADGES: Record<JustificationStatus, { label: string; className: string }> = {
-  PENDIENTE: { label: 'Pendiente', className: 'bg-amber-50 text-amber-800 border-amber-200' },
-  OBSERVADA: { label: 'Observada', className: 'bg-sky-50 text-sky-800 border-sky-200' },
-  APROBADA: { label: 'Aprobada', className: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
-  RECHAZADA: { label: 'Rechazada', className: 'bg-rose-50 text-rose-800 border-rose-200' },
+  PENDIENTE: { label: 'Pendiente', className: 'bg-white text-warning-ink border-warning-ink/30' },
+  OBSERVADA: { label: 'Observada', className: 'bg-neutral text-ink border-muted/40' },
+  APROBADA: { label: 'Aprobada', className: 'bg-success text-success-ink border-success-ink/30' },
+  RECHAZADA: { label: 'Rechazada', className: 'bg-accent-soft text-accent border-accent/30' },
 };
 
 const FILTER_TABS: Array<{ id: JustificationStatus | 'TODAS'; label: string }> = [
@@ -56,6 +61,12 @@ export default function VistaPrincipalJustificacion() {
   const [focusError, setFocusError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
+  // Calendario: mes visible (empieza en el actual, hora de Lima) y día abierto en el detalle, ligado a su hijo.
+  const [visible, setVisible] = useState(() => {
+    const today = limaToday();
+    return { year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) };
+  });
+  const [selected, setSelected] = useState<{ hijoId: string; date: string } | null>(null);
 
   // Modal para presentar justificación o subsanar observación
   const [modalState, setModalState] = useState<{
@@ -69,6 +80,40 @@ export default function VistaPrincipalJustificacion() {
 
   const hijoId = hijoActivo ? String(hijoActivo.id) : null;
   const loadJustifications = useCallback(() => setReloadKey((k) => k + 1), []);
+  const month = useGuardianAttendanceMonth(hijoId, visible.year, visible.month);
+  const todayCard = useGuardianAttendanceToday(hijoId);
+  const reloadMonth = month.reload;
+  const reloadToday = todayCard.reload;
+  const selectedDate = selected && selected.hijoId === hijoId ? selected.date : null;
+  const todayDay = limaToday();
+  const currentYear = Number(todayDay.slice(0, 4));
+  const currentMonth = Number(todayDay.slice(5, 7));
+  const canNextMonth = visible.year * 12 + visible.month < currentYear * 12 + currentMonth;
+
+  const handleSelectDate = useCallback((date: string | null) => {
+    setSelected(date && hijoId ? { hijoId, date } : null);
+  }, [hijoId]);
+
+  // «Justificar ahora» de la tarjeta de hoy: muestra el mes actual con el detalle de hoy abierto.
+  const handleJustifyToday = () => {
+    setVisible({ year: currentYear, month: currentMonth });
+    handleSelectDate(todayDay);
+  };
+
+  // «Justificar ahora» del detalle del día: el mismo flujo del formulario que «Justificar» de Asistencia.
+  const handleJustifySession = (session: CalendarSession, cell: CalendarCell) => {
+    setModalState({
+      isOpen: true,
+      mode: 'submit',
+      attendanceId: session.attendanceId,
+      sessionInfo: { date: formatDayLong(cell.date), courseName: session.courseName, status: session.estadoLabel },
+    });
+  };
+
+  // «Ver justificación»: el mismo mecanismo de enlace que usa Asistencia (?studentId=&justificationId=).
+  const handleViewJustification = (justificationId: number) => {
+    if (hijoId) router.push(`/padre/justificacion?studentId=${hijoId}&justificationId=${justificationId}`);
+  };
 
   // Carga de justificaciones: cambiar de hijo, filtro o página cancela la consulta anterior.
   useEffect(() => {
@@ -138,6 +183,15 @@ export default function VistaPrincipalJustificacion() {
     return () => controller.abort();
   }, [hijoId, justificationIdParam, reloadKey]);
 
+  // La solicitud destacada queda debajo del calendario: se lleva a la vista una vez por cada justificationId del
+  // enlace, no en cada recarga de la solicitud.
+  const scrolledJustificationId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!focused || !justificationIdParam || scrolledJustificationId.current === justificationIdParam) return;
+    scrolledJustificationId.current = justificationIdParam;
+    if (typeof document !== 'undefined') document.getElementById('justificacion-destacada')?.scrollIntoView?.({ block: 'start' });
+  }, [focused, justificationIdParam]);
+
   const handleDownloadAttachment = async (justificationId: number) => {
     if (!hijoId) return;
     setDownloadingId(justificationId);
@@ -176,14 +230,16 @@ export default function VistaPrincipalJustificacion() {
     setModalState(null);
     if (attendanceIdParam) clearLinkParams();
     loadJustifications();
+    reloadMonth();
+    reloadToday();
   };
 
   // Estados previos de carga del apoderado
   if (isPadreLoading) {
     return (
       <div className="mx-auto max-w-5xl p-6">
-        <div className="h-6 w-48 animate-pulse rounded bg-slate-200 mb-2" />
-        <div className="h-4 w-72 animate-pulse rounded bg-slate-200 mb-6" />
+        <div className="h-6 w-48 animate-pulse rounded bg-line mb-2" />
+        <div className="h-4 w-72 animate-pulse rounded bg-line mb-6" />
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-32 rounded-2xl border border-line bg-white p-5 animate-pulse" />
@@ -196,7 +252,7 @@ export default function VistaPrincipalJustificacion() {
   if (padreError) {
     return (
       <div className="mx-auto max-w-5xl p-6">
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-800">
+        <div className="rounded-2xl border border-accent/30 bg-accent-soft p-6 text-center text-sm text-accent">
           <p className="font-semibold">{padreError}</p>
           <button
             onClick={() => refreshPadreData()}
@@ -235,7 +291,7 @@ export default function VistaPrincipalJustificacion() {
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-ink">{item.date}</span>
+              <span className="text-xs font-bold text-ink">{formatDayLong(item.date)}</span>
               <span className="text-xs font-medium text-muted">·</span>
               <span className="text-xs font-medium text-muted">{item.courseName}</span>
             </div>
@@ -261,10 +317,10 @@ export default function VistaPrincipalJustificacion() {
           <div
             className={`mt-3 rounded-xl border p-3 text-xs ${
               isObserved
-                ? 'border-sky-200 bg-sky-50 text-sky-900'
+                ? 'border-line bg-neutral text-ink'
                 : item.status === 'RECHAZADA'
-                ? 'border-rose-200 bg-rose-50 text-rose-900'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                ? 'border-accent/30 bg-accent-soft text-accent'
+                : 'border-success-ink/30 bg-success text-success-ink'
             }`}
           >
             <p className="font-bold mb-0.5">
@@ -304,7 +360,7 @@ export default function VistaPrincipalJustificacion() {
               <span className="text-[11px] text-muted italic">Sin archivo adjunto</span>
             )}
             {downloadError?.id === item.id && (
-              <span role="alert" className="text-[11px] font-semibold text-rose-700">
+              <span role="alert" className="text-[11px] font-semibold text-accent">
                 {downloadError.message}
               </span>
             )}
@@ -393,14 +449,37 @@ export default function VistaPrincipalJustificacion() {
         <div>
           <p className="font-semibold text-ink">Plazo reglamentario de justificación</p>
           <p className="mt-0.5 text-[11px] leading-relaxed">
-            Las inasistencias y tardanzas pueden justificarse dentro de los <strong>dos días hábiles</strong> posteriores a la sesión. Para iniciar una solicitud, dirígete al reporte de asistencia y haz clic en el botón «Justificar» de la clase correspondiente.
+            Las inasistencias y tardanzas pueden justificarse hasta el final del <strong>segundo día hábil</strong> posterior a la sesión (de lunes a viernes; los feriados cuentan como días hábiles). Para iniciar una solicitud, abre en el calendario un día marcado con «!» y elige «Justificar ahora».
           </p>
         </div>
       </div>
 
+      {/* Estado de hoy y calendario del mes del estudiante seleccionado */}
+      <EstadoHoyCard
+        status={todayCard.status}
+        loading={todayCard.loading}
+        error={todayCard.error}
+        onRetry={reloadToday}
+        onJustificar={handleJustifyToday}
+      />
+      <CalendarioAsistencia
+        weeks={month.weeks}
+        mesLabel={monthLabel(visible.year, visible.month)}
+        loading={month.loading}
+        error={month.error}
+        onRetry={reloadMonth}
+        onPrevMes={() => setVisible(v => shiftMonth(v.year, v.month, -1))}
+        onNextMes={() => setVisible(v => shiftMonth(v.year, v.month, 1))}
+        canNext={canNextMonth}
+        selectedDate={selectedDate}
+        onSelectDate={handleSelectDate}
+        onJustificar={handleJustifySession}
+        onVerJustificacion={handleViewJustification}
+      />
+
       {/* Solicitud enlazada desde Asistencia («Ver justificación») */}
       {focusError && (
-        <p role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
+        <p role="alert" className="rounded-2xl border border-accent/30 bg-accent-soft p-4 text-xs font-semibold text-accent">
           {focusError}
         </p>
       )}
@@ -450,8 +529,8 @@ export default function VistaPrincipalJustificacion() {
 
       {/* Estado de error */}
       {!loading && error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-800">
-          <Alert02Icon size={24} className="mx-auto mb-2 text-rose-600" />
+        <div className="rounded-2xl border border-accent/30 bg-accent-soft p-6 text-center text-sm text-accent">
+          <Alert02Icon size={24} className="mx-auto mb-2 text-accent" />
           <p className="font-semibold">{error}</p>
           <button
             onClick={loadJustifications}

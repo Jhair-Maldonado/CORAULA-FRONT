@@ -1,3 +1,4 @@
+import { isCancel } from 'axios';
 import httpClient from '@/services/httpClient';
 import { parseGuardianAttendance } from '@/lib/guardianContract';
 import { guardianReadErrorMessage } from '@/services/padres/guardianErrors';
@@ -33,10 +34,16 @@ export function guardianAttendanceErrorMessage(error: unknown): string {
   return guardianReadErrorMessage(error, 'attendance');
 }
 
+/**
+ * Asistencia del estudiante entre `from` y `to` (`GET /v1/guardian/students/{id}/attendance`): una fila por sesión.
+ * Valida el rango y el id antes de llamar. Con `signal`, cancelar la petición vuelve a lanzar el error original
+ * (sin envolverlo) para que quien llama reconozca la cancelación y descarte la respuesta.
+ */
 export async function getGuardianAttendance(
   studentId: string,
   from: string,
   to: string,
+  signal?: AbortSignal,
 ): Promise<GuardianAttendanceResponse> {
   const rangeError = attendanceRangeError(from, to);
   if (rangeError) throw new Error(rangeError);
@@ -44,10 +51,11 @@ export async function getGuardianAttendance(
   try {
     const response = await httpClient.get<unknown>(
       `/v1/guardian/students/${studentId}/attendance`,
-      { params: { from, to } },
+      { params: { from, to }, signal },
     );
     return parseGuardianAttendance(response.data, { studentId: Number(studentId), from, to });
   } catch (error) {
+    if (isCancel(error) || signal?.aborted) throw error;
     throw new Error(guardianAttendanceErrorMessage(error));
   }
 }

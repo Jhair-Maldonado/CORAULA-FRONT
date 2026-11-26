@@ -32,13 +32,15 @@ interface TarjetaHijoVinculadoProps {
   onSeleccionar: () => void;
   /** Solo en modo demostración: no existe endpoint para que el apoderado edite la ficha. */
   onEditar?: () => void;
+  /** Franja de rendimiento (promedio, aprobados, en riesgo) entre la cabecera y los datos del hijo. */
+  resumen?: React.ReactNode;
 }
 
 function iniciales(nombre: string): string {
   return nombre.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('') || 'ES';
 }
 
-export function TarjetaHijoVinculado({ hijo, seleccionado, onSeleccionar, onEditar }: TarjetaHijoVinculadoProps) {
+export function TarjetaHijoVinculado({ hijo, seleccionado, onSeleccionar, onEditar, resumen }: TarjetaHijoVinculadoProps) {
   const [copiado, setCopiado] = useState(false);
   const codigo = hijo.codigoEstudiante?.trim() || '';
 
@@ -64,7 +66,7 @@ export function TarjetaHijoVinculado({ hijo, seleccionado, onSeleccionar, onEdit
         <div className="flex items-center gap-3.5 min-w-0">
           <div
             className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-base shrink-0 overflow-hidden border ${
-              seleccionado ? 'bg-rose-50 text-accent border-rose-200' : 'bg-slate-100 text-slate-700 border-slate-200'
+              seleccionado ? 'bg-accent-soft text-accent border-accent/30' : 'bg-neutral text-ink border-line'
             }`}
           >
             {hijo.fotoUrl ? (
@@ -96,7 +98,7 @@ export function TarjetaHijoVinculado({ hijo, seleccionado, onSeleccionar, onEdit
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-success text-success-ink border border-success-ink/30">
             <CheckmarkBadge01Icon size={14} aria-hidden="true" />
             <span>Vínculo activo</span>
           </span>
@@ -112,6 +114,8 @@ export function TarjetaHijoVinculado({ hijo, seleccionado, onSeleccionar, onEdit
           </button>
         </div>
       </div>
+
+      {resumen && <div className="py-3.5 border-b border-line/60">{resumen}</div>}
 
       <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 py-4 border-b border-line/60">
         <div className="bg-neutral/60 p-3 rounded-xl border border-line/60">

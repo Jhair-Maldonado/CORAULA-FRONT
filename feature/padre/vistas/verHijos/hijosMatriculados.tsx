@@ -5,6 +5,8 @@ import React, { useState } from 'react';
 import { usePadre } from '@/components/padres/PadreContext';
 import { EdicionHijoModal } from './component/edicionHijoModal';
 import { TarjetaHijoVinculado } from './component/tarjetaHijoVinculado';
+import { ResumenRendimientoHijo } from './component/resumenRendimientoHijo';
+import { CHILD_SUMMARY_LOADING, useGuardianChildrenSummary } from '@/hooks/useGuardianChildrenSummary';
 import { HijoResumen } from '@/types/padre';
 import { isMockDataEnabled } from '@/lib/mockMode';
 
@@ -28,13 +30,14 @@ export default function HijosMatriculados() {
   }, [hijos]);
 
   const listaHijos = mocksActivos ? hijosLocal : hijos;
+  const resumenes = useGuardianChildrenSummary(listaHijos.map(h => h.id));
 
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 animate-pulse p-4">
-        <div className="h-4 w-32 bg-slate-200 rounded" />
-        <div className="h-20 bg-slate-100 rounded-xl w-full" />
-        <div className="h-20 bg-slate-100 rounded-xl w-full" />
+        <div className="h-4 w-32 bg-line rounded" />
+        <div className="h-20 bg-neutral rounded-xl w-full" />
+        <div className="h-20 bg-neutral rounded-xl w-full" />
       </div>
     );
   }
@@ -70,6 +73,7 @@ export default function HijosMatriculados() {
               seleccionado={hijo.id === selectedHijoId}
               onSeleccionar={() => setSelectedHijoId(hijo.id)}
               onEditar={mocksActivos ? () => setHijoEditando(hijo) : undefined}
+              resumen={<ResumenRendimientoHijo estado={resumenes.byId[hijo.id] ?? CHILD_SUMMARY_LOADING} onReintentar={() => resumenes.retry(hijo.id)} />}
             />
           ))
         )}

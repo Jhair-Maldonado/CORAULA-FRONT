@@ -49,27 +49,32 @@ export default function DetalleDelCurso() {
   }
 
   return <div className="w-full h-full flex flex-col bg-canvas overflow-y-auto font-sans">
-    <div className="h-28 bg-accent relative shrink-0"><Link href="/administrador/cursos" className="absolute top-6 left-6 flex items-center gap-2 min-h-10 px-4 py-2 bg-black/20 backdrop-blur-xs hover:bg-black/30 transition-colors text-white rounded-xl text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><ArrowLeft01Icon size={16} aria-hidden="true" />Volver a cursos</Link></div>
-    <div className="max-w-5xl w-full mx-auto px-6 pb-12 -mt-12 relative flex flex-col gap-6">
-      {loading && <div role="status" className="bg-white rounded-2xl border border-line p-6 shadow-sm text-xs text-muted flex items-center gap-2"><Clock01Icon size={18} aria-hidden="true" className="text-accent" />Cargando curso...</div>}
-      {!loading && result?.error && <div role="alert" className="bg-rose-50 text-rose-800 rounded-2xl border border-rose-200 p-6 shadow-sm">
+    <div className="h-28 bg-accent relative shrink-0"><Link href="/administrador/cursos" className="absolute top-6 left-6 md:left-8 flex items-center gap-2 min-h-10 px-3.5 py-1.5 bg-black/20 backdrop-blur-md hover:bg-black/30 transition-colors text-white rounded-xl text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><ArrowLeft01Icon size={16} aria-hidden="true" />Volver a cursos</Link></div>
+    <div className="max-w-5xl w-full mx-auto px-6 md:px-8 pb-12 -mt-12 relative z-20 flex flex-col gap-6">
+      {loading && <div role="status" className="bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm text-xs text-muted flex items-center gap-2"><Clock01Icon size={18} aria-hidden="true" className="text-accent" />Cargando curso...</div>}
+      {!loading && result?.error && <div role="alert" className="bg-accent-soft text-accent rounded-2xl border border-accent/20 p-5 md:p-6 shadow-sm">
         <h1 className="text-xl font-bold">{result.notFound ? 'Curso no encontrado' : 'No se pudo cargar el curso'}</h1>
-        <p className="text-xs text-rose-700 mt-2 flex items-start gap-2 break-words"><AlertCircleIcon size={18} aria-hidden="true" className="shrink-0" />{result.error}</p>
+        <p className="text-xs text-accent mt-2 flex items-start gap-2 break-words"><AlertCircleIcon size={18} aria-hidden="true" className="shrink-0" />{result.error}</p>
         <button onClick={() => setRevision(n => n + 1)} className="mt-4 min-h-10 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Reintentar</button>
       </div>}
       {course && <>
-        <div className="bg-white rounded-2xl shadow-sm border border-line p-6 flex flex-col sm:flex-row items-start justify-between gap-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-line p-5 md:p-6 flex flex-col sm:flex-row items-start justify-between gap-4">
           <div className="flex items-start sm:items-center gap-4 min-w-0"><div className="w-16 h-16 rounded-2xl bg-accent/10 text-accent border border-accent/20 flex items-center justify-center shrink-0"><BookOpen01Icon size={28} aria-hidden="true" /></div>
-            <div className="min-w-0"><span className="text-[10px] font-bold tracking-wider bg-neutral border border-line px-2 py-1 rounded-md break-words">{course.codigo}</span><p className="text-xs font-medium text-accent mt-2 break-words">{course.nivel} • {course.area}</p><h1 className="text-xl md:text-2xl font-bold tracking-tight text-ink mt-1 break-words">{course.nombre}</h1></div>
+            <div className="min-w-0"><div className="flex items-center gap-2 flex-wrap"><span className="text-[10px] font-bold uppercase tracking-wider bg-neutral text-ink px-2 py-0.5 rounded border border-line break-words">{course.codigo}</span><span className="text-xs font-bold text-accent break-words">{course.nivel} • {course.area}</span></div><h1 className="text-xl md:text-2xl font-bold tracking-tight text-ink mt-1 break-words">{course.nombre}</h1></div>
           </div>
-          <span className={`px-3 py-1 rounded-full border text-xs font-bold shrink-0 ${course.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-neutral text-muted border-line'}`}>{course.active ? 'Activo' : 'Inactivo'}</span>
+          <span className={`px-3 py-1 rounded-full border text-xs font-bold shrink-0 ${course.active ? 'bg-success text-success-ink border-success-ink/20' : 'bg-neutral text-muted border-line'}`}>{course.active ? 'Activo' : 'Inactivo'}</span>
         </div>
-        <div className="bg-white rounded-2xl border border-line p-6 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 pb-3 border-b border-line"><Calendar01Icon size={18} aria-hidden="true" className="text-accent" />Información del curso</h2>
-          <div className="p-4 rounded-xl bg-neutral/40 border border-line/60 my-4"><span className="text-[10px] font-bold uppercase tracking-wider text-muted">Horas semanales</span><p className="text-lg font-bold mt-1">{course.horasTotalesSemana} hrs/sem</p></div>
-          <h3 className="text-[10px] uppercase tracking-wider text-muted font-bold mb-2">Descripción</h3><p className="text-xs text-muted leading-relaxed whitespace-pre-wrap break-words">{course.descripcion || 'Sin descripción.'}</p>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          <div className="md:col-span-5 bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm">
+            <h2 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 pb-3 border-b border-line"><Calendar01Icon size={18} aria-hidden="true" className="text-accent" />Estructura y horas semanales</h2>
+            <div className="p-3 rounded-xl bg-neutral/40 border border-line/60 mt-4"><span className="text-[9px] font-bold uppercase tracking-wider text-muted">Horas semanales</span><p className="text-lg font-bold mt-0.5">{course.horasTotalesSemana} hrs/sem</p></div>
+          </div>
+          <div className="md:col-span-7 bg-white rounded-2xl border border-line p-5 md:p-6 shadow-sm">
+            <h2 className="text-xs font-bold uppercase tracking-wider pb-3 border-b border-line">Descripción</h2>
+            <p className="p-3 rounded-xl bg-neutral/30 border border-line/40 text-ink/80 text-xs leading-relaxed whitespace-pre-wrap break-words mt-4">{course.descripcion || 'Sin descripción.'}</p>
+          </div>
         </div>
-        {actionError?.id === id && <p role="alert" className="p-4 rounded-xl bg-rose-50 text-rose-700 text-sm">{actionError.message} Puedes volver a intentar la acción.</p>}
+        {actionError?.id === id && <p role="alert" className="p-4 rounded-xl bg-accent-soft border border-accent/20 text-accent text-sm">{actionError.message} Puedes volver a intentar la acción.</p>}
         <CourseCriteria key={id} courseId={id} />
         <div className="flex flex-wrap gap-3">
           <button disabled={busy} onClick={() => { setActionError(null); setEditingId(id); }} className="min-h-10 px-4 py-2 bg-accent text-white rounded-xl shadow-sm text-xs font-bold disabled:opacity-50 hover:bg-accent/90 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent flex items-center gap-1.5"><PencilEdit01Icon size={16} aria-hidden="true" />Editar curso</button>

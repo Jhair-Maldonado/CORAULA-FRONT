@@ -24,14 +24,14 @@ function text(node: ReactTestInstance): string { return node.children.map(child 
 type Auth = NonNullable<React.ContextType<typeof AuthContext>>;
 type Harness = { renderer: ReactTestRenderer; text: () => string; dialog: () => ReactTestInstance | undefined; press: (node: ReactTestInstance | undefined) => Promise<void> };
 
-async function render(element: React.ReactElement, options: { active?: boolean; update?: typeof teachersService.update },
+async function render(element: React.ReactElement, options: { active?: boolean; update?: typeof teachersService.update; list?: typeof teachersService.list },
   run: (h: Harness, calls: UpdateTeacherRequest[]) => Promise<void>) {
   const old = { list: teachersService.list, getById: teachersService.getById, update: teachersService.update };
   const oldSections = sectionsService.list;
   sectionsService.list = async () => [];
   const calls: UpdateTeacherRequest[] = [];
   let active = options.active ?? true;
-  teachersService.list = async () => page([teacher({ active })]);
+  teachersService.list = options.list ?? (async () => page([teacher({ active })]));
   teachersService.getById = async () => detail({ active });
   teachersService.update = async (id, payload) => {
     calls.push(payload);
@@ -116,3 +116,31 @@ for (const [name, element, toggle, message] of [
     });
   });
 }
+
+test('list: loaded rows show the teacher with the default text for missing phone and specialty', async () => {
+  await render(<VistaTodosLosDocentes />, {}, async h => {
+    assert.match(h.text(), /Docente Sintético/);
+    assert.match(h.text(), /No registrado/);
+    assert.match(h.text(), /No registrada/);
+    assert.match(h.text(), /1 docentes • Página 1 de 1/);
+    assert.equal(listSwitch(h).props['aria-checked'], true);
+  });
+});
+
+test('list: empty result shows the empty notice and no table', async () => {
+  await render(<VistaTodosLosDocentes />, { list: async () => ({ ...page([]), totalPages: 0 }) }, async h => {
+    assert.match(h.text(), /No se encontraron docentes con los criterios seleccionados/);
+    assert.equal(h.renderer.root.findAllByType('table').length, 0);
+  });
+});
+
+test('list: a load error shows the alert and Reintentar reloads the list', async () => {
+  let calls = 0;
+  const list = async () => { calls += 1; if (calls === 1) throw httpError(500); return page([teacher()]); };
+  await render(<VistaTodosLosDocentes />, { list }, async h => {
+    assert.ok(h.renderer.root.findAll(node => node.props.role === 'alert').length > 0);
+    await h.press(h.renderer.root.findAllByType('button').find(node => text(node) === 'Reintentar'));
+    assert.equal(calls, 2);
+    assert.match(h.text(), /Docente Sintético/);
+  });
+});

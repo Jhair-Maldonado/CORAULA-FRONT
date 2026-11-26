@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Add01Icon, ViewIcon, ArrowLeft01Icon, ArrowRight01Icon, Search01Icon, UserCircleIcon, AlertCircleIcon, Clock01Icon } from 'hugeicons-react';
+import { Add01Icon, ViewIcon, ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, Search01Icon, UserCircleIcon, AlertCircleIcon, Clock01Icon } from 'hugeicons-react';
 import { teachersService, teacherErrorMessage } from '@/services/admin/teachersService';
 import { toAdminTeacher } from '@/adapters/teacherAdapter';
 import type { AdminTeacher } from '@/types/adminTeacher';
@@ -81,11 +81,11 @@ export default function VistaTodosLosDocentes() {
         </div>
         <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold min-h-10 shadow-sm hover:bg-accent/90 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><Add01Icon size={16} aria-hidden="true" />Nuevo docente</button>
       </header>
-      {created && <div role="status" className="max-w-7xl mx-auto w-full rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm">
+      {created && <div role="status" className="max-w-7xl mx-auto w-full rounded-xl p-3 bg-success text-success-ink text-sm">
         Docente creado: <Link href={`/administrador/docentes/${created.id}`} className="underline font-bold">{created.fullName}</Link> (Activo).
       </div>}
       {toggleNotice && (
-        <div role="status" className="max-w-7xl mx-auto w-full rounded-xl p-3 bg-emerald-50 text-emerald-800 text-sm flex items-center justify-between">
+        <div role="status" className="max-w-7xl mx-auto w-full rounded-xl p-3 bg-success text-success-ink text-sm flex items-center justify-between">
           <span>{toggleNotice}</span>
           <button onClick={() => setToggleNotice(null)} className="text-xs font-bold underline ml-2">Cerrar</button>
         </div>
@@ -99,32 +99,32 @@ export default function VistaTodosLosDocentes() {
           <div className="relative min-w-0 flex-1"><Search01Icon size={16} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" /><input aria-label="Buscar docentes" placeholder="Buscar docentes..." value={searchInput} onChange={e => setSearchInput(e.target.value)} className="w-full pl-9 pr-3 py-2 min-h-10 text-ink placeholder:text-muted bg-neutral/50 border border-line rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" /></div>
           <button className="px-3 py-2 min-h-10 bg-accent text-white rounded-lg font-bold hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Buscar</button>
         </form>
-        <label className="text-[11px] font-bold text-muted flex items-center gap-2">Estado
-          <select value={query.active === undefined ? 'all' : String(query.active)} onChange={e => setQuery(previous => ({
+        <label className="text-[11px] font-semibold text-muted hover:text-ink flex items-center gap-2">Estado
+          <span className="relative inline-flex"><select value={query.active === undefined ? 'all' : String(query.active)} onChange={e => setQuery(previous => ({
             ...previous, active: e.target.value === 'all' ? undefined : e.target.value === 'true', page: 0,
-          }))} className="bg-neutral/50 border border-line rounded-lg px-3 py-2 min-h-10 text-xs text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+          }))} className="appearance-none pr-7 bg-neutral/50 border border-line rounded-lg pl-3 py-2 min-h-10 text-xs text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
             <option value="all">Todos</option><option value="true">Activos</option><option value="false">Inactivos</option>
-          </select>
+          </select><ArrowDown01Icon size={14} aria-hidden="true" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" /></span>
         </label>
       </div>
       {loading && <p role="status" className="max-w-7xl mx-auto w-full p-4 bg-white border border-line rounded-xl shadow-sm text-xs text-muted flex items-center gap-2"><Clock01Icon size={18} aria-hidden="true" className="text-accent shrink-0" />Cargando docentes...</p>}
-      {error && <div role="alert" className="max-w-7xl mx-auto w-full p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">
+      {error && <div role="alert" className="max-w-7xl mx-auto w-full p-4 rounded-xl bg-accent-soft border border-accent/20 text-accent text-sm">
         <p className="flex items-start gap-2 break-words font-medium"><AlertCircleIcon size={18} aria-hidden="true" className="shrink-0" />{error}</p><button onClick={() => setRevision(n => n + 1)} className="mt-3 min-h-10 px-3 py-2 rounded-lg bg-white border border-line font-bold hover:bg-neutral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Reintentar</button>
       </div>}
       {data && <div className="max-w-7xl mx-auto w-full bg-white rounded-xl border border-line shadow-sm overflow-hidden">
         {data.content.length === 0 ? <div className="m-4 p-8 border border-dashed border-line rounded-xl text-center flex flex-col items-center gap-2"><UserCircleIcon size={28} aria-hidden="true" className="text-muted" /><p className="text-sm font-bold text-ink">No se encontraron docentes con los criterios seleccionados.</p><p className="text-xs text-muted">Ajusta la búsqueda o el estado para intentar nuevamente.</p></div> :
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-left border-collapse">
               <thead className="bg-neutral/50 border-b border-line text-[10px] font-bold text-muted uppercase tracking-wider">
                 <tr>{['Docente', 'DNI', 'Teléfono', 'Especialidad', 'Estado', 'Acción'].map(label => <th key={label} scope="col" className="py-3 px-4 break-words">{label}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-line text-xs text-ink">
                 {data.content.map(toAdminTeacher).map(teacher => <tr key={teacher.id} className="group hover:bg-neutral/30 transition-colors">
-                  <td className="py-3 px-4 break-words"><div className="flex items-center gap-2"><span className="w-10 h-10 rounded-full border border-accent/20 group-hover:scale-105 transition-transform bg-accent-soft text-accent flex items-center justify-center font-bold shrink-0">{teacher.iniciales}</span><span className="font-bold break-words">{teacher.nombreCompleto}</span></div></td>
-                  <td className="py-3 px-4 break-words">{teacher.dni}</td>
-                  <td className="py-3 px-4 break-words">{teacher.phone ?? 'No registrado'}</td>
-                  <td className="py-3 px-4 break-words">{teacher.specialty ?? 'No registrada'}</td>
-                  <td className="py-3 px-4 break-words">
+                  <td className="py-2.5 px-4 break-words"><div className="flex items-center gap-2"><span className="w-7 h-7 text-[10px] rounded-full border border-accent/20 group-hover:scale-105 transition-transform bg-accent-soft text-accent flex items-center justify-center font-bold shrink-0">{teacher.iniciales}</span><span className="font-bold break-words">{teacher.nombreCompleto}</span></div></td>
+                  <td className="py-2.5 px-4 break-words">{teacher.dni}</td>
+                  <td className="py-2.5 px-4 break-words">{teacher.phone ?? 'No registrado'}</td>
+                  <td className="py-2.5 px-4 break-words">{teacher.specialty ?? 'No registrada'}</td>
+                  <td className="py-2.5 px-4 break-words">
                     <div className="flex items-center gap-2.5">
                       <button
                         type="button"
@@ -133,7 +133,7 @@ export default function VistaTodosLosDocentes() {
                         disabled={togglingId === teacher.id}
                         onClick={() => requestToggleStatus(teacher)}
                         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 ${
-                          teacher.active ? 'bg-emerald-500' : 'bg-neutral-300'
+                          teacher.active ? 'bg-success-ink' : 'bg-muted'
                         }`}
                         title={teacher.active ? 'Clic para desactivar docente' : 'Clic para activar docente'}
                       >
@@ -144,12 +144,12 @@ export default function VistaTodosLosDocentes() {
                           }`}
                         />
                       </button>
-                      <span className={`text-[11px] font-bold ${teacher.active ? 'text-emerald-700' : 'text-muted'}`}>
+                      <span className={`text-[11px] font-bold ${teacher.active ? 'px-2 py-0.5 rounded-full bg-success text-success-ink' : 'text-muted'}`}>
                         {teacher.active ? 'Activo' : 'Inactivo'}
                       </span>
                     </div>
                   </td>
-                  <td className="py-3 px-4 break-words"><Link href={`/administrador/docentes/${teacher.id}`} aria-label={`Ver perfil de ${teacher.nombreCompleto}`} className="inline-flex items-center justify-center p-2 min-w-10 min-h-10 rounded-lg bg-neutral text-muted hover:bg-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><ViewIcon size={16} aria-hidden="true" /></Link></td>
+                  <td className="py-2.5 px-4 break-words"><Link href={`/administrador/docentes/${teacher.id}`} aria-label={`Ver perfil de ${teacher.nombreCompleto}`} className="inline-flex items-center justify-center p-2 min-w-10 min-h-10 rounded-lg bg-neutral text-muted hover:bg-accent hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><ViewIcon size={16} aria-hidden="true" /></Link></td>
                 </tr>)}
               </tbody>
             </table>

@@ -5,7 +5,7 @@ import { asObject, fail, ok, pageOf, pageParams, positiveInt, type MockReply, ty
 import type { AcademicActivity, ActivityGrade } from '@/types/teacherActivitiesApi';
 import { ACADEMIC_ACTIVITY_TYPES } from '@/types/teacherActivitiesApi';
 import {
-  activeManualCriteria, hasSession, limaDayOf, mockJustificationAttachmentUrl, sectionStudents, studentFullName, teacherUserId,
+  activeManualCriteria, attendanceId, attendanceStatus, hasSession, latestJustification, limaDayOf, mockJustificationAttachmentUrl, sectionStudents, studentFullName, teacherUserId,
   type MockSectionCourse, type MockStore, type MockTeacher,
 } from './shared';
 import {
@@ -15,6 +15,7 @@ import { earlyAlerts } from './admin';
 
 const DOCENTE = ['DOCENTE'] as const;
 const STATUSES: readonly TeacherAttendanceStatus[] = ['PRESENTE', 'TARDANZA', 'INASISTENCIA'];
+const CONTINGENCY_CAUSES: readonly string[] = ['LECTOR_NO_DISPONIBLE', 'FALLA_CONECTIVIDAD', 'HUELLA_NO_RECONOCIDA', 'CAIDA_SISTEMA'];
 const SEVERITIES = ['LEVE', 'MODERADA', 'GRAVE'];
 const isDay = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
 
@@ -320,7 +321,32 @@ export const docenteRoutes: MockRoute[] = [
       if (!Array.isArray(records) || records.some(r => !enrolled.has(asObject(r).enrollmentId as number) || !STATUSES.includes(asObject(r).status as TeacherAttendanceStatus))) {
         return fail(400, 'Selecciona un estado para cada estudiante de la sesión.', 'VALIDATION_ERROR');
       }
-      saveAttendanceRecords(store, own.sc, date, records.map(r => ({ enrollmentId: asObject(r).enrollmentId as number, status: asObject(r).status as TeacherAttendanceStatus })));
+      // Como validateRecords del backend: sin duplicados y exactamente la lista completa de matrículas activas.
+      const submitted = new Set(records.map(r => asObject(r).enrollmentId as number));
+      if (submitted.size !== records.length) return fail(400, 'Matricula duplicada', 'VALIDATION_ERROR');
+      if (submitted.size !== enrolled.size || [...enrolled].some(id => !submitted.has(id as number))) {
+        return fail(400, 'Se requiere exactamente la lista completa de matriculas activas de la seccion', 'VALIDATION_ERROR');
+      }
+      const next = records.map(r => ({ enrollmentId: asObject(r).enrollmentId as number, status: asObject(r).status as TeacherAttendanceStatus }));
+      // Mismas reglas que el backend: la primera toma exige causa y motivo; una corrección, motivo; APROBADA no se cambia.
+      const { reason, contingencyCause } = asObject(body);
+      const current = (enrollmentId: number) => attendanceStatus(store, own.sc, enrollmentId, date);
+      const firstCapture = [...enrolled].some(id => id != null && current(id) === null);
+      const changed = next.filter(r => current(r.enrollmentId) !== r.status);
+      // La causa, si viene, se valida siempre; es obligatoria solo en la primera toma.
+      if (contingencyCause != null && !CONTINGENCY_CAUSES.includes(contingencyCause as string)) return fail(400, 'La causa de contingencia no es válida.', 'VALIDATION_ERROR');
+      if (firstCapture && contingencyCause == null) {
+        return fail(400, 'La causa de contingencia es obligatoria.', 'ATTENDANCE_CONTINGENCY_CAUSE_REQUIRED');
+      }
+      if ((firstCapture || changed.length > 0) && (typeof reason !== 'string' || reason.trim().length === 0)) {
+        return fail(400, 'El motivo es obligatorio.', 'ATTENDANCE_REASON_REQUIRED');
+      }
+      // El tope se mide sobre el texto sin recortar, como el backend.
+      if (typeof reason === 'string' && reason.length > 255) return fail(400, 'El motivo supera los 255 caracteres.', 'VALIDATION_ERROR');
+      if (changed.some(r => current(r.enrollmentId) !== null && latestJustification(store, attendanceId(own.sc, r.enrollmentId, date))?.status === 'APROBADA')) {
+        return fail(409, 'La asistencia tiene una justificación aprobada y no se puede cambiar.', 'ATTENDANCE_JUSTIFICATION_APPROVED');
+      }
+      saveAttendanceRecords(store, own.sc, date, next);
       return ok(undefined, 204);
     },
   },

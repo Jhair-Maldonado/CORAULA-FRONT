@@ -129,9 +129,9 @@ export default function MaterialesDocente({ sectionCourseId }: { sectionCourseId
           </label>
           <div>
             <span className="text-xs font-bold text-muted">Archivo</span>
-            <div className={`mt-1.5 flex justify-center px-4 pt-4 pb-5 border-2 border-dashed rounded-lg bg-white ${fileError ? 'border-rose-300' : 'border-line'}`}>
+            <div className={`mt-1.5 flex justify-center px-4 pt-4 pb-5 border-2 border-dashed rounded-lg bg-white transition-colors hover:border-accent/50 ${fileError ? 'border-accent/30' : 'border-line'}`}>
               <div className="space-y-1 text-center">
-                <Upload className={`mx-auto h-7 w-7 ${fileError ? 'text-rose-500' : 'text-muted'}`} aria-hidden="true" />
+                <Upload className={`mx-auto h-7 w-7 ${fileError ? 'text-accent' : 'text-muted'}`} aria-hidden="true" />
                 <label className="relative cursor-pointer rounded-md font-bold text-accent hover:underline">
                   <span>Seleccionar archivo</span>
                   <input key={fileInput} aria-label="Archivo del material" type="file" className="sr-only" accept={MATERIAL_ACCEPT} onChange={e => chooseFile(e.target.files?.[0] ?? null)} />
@@ -140,16 +140,16 @@ export default function MaterialesDocente({ sectionCourseId }: { sectionCourseId
                   : <p className="text-[11px] text-muted font-normal">PDF, Word (.docx) o PowerPoint (.pptx). Máximo 15 MB.</p>}
               </div>
             </div>
-            {fileError && <p role="alert" className="mt-2 flex items-start gap-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" aria-hidden="true" />{fileError}</p>}
+            {fileError && <p role="alert" className="mt-2 flex items-start gap-2 p-2.5 rounded-lg bg-accent-soft border border-accent/30 text-accent text-xs font-medium">
+              <AlertCircle className="w-4 h-4 text-accent shrink-0 mt-0.5" aria-hidden="true" />{fileError}</p>}
           </div>
         </fieldset>
         <p className="font-normal text-[11px] text-muted">El material se publica de inmediato para los alumnos del curso. Puedes retirarlo después indicando el motivo.</p>
         <button type="submit" disabled={busy || uncertain || !!formError} className={`${primary} w-full sm:w-auto`}>{busy ? 'Procesando...' : 'Publicar material'}</button>
       </form>
 
-      {notice && <p role="status" className="text-xs font-medium text-emerald-700 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">{notice}</p>}
-      {error && <p role="alert" className="text-xs font-medium text-rose-700 p-3 bg-rose-50 border border-rose-200 rounded-lg">{error}</p>}
+      {notice && <p role="status" className="text-xs font-medium text-success-ink p-3 bg-success border border-success-ink/30 rounded-lg">{notice}</p>}
+      {error && <p role="alert" className="text-xs font-medium text-accent p-3 bg-accent-soft border border-accent/30 rounded-lg">{error}</p>}
       {uncertain && <div role="alert" className="p-3 bg-neutral/40 border border-line rounded-lg text-xs text-ink">
         <p>La publicación no está confirmada. Revisa el listado antes de enviar otra; repetirla podría duplicar el material.</p>
         <button type="button" disabled={busy || loading} className={`${secondary} mt-2`} onClick={() => { setUncertain(false); setError(null); }}>Revisé el listado; permitir otra publicación</button>
@@ -161,12 +161,12 @@ export default function MaterialesDocente({ sectionCourseId }: { sectionCourseId
           <button type="button" className={secondary} disabled={busy || loading} onClick={reload}>Actualizar materiales</button>
         </div>
         {loading ? <p role="status" className="text-xs text-muted">Cargando materiales...</p>
-          : load?.error ? <div role="alert" className="text-xs text-rose-700"><p>{load.error}</p><button type="button" className={`${secondary} mt-2`} onClick={reload}>Reintentar materiales</button></div>
+          : load?.error ? <div role="alert" className="text-xs text-accent"><p>{load.error}</p><button type="button" className={`${secondary} mt-2`} onClick={reload}>Reintentar materiales</button></div>
           : !materials?.length ? <p className="text-xs text-muted">Este curso aún no tiene materiales publicados.</p>
           : <ul className="flex flex-col gap-2">
               {materials.map(m => <ElementoMaterial key={m.id} material={m} actions={m.status === 'PUBLICADO' && <>
                 <button type="button" aria-label={`Descargar ${m.title}`} className={secondary} disabled={busy} onClick={() => download(m)}>Descargar</button>
-                <button type="button" aria-label={`Retirar ${m.title}`} className={`${secondary} text-rose-700`} disabled={busy} onClick={() => { setWithdrawing(m); setReason(''); setReasonError(null); setNotice(null); setError(null); }}>Retirar</button>
+                <button type="button" aria-label={`Retirar ${m.title}`} className={`${secondary} text-accent`} disabled={busy} onClick={() => { setWithdrawing(m); setReason(''); setReasonError(null); setNotice(null); setError(null); }}>Retirar</button>
               </>} />)}
             </ul>}
       </section>
@@ -178,10 +178,10 @@ export default function MaterialesDocente({ sectionCourseId }: { sectionCourseId
             <textarea aria-label="Motivo del retiro" rows={3} maxLength={MATERIAL_WITHDRAWAL_REASON_MAX_LENGTH} value={reason} disabled={busy} onChange={e => setReason(e.target.value)} className={input} />
             <span className="text-xs font-normal text-muted">{reason.trim().length}/{MATERIAL_WITHDRAWAL_REASON_MAX_LENGTH}</span>
           </label>
-          {reasonError && <p role="alert" className="text-rose-700">{reasonError}</p>}
+          {reasonError && <p role="alert" className="text-accent">{reasonError}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" className={secondary} disabled={busy} onClick={() => setWithdrawing(null)}>Cancelar</button>
-            <button type="submit" className={`${button} bg-rose-700 text-white hover:bg-rose-800`} disabled={busy}>{busy ? 'Retirando...' : 'Confirmar retiro'}</button>
+            <button type="submit" className={`${button} bg-accent text-white hover:bg-accent/90`} disabled={busy}>{busy ? 'Retirando...' : 'Confirmar retiro'}</button>
           </div>
         </form>
       </Modal>}

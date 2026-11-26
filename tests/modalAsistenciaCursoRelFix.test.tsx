@@ -108,7 +108,7 @@ test('no biometric simulation with NEXT_PUBLIC_USE_MOCKS=false', async () => {
 test('first capture: nobody starts as INASISTENCIA, reason required, sends cause + trimmed reason', async () => {
   await withModal(attendanceWith([null, null]), async (root, bodies) => {
     const faltaSelected = root.findAll(
-      n => n.type === 'button' && n.props.title === 'Falta / Inasistencia' && String(n.props.className).includes('bg-rose-600')
+      n => n.type === 'button' && n.props.title === 'Falta / Inasistencia' && n.props['aria-pressed'] === true
     );
     assert.equal(faltaSelected.length, 0);
     assert.equal(saveButton(root).props.disabled, true);

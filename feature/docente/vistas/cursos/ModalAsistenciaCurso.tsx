@@ -225,7 +225,7 @@ export default function ModalAsistenciaCurso({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-muted hover:text-ink hover:bg-neutral/40 rounded-lg transition-colors shrink-0"
+            className="p-1.5 text-muted hover:text-ink hover:bg-neutral/40 rounded-lg transition-colors shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             aria-label="Cerrar modal"
           >
             <X size={18} aria-hidden="true" />
@@ -237,13 +237,13 @@ export default function ModalAsistenciaCurso({
           <button
             type="button"
             onClick={() => markAll('PRESENTE')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-bold hover:bg-emerald-100 transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-success-ink/30 bg-success text-success-ink text-xs font-bold hover:bg-success/70 transition-colors shadow-2xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <Check size={14} aria-hidden="true" />
             Marcar todos presentes
           </button>
 
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white px-2.5 py-1 rounded-md border border-line shadow-2xs">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-muted bg-white px-2.5 py-1 rounded-md border border-line shadow-2xs">
             <Calendar size={13} className="text-accent shrink-0" aria-hidden="true" />
             <span>{todayInfo.readable}</span>
           </div>
@@ -251,13 +251,13 @@ export default function ModalAsistenciaCurso({
 
         {/* Notificaciones de Éxito o Error */}
         {saveSuccess && (
-          <div className="mx-4 mt-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
+          <div className="mx-4 mt-3 p-3 bg-success border border-success-ink/30 text-success-ink rounded-xl text-xs font-bold flex items-center gap-2">
             <CheckCircle2 size={16} className="shrink-0" />
             <span>{saveSuccess}</span>
           </div>
         )}
         {saveError && (
-          <div className="mx-4 mt-3 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium">
+          <div className="mx-4 mt-3 p-3 bg-accent-soft border border-accent/30 text-accent rounded-xl text-xs font-medium">
             {saveError}
           </div>
         )}
@@ -266,7 +266,7 @@ export default function ModalAsistenciaCurso({
           {loading ? (
             <p className="text-center py-8 text-xs text-muted">Cargando estudiantes...</p>
           ) : error ? (
-            <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs text-center">
+            <div className="p-4 bg-accent-soft border border-accent/30 text-accent rounded-xl text-xs text-center">
               <p>{error}</p>
             </div>
           ) : students.length === 0 ? (
@@ -323,7 +323,7 @@ export default function ModalAsistenciaCurso({
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="px-4 py-2 rounded-lg border border-line bg-white hover:bg-neutral text-xs font-bold text-muted transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-lg border border-line bg-white hover:bg-neutral text-xs font-bold text-muted transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               Cancelar
             </button>
@@ -331,7 +331,7 @@ export default function ModalAsistenciaCurso({
               type="button"
               onClick={handleSave}
               disabled={saving || students.length === 0 || !isReasonValid || (isReasonRequired && trimmedReason.length === 0)}
-              className="px-4 py-2 rounded-lg bg-accent text-white text-xs font-bold hover:bg-accent/90 transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-lg bg-accent text-white text-xs font-bold hover:bg-accent/90 transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               {saving ? (
                 <>

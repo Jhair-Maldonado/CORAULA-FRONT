@@ -20,7 +20,7 @@ import {
   teacherActivitiesService
 } from '@/services/teacher/teacherActivitiesService';
 import NotasActividadDocente from './NotasActividadDocente';
-import { ACADEMIC_ACTIVITY_TYPES, academicActivityStatusLabels } from '@/types/teacherActivitiesApi';
+import { ACADEMIC_ACTIVITY_TYPES, academicActivityStatusLabels, academicActivityTypeLabels } from '@/types/teacherActivitiesApi';
 import type { AcademicActivity, ActivityContext, CreateAcademicActivityRequest } from '@/types/teacherActivitiesApi';
 import { bimesterStatusLabels, type Bimester } from '@/types/evaluationApi';
 
@@ -86,6 +86,15 @@ function formatHumanDate(dateStr?: string | null): string {
   }
   const monthName = MONTH_NAMES[monthIndex] || '';
   return `${day} ${monthName}`;
+}
+
+const dateTime = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' });
+
+/** Fecha y hora en es-PE (Lima) para el detalle; nunca el ISO crudo (R8). */
+function formatDateTime(iso: string | null | undefined, empty: string): string {
+  if (!iso) return empty;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? empty : dateTime.format(date);
 }
 
 function formatDisplayDate(dateStr?: string | null): string {
@@ -188,7 +197,7 @@ function CourseActivities({
       </div>
 
       {!valid ? (
-        <p role="alert" className="mt-4 text-xs text-rose-700">
+        <p role="alert" className="mt-4 text-xs text-accent">
           Selecciona un curso asignado válido.
         </p>
       ) : loading ? (
@@ -196,7 +205,7 @@ function CourseActivities({
           Cargando bimestres...
         </p>
       ) : result?.error ? (
-        <div role="alert" className="mt-4 text-sm text-rose-700">
+        <div role="alert" className="mt-4 text-sm text-accent">
           <p>{result.error}</p>
           <button type="button" className={`${button} bg-white mt-3`} onClick={() => setRevision(n => n + 1)}>
             Reintentar bimestres
@@ -356,7 +365,7 @@ function ActivitySheet({
         setRefreshRequired(!!saved && !confirmed);
         if (saved && !confirmed) setAmbiguous(true);
         if (saved && confirmed) {
-          setNotice(`Actividad «${saved.title}» creada en estado PLANIFICADA y confirmada en el listado.`);
+          setNotice(`Actividad «${saved.title}» creada en estado ${academicActivityStatusLabels.PLANIFICADA} y confirmada en el listado.`);
           if (startDate || endDate) {
             setActivityDates(prev => ({
               ...prev,
@@ -573,11 +582,11 @@ function ActivitySheet({
   return (
     <div className="flex flex-col gap-5 mt-5">
 
-      {annulled && <p role="status" className="text-xs font-medium text-amber-800 p-3 bg-amber-50 border border-amber-200 rounded-lg">Este bimestre está anulado. Solo puedes consultar sus actividades; no se pueden crear ni editar.</p>}
-      {notice && <p role="status" className="text-xs font-medium text-emerald-700 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">{notice}</p>}
-      {error && <p role="alert" className="text-xs font-medium text-rose-700 p-3 bg-rose-50 border border-rose-200 rounded-lg">{error}</p>}
+      {annulled && <p role="status" className="text-xs font-medium text-warning-ink p-3 bg-white border border-warning-ink/40 rounded-lg">Este bimestre está anulado. Solo puedes consultar sus actividades; no se pueden crear ni editar.</p>}
+      {notice && <p role="status" className="text-xs font-medium text-success-ink p-3 bg-success border border-success-ink/30 rounded-lg">{notice}</p>}
+      {error && <p role="alert" className="text-xs font-medium text-accent p-3 bg-accent-soft border border-accent/30 rounded-lg">{error}</p>}
       {busy && <p role="status" className="text-xs text-muted">Procesando y sincronizando con el servidor...</p>}
-      {refreshRequired && !busy && <p role="alert" className="text-xs text-rose-700">Actualiza el listado antes de otra operación.</p>}
+      {refreshRequired && !busy && <p role="alert" className="text-xs text-accent">Actualiza el listado antes de otra operación.</p>}
 
       {ambiguous && (
         <div role="alert" className="p-4 bg-neutral/40 border border-line rounded-xl text-xs text-ink">
@@ -648,7 +657,7 @@ function ActivitySheet({
                   >
                     {ACADEMIC_ACTIVITY_TYPES.map(type => (
                       <option key={type} value={type}>
-                        {type}
+                        {academicActivityTypeLabels[type]}
                       </option>
                     ))}
                   </select>
@@ -663,7 +672,7 @@ function ActivitySheet({
                   Cuenta para PA
                 </label>
               </fieldset>
-              {editError && <p role="alert" className="text-xs text-rose-700">{editError}</p>}
+              {editError && <p role="alert" className="text-xs text-accent">{editError}</p>}
               {!editError && !changed && <p className="text-xs text-muted">No hay cambios efectivos.</p>}
               <div className="flex flex-wrap gap-2 pt-2 border-t border-line">
                 <button type="submit" disabled={disabled || !!editError || !changed} className={`${button} bg-accent text-white`}>
@@ -728,7 +737,7 @@ function ActivitySheet({
                           aria-invalid={!!form.title && !!titleError}
                         />
                       </label>
-                      {form.title && titleError && <p role="alert" className="text-rose-700 text-xs">{titleError}</p>}
+                      {form.title && titleError && <p role="alert" className="text-accent text-xs">{titleError}</p>}
 
                       {/* Fechas de inicio y finalización */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -764,7 +773,7 @@ function ActivitySheet({
                         >
                           {ACADEMIC_ACTIVITY_TYPES.map(type => (
                             <option key={type} value={type}>
-                              {type}
+                              {academicActivityTypeLabels[type]}
                             </option>
                           ))}
                         </select>
@@ -792,7 +801,7 @@ function ActivitySheet({
                       </label>
 
                       <p className="font-normal text-[11px] text-muted">
-                        La actividad se crea PLANIFICADA. Publícala desde su detalle para registrar notas; no recibe entregas de estudiantes.
+                        La actividad se crea en estado {academicActivityStatusLabels.PLANIFICADA}. Publícala desde su detalle para registrar notas; no recibe entregas de estudiantes.
                       </p>
                     </>
                   )}
@@ -860,7 +869,7 @@ function ActivitySheet({
               Cargando actividades...
             </p>
           ) : list?.error ? (
-            <div role="alert" className="text-xs text-rose-700 p-4 border border-rose-200 bg-rose-50 rounded-xl">
+            <div role="alert" className="text-xs text-accent p-4 border border-accent/30 bg-accent-soft rounded-xl">
               <p>{list.error}</p>
               <button type="button" disabled={busy} className={`${button} bg-white mt-3`} onClick={refresh}>
                 Reintentar actividades
@@ -890,7 +899,7 @@ function ActivitySheet({
                     key={a.id}
                     className={`p-4 rounded-xl flex flex-wrap justify-between items-start gap-3 transition-all ${
                       isExam
-                        ? 'border-l-4 border-l-rose-600 border border-rose-200 bg-rose-50/20 shadow-xs hover:bg-rose-50/35'
+                        ? 'border-l-4 border-l-accent border border-accent/30 bg-accent-soft/20 shadow-xs hover:bg-accent-soft/35'
                         : 'border border-line bg-neutral/30 hover:bg-neutral/40'
                     }`}
                   >
@@ -898,18 +907,18 @@ function ActivitySheet({
                       {/* Título de la actividad */}
                       <div className="flex items-center gap-2">
                         {isExam && (
-                          <span className="text-rose-600" title="Examen programado">
+                          <span className="text-accent" title="Examen programado">
                             <Award size={17} aria-hidden="true" />
                           </span>
                         )}
-                        <h4 className={`font-bold text-sm break-words ${isExam ? 'text-rose-950 font-extrabold' : 'text-ink'}`}>
+                        <h4 className={`font-bold text-sm break-words ${isExam ? 'text-ink font-extrabold' : 'text-ink'}`}>
                           {a.title}
                         </h4>
                       </div>
 
                       {/* Debajo: Un solo icono de calendario y formato limpio de fechas */}
                       <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted mt-1.5 font-medium">
-                        <Calendar size={13} className="text-slate-400 shrink-0" aria-hidden="true" />
+                        <Calendar size={13} className="text-muted shrink-0" aria-hidden="true" />
                         <span>
                           Inicio: <strong className="text-ink font-semibold">{startFormatted}</strong>
                         </span>
@@ -922,25 +931,25 @@ function ActivitySheet({
                       {/* Badges indicando tipo y estado temporal */}
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         {isExam ? (
-                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold tracking-wider bg-rose-100 text-rose-800 border border-rose-300 uppercase shadow-2xs">
+                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold tracking-wider bg-accent-soft text-accent border border-accent/30 uppercase shadow-2xs">
                             Examen
                           </span>
                         ) : a.type === 'TAREA' ? (
-                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase">
+                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-neutral text-ink border border-line uppercase">
                             Tarea
                           </span>
                         ) : a.type === 'PRACTICA' ? (
-                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-success text-success-ink border border-success-ink/30 uppercase">
                             Práctica
                           </span>
                         ) : (
-                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 uppercase">
-                            {a.type}
+                          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-neutral text-ink border border-line uppercase">
+                            {academicActivityTypeLabels[a.type]}
                           </span>
                         )}
 
                         {a.cuentaParaPa && (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white text-warning-ink border border-warning-ink/40">
                             Cuenta para PA
                           </span>
                         )}
@@ -948,7 +957,7 @@ function ActivitySheet({
                         <span
                           className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
                             a.status === 'PUBLICADA'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              ? 'bg-success text-success-ink border-success-ink/30'
                               : a.status === 'ANULADA'
                                 ? 'bg-neutral text-muted border-line line-through'
                                 : 'bg-white text-ink border-line'
@@ -970,10 +979,10 @@ function ActivitySheet({
                           setSelectedId(a.id);
                         }}
                         title="Ingresar a la actividad"
-                        aria-label={`Ver detalle #${a.id}`}
+                        aria-label={`Ver detalle de ${a.title}`}
                       >
                         <ChevronRight size={18} className="stroke-[2.5]" aria-hidden="true" />
-                        <span className="sr-only">Ver detalle #{a.id}</span>
+                        <span className="sr-only">Ver detalle de {a.title}</span>
                       </button>
                       {a.status === 'PLANIFICADA' && (
                         <button
@@ -1016,7 +1025,7 @@ function ActivitySheet({
                   Cargando detalle...
                 </p>
               ) : detail.error ? (
-                <div role="alert" className="text-xs text-rose-700 py-3">
+                <div role="alert" className="text-xs text-accent py-3">
                   <p>{detail.error}</p>
                   <button type="button" className={`${button} bg-white mt-2`} onClick={() => setDetailRevision(n => n + 1)}>
                     Reintentar detalle
@@ -1026,19 +1035,18 @@ function ActivitySheet({
                 <>
                   <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs break-words">
                     {Object.entries({
-                      Actividad: `#${detail.data.id} · ${detail.data.title}`,
+                      Actividad: detail.data.title,
                       Descripción: detail.data.description ?? 'Sin descripción',
-                      Tipo: detail.data.type,
+                      Tipo: academicActivityTypeLabels[detail.data.type],
                       Estado: academicActivityStatusLabels[detail.data.status],
                       'Cuenta para PA': detail.data.cuentaParaPa ? 'Sí' : 'No',
-                      'Curso-sección': detail.data.sectionCourseId,
-                      Bimestre: detail.data.bimesterId,
-                      'ID docente creador': detail.data.createdByTeacherId,
-                      Creación: detail.data.createdAt,
-                      Actualización: detail.data.updatedAt ?? 'Sin actualización',
-                      Publicación: detail.data.publishedAt ?? 'Sin publicar',
+                      // El bimestre solo se muestra si su nombre ya está cargado en la vista.
+                      ...(bimester && bimester.id === detail.data.bimesterId ? { Bimestre: bimester.name } : {}),
+                      Creación: formatDateTime(detail.data.createdAt, 'Sin fecha'),
+                      Actualización: formatDateTime(detail.data.updatedAt, 'Sin actualización'),
+                      Publicación: formatDateTime(detail.data.publishedAt, 'Sin publicar'),
                       ...(detail.data.status === 'ANULADA'
-                        ? { Anulación: detail.data.annulledAt, 'Motivo de anulación': detail.data.annulmentReason }
+                        ? { Anulación: formatDateTime(detail.data.annulledAt, 'Sin fecha'), 'Motivo de anulación': detail.data.annulmentReason }
                         : {})
                     }).map(([lbl, val]) => (
                       <div key={lbl} className="p-2.5 bg-neutral/30 border border-line/60 rounded-lg">
@@ -1055,7 +1063,7 @@ function ActivitySheet({
                           <div
                             role="group"
                             aria-label={confirming.kind === 'publish' ? 'Confirmar publicación' : 'Confirmar anulación'}
-                            className="p-3 border border-amber-200 bg-amber-50 rounded-lg text-xs text-amber-900 flex flex-col gap-2"
+                            className="p-3 border border-warning-ink/40 bg-white rounded-lg text-xs text-warning-ink flex flex-col gap-2"
                           >
                             <p>
                               {confirming.kind === 'publish'
@@ -1076,13 +1084,13 @@ function ActivitySheet({
                               </label>
                             )}
                             {confirming.kind === 'annul' && annulReason && annulmentReasonError(annulReason) && (
-                              <p role="alert" className="text-rose-700">{annulmentReasonError(annulReason)}</p>
+                              <p role="alert" className="text-accent">{annulmentReasonError(annulReason)}</p>
                             )}
                             <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
                                 disabled={disabled || (confirming.kind === 'annul' && !!annulmentReasonError(annulReason))}
-                                className={`${button} ${confirming.kind === 'publish' ? 'bg-accent' : 'bg-rose-700'} text-white`}
+                                className={`${button} ${confirming.kind === 'publish' ? 'bg-accent' : 'bg-ink'} text-white`}
                                 onClick={() => void transition()}
                               >
                                 {confirming.kind === 'publish' ? 'Confirmar publicación' : 'Confirmar anulación'}
@@ -1107,7 +1115,7 @@ function ActivitySheet({
                             <button
                               type="button"
                               disabled={disabled || !!editing}
-                              className={`${button} bg-white text-rose-700`}
+                              className={`${button} bg-white text-accent`}
                               onClick={() => {
                                 setAnnulReason('');
                                 if (detail.data) setConfirming({ kind: 'annul', activity: detail.data });

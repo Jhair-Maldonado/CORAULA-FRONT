@@ -39,3 +39,37 @@ export function teacherAttendanceErrorMessage(error: unknown): string {
   }
   return 'No se pudo completar la solicitud. Intenta nuevamente.';
 }
+
+/**
+ * Mensaje al CONSULTAR la asistencia (GET /v1/teacher/courses/{sc}/attendance?date=).
+ * 400 → fecha fuera del periodo académico o no válida: texto propio, nunca el del servidor.
+ */
+export function teacherAttendanceLoadErrorMessage(error: unknown): string {
+  if (isAxiosError(error) && error.response?.status === 400) {
+    return 'La fecha elegida está fuera del periodo académico o no es válida. Elige otra fecha.';
+  }
+  return teacherAttendanceErrorMessage(error);
+}
+
+/**
+ * Mensaje al GUARDAR la asistencia (PUT /v1/teacher/courses/{sc}/attendance/{scheduleId}?date=).
+ * 400 y 409 usan texto propio y nunca el mensaje del servidor.
+ * 409 ATTENDANCE_JUSTIFICATION_APPROVED → la fila tiene una justificación aprobada y no se cambia.
+ */
+export function teacherAttendanceSaveErrorMessage(error: unknown): string {
+  if (isAxiosError(error)) {
+    const status = error.response?.status;
+    const body: unknown = error.response?.data;
+    const code = body && typeof body === 'object' ? (body as { code?: unknown }).code : undefined;
+    if (status === 409) {
+      return code === 'ATTENDANCE_JUSTIFICATION_APPROVED'
+        ? 'Esta asistencia tiene una justificación aprobada y ya no se puede cambiar; solo Dirección puede corregirla.'
+        : 'Conflicto al guardar la asistencia. Puede que los datos hayan cambiado. Vuelve a consultar.';
+    }
+    if (status === 400 || status === 422) {
+      if (code === 'ATTENDANCE_CONTINGENCY_CAUSE_REQUIRED' || code === 'ATTENDANCE_REASON_REQUIRED') return teacherAttendanceErrorMessage(error);
+      return 'No se pudo guardar. Revisa la fecha, el motivo y que todos los estudiantes tengan un estado.';
+    }
+  }
+  return teacherAttendanceErrorMessage(error);
+}

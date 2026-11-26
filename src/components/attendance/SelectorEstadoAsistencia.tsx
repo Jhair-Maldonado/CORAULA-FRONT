@@ -1,50 +1,39 @@
 'use client';
 
 import type { TeacherAttendanceStatus } from '@/types/teacherAttendanceApi';
+import { ATTENDANCE_STATUS_UI } from '@/lib/attendanceStatusUi';
 
-// Selector P / T / F compartido por el docente (FRONT #101) y el Director (FRONT #108).
-const OPTIONS: { status: TeacherAttendanceStatus; letter: string; title: string; verb: string; active: string; idle: string }[] = [
-  {
-    status: 'PRESENTE', letter: 'P', title: 'Presente', verb: 'Presente',
-    active: 'bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-200',
-    idle: 'bg-white text-slate-800 border-slate-300 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50'
-  },
-  {
-    status: 'TARDANZA', letter: 'T', title: 'Tardanza', verb: 'Tardanza',
-    active: 'bg-amber-500 text-white border-amber-500 shadow-sm ring-2 ring-amber-200',
-    idle: 'bg-white text-slate-800 border-slate-300 hover:border-amber-500 hover:text-amber-700 hover:bg-amber-50/50'
-  },
-  {
-    status: 'INASISTENCIA', letter: 'F', title: 'Falta / Inasistencia', verb: 'Falta',
-    active: 'bg-rose-600 text-white border-rose-600 shadow-sm ring-2 ring-rose-200',
-    idle: 'bg-white text-slate-800 border-slate-300 hover:border-rose-500 hover:text-rose-700 hover:bg-rose-50/50'
-  }
-];
+const IDLE = 'bg-white text-ink border-line hover:border-ink/40 hover:bg-neutral';
 
-export default function SelectorEstadoAsistencia({ studentName, status, onChange, disabled = false }: {
+// Selector P / T / F compartido por el docente (FRONT #101, #158) y el Director (FRONT #108).
+// `status` puede ser null (sin estado): ningún botón queda presionado. `showLabel` añade el nombre del estado.
+export default function SelectorEstadoAsistencia({ studentName, status, onChange, disabled = false, showLabel = false }: {
   studentName: string;
-  status: TeacherAttendanceStatus;
+  status: TeacherAttendanceStatus | null;
   onChange: (status: TeacherAttendanceStatus) => void;
   disabled?: boolean;
+  showLabel?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-1 shrink-0">
-      {OPTIONS.map(option => (
-        <button
-          key={option.status}
-          type="button"
-          disabled={disabled}
-          aria-pressed={status === option.status}
-          onClick={() => onChange(option.status)}
-          className={`w-8 h-8 rounded-lg text-xs font-black transition-all flex items-center justify-center border-2 disabled:cursor-not-allowed ${
-            status === option.status ? option.active : option.idle
-          }`}
-          title={option.title}
-          aria-label={`Marcar ${option.verb} a ${studentName}`}
-        >
-          {option.letter}
-        </button>
-      ))}
+    <div className="flex flex-wrap items-center gap-1 shrink-0">
+      {ATTENDANCE_STATUS_UI.map(option => {
+        const selected = status === option.status;
+        return (
+          <button
+            key={option.status}
+            type="button"
+            disabled={disabled}
+            aria-pressed={selected}
+            onClick={() => onChange(option.status)}
+            className={`${showLabel ? 'min-h-10 min-w-10 px-2.5 gap-1' : 'w-8 h-8'} rounded-lg text-xs font-black transition-all flex items-center justify-center border-2 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${selected ? option.active : IDLE}`}
+            title={option.status === 'INASISTENCIA' ? 'Falta / Inasistencia' : option.label}
+            aria-label={`Marcar ${option.verb} a ${studentName}`}
+          >
+            {option.letter}
+            {showLabel && <span className="hidden xl:inline font-bold">{option.label}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import type { JustificationStatus } from '@/types/guardianAttendanceApi';
+
 export type TeacherAttendanceStatus = 'PRESENTE' | 'TARDANZA' | 'INASISTENCIA';
 
 export type TeacherContingencyCause =
@@ -35,6 +37,8 @@ export interface TeacherAttendanceStudentResponse {
   fullName: string;
   attendanceId: number | null;
   status: TeacherAttendanceStatus | null;
+  /** Justificación vigente de la fila. Con APROBADA el backend rechaza el cambio con 409. */
+  justificationStatus?: JustificationStatus | null;
 }
 
 export interface SaveTeacherAttendanceRequest {

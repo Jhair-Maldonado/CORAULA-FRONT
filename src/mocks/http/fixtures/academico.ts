@@ -8,7 +8,7 @@ import type { EvaluationResultReason, EvaluationResultRow, EvaluationResultsResp
 import type { GradeWindow } from '@/types/gradeWindowApi';
 import type { Bimester } from '@/types/evaluationApi';
 import {
-  SCHOOL_DAYS, activeManualCriteria, addDays, attendanceId, attendanceStatus, hasSession, limaDayOf, sectionStudents, studentFullName,
+  SCHOOL_DAYS, activeManualCriteria, addDays, attendanceId, attendanceStatus, hasSession, latestJustification, limaDayOf, sectionStudents, studentFullName,
   type MockScheduleBlock, type MockSectionCourse, type MockStore,
 } from './shared';
 
@@ -30,7 +30,10 @@ export function manualSheet(store: MockStore, sc: MockSectionCourse, bimesterId:
 export function attendanceSession(store: MockStore, sc: MockSectionCourse, date: string) {
   const students = sectionStudents(store, sc.sectionId).map(s => {
     const status = attendanceStatus(store, sc, s.enrollmentId!, date);
-    return { enrollmentId: s.enrollmentId!, studentId: s.studentId, studentCode: s.studentCode, fullName: studentFullName(s), attendanceId: status ? attendanceId(sc, s.enrollmentId!, date) : null, status };
+    const id = status ? attendanceId(sc, s.enrollmentId!, date) : null;
+    // Estado de la justificación vigente (BACK #139): solo existe sobre una asistencia ya registrada.
+    const justificationStatus = id === null ? null : latestJustification(store, id)?.status ?? null;
+    return { enrollmentId: s.enrollmentId!, studentId: s.studentId, studentCode: s.studentCode, fullName: studentFullName(s), attendanceId: id, status, justificationStatus };
   });
   const count = (st: TeacherAttendanceStatus | null) => students.filter(s => s.status === st).length;
   return {

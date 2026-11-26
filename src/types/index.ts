@@ -10,7 +10,6 @@ export type UserRole = BackendRole | 'superadmin' | 'administrador' | 'docente' 
 
 export * from './alumnos';
 export * from './docentes';
-export * from './horario';
 export * from './cursos';
 export * from './chat';
 export * from './padre';

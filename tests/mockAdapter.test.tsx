@@ -330,6 +330,31 @@ test('justificaciones (#57) en MOCK: flujo completo apoderado ↔ directivo con 
 
 // ---------- #164: cobertura del MOCK (los fixtures nuevos pasan por los services reales y sus parsers) ----------
 
+test('gestión: el horario de la sección 12 incluye bloques de 45 y 90 min sin choques', async () => {
+  await asRole('admin@demo.local', async () => {
+    const blocks = await schedulesService.listBySection(12);
+    assert.equal(blocks.length, 13, 'dos cursos por cinco días más tres bloques sueltos');
+    const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
+    const duration = (b: { startTime: string; endTime: string }) => minutes(b.endTime) - minutes(b.startTime);
+    const extra = blocks.filter(b => b.id >= 4061);
+    assert.deepEqual(extra.map(b => [b.id, b.day, duration(b)]), [[4061, 'MIERCOLES', 45], [4062, 'JUEVES', 45], [4063, 'VIERNES', 90]]);
+    assert.equal(extra[1].classroom, null);
+    assert.equal(new Set(blocks.map(b => b.id)).size, blocks.length);
+    const section10 = await schedulesService.listBySection(10);
+    assert.equal(section10.length, 15, 'la sección 10 no cambia');
+    // Mismas reglas que scheduleConflicts del mock: sección, docente y aula no pueden coincidir en el mismo tramo y día.
+    const all = [...blocks, ...section10];
+    const overlap = (a: { startTime: string; endTime: string }, b: { startTime: string; endTime: string }) => a.startTime < b.endTime && b.startTime < a.endTime;
+    for (const mine of extra) {
+      for (const other of all.filter(o => o.id !== mine.id && o.day === mine.day && overlap(mine, o))) {
+        assert.notEqual(other.sectionId, mine.sectionId, `sección: ${mine.id} con ${other.id}`);
+        if (mine.teacherId !== null) assert.notEqual(other.teacherId, mine.teacherId, `docente: ${mine.id} con ${other.id}`);
+        if (mine.classroom && other.classroom) assert.notEqual(other.classroom.toLowerCase(), mine.classroom.toLowerCase(), `aula: ${mine.id} con ${other.id}`);
+      }
+    }
+  });
+});
+
 test('gestión: horario y curso por id; 404, sección vacía y 403 para el docente', async () => {
   await asRole('admin@demo.local', async () => {
     const blocks = await schedulesService.listBySection(10);

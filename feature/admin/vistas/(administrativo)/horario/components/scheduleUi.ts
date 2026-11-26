@@ -35,3 +35,19 @@ export function updatePayload(block: ScheduleResponse, values: ScheduleValues): 
   if (values.classroom.trim() !== (block.classroom ?? '')) request.classroom = values.classroom.trim();
   return request;
 }
+
+/**
+ * Paleta de bloques de la grilla, elegida con `courseId % 7`. Va como arreglo literal para que
+ * Tailwind detecte cada clase. Contraste del texto sobre su fondo (WCAG): 6,29 · 5,02 · 4,92 · 17,74 · 5,24 · 4,57 · 4,92.
+ * DECISION: la variante 6 usa fondo blanco (no `warning-ink/10`, que daba 4,32:1) y las cuatro primeras
+ * añaden `border-ink/10`; el texto no lleva opacidad porque bajaría varias variantes de 4,5:1.
+ */
+export const SCHEDULE_PALETTE: readonly string[] = [
+  'bg-accent text-white border-ink/10',
+  'bg-success-ink text-white border-ink/10',
+  'bg-warning-ink text-white border-ink/10',
+  'bg-ink text-white border-ink/10',
+  'bg-accent-soft text-accent border-accent/30',
+  'bg-success text-success-ink border-success-ink/20',
+  'bg-white text-warning-ink border-warning-ink/40',
+];

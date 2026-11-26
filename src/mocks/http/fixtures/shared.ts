@@ -157,9 +157,9 @@ const SECTIONS: SectionResponse[] = [
 ];
 
 const COURSES: CourseResponse[] = [
-  { id: 101, code: 'MAT-P5', name: 'Matemática', level: 'PRIMARY', area: 'Matemática', weeklyHours: 6, description: null, active: true },
+  { id: 101, code: 'MAT-P5', name: 'Matemática', level: 'PRIMARY', area: 'Matemática', weeklyHours: 6, description: 'Desarrolla el razonamiento lógico con números, geometría y resolución de problemas cotidianos.', active: true },
   { id: 102, code: 'COM-P5', name: 'Comunicación', level: 'PRIMARY', area: 'Comunicación', weeklyHours: 5, description: null, active: true },
-  { id: 103, code: 'CYT-P5', name: 'Ciencia y Tecnología', level: 'PRIMARY', area: 'Ciencia y Tecnología', weeklyHours: 4, description: null, active: true },
+  { id: 103, code: 'CYT-P5', name: 'Ciencia y Tecnología', level: 'PRIMARY', area: 'Ciencia y Tecnología', weeklyHours: 4, description: 'Explora fenómenos naturales mediante la observación, la indagación y experimentos sencillos.', active: true },
   { id: 104, code: 'MAT-S1', name: 'Matemática', level: 'SECONDARY', area: 'Matemática', weeklyHours: 6, description: null, active: true },
   { id: 105, code: 'COM-S1', name: 'Comunicación', level: 'SECONDARY', area: 'Comunicación', weeklyHours: 5, description: null, active: true },
 ];
@@ -231,9 +231,16 @@ export function enrolledAt(students: StudentDetailResponse[], isoDate: string): 
 /** Estado nuevo e independiente: cada sesión del navegador (o cada test) parte de los mismos datos. */
 /** Un bloque por día de lunes a viernes por curso, con el horario del curso; id = scheduleId * 10 + día (1 a 5). */
 function seedScheduleBlocks(sectionCourses: MockSectionCourse[]): MockScheduleBlock[] {
-  return sectionCourses.filter(sc => sc.active).flatMap(sc => SCHOOL_DAYS.map((day, i) => ({
+  const weekly = sectionCourses.filter(sc => sc.active).flatMap(sc => SCHOOL_DAYS.map((day, i) => ({
     id: sc.scheduleId * 10 + i + 1, sectionCourseId: sc.id, day, startTime: sc.startTime, endTime: sc.endTime, classroom: sc.classroom, active: true,
   })));
+  // NOTA: bloques sueltos de 45 y 90 min en la sección 12 para ver la grilla con duraciones distintas; no chocan con docente, sección ni aula.
+  const extra: MockScheduleBlock[] = [
+    { id: 4061, sectionCourseId: 304, day: 'MIERCOLES', startTime: '13:00', endTime: '13:45', classroom: 'Aula 1S', active: true },
+    { id: 4062, sectionCourseId: 305, day: 'JUEVES', startTime: '14:00', endTime: '14:45', classroom: null, active: true },
+    { id: 4063, sectionCourseId: 305, day: 'VIERNES', startTime: '15:00', endTime: '16:30', classroom: 'Aula 1S', active: true },
+  ];
+  return [...weekly, ...extra];
 }
 
 export function createMockStore(now: () => Date = () => new Date()): MockStore {

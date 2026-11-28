@@ -6,10 +6,7 @@ import { AxiosError, type AxiosResponse } from 'axios';
 import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { PathnameContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import LoginAdministrador from '../feature/login/admin/loginAdministrador';
-import LoginDocente from '../feature/login/docente/loginDocente';
 import LoginUsuario from '../feature/login/users/LoginUsuario';
-import VistaLoginAlumno from '../feature/alumno/vistas/login/vistaLoginAlumno';
-import { AlumnoSessionProvider } from '../src/components/alumno/AlumnoSessionContext';
 import { AuthContext } from '../src/contexts/AuthContext';
 import httpClient from '../src/services/httpClient';
 
@@ -91,7 +88,6 @@ function assertAlert(renderer: ReactTestRenderer, message: string) {
 const institutionalLogins = [
   { name: 'usuarios (/login)', path: '/login', page: <LoginUsuario />, password: 'Contraseña', message: 'Credenciales inválidas.' },
   { name: 'administrador (/login/security/administrador)', path: '/login/security/administrador', page: <LoginAdministrador />, password: 'Contraseña de seguridad', message: 'Credenciales inválidas.' },
-  { name: 'docente (/docente/login)', path: '/docente/login', page: <LoginDocente />, password: '••••••••', message: 'Credenciales inválidas en el servidor.' },
 ];
 
 for (const login of institutionalLogins) {
@@ -122,13 +118,3 @@ for (const login of institutionalLogins) {
     });
   });
 }
-
-test('login alumno (/alumno/login) announces the validation error as an alert', async () => {
-  await withPage(<AlumnoSessionProvider><VistaLoginAlumno /></AlumnoSessionProvider>, '/alumno/login', async renderer => {
-    await act(async () => {
-      renderer.root.findByProps({ placeholder: 'ej. atorres o 74128905' }).props.onChange({ target: { value: '' } });
-    });
-    await act(async () => { await renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }); });
-    assertAlert(renderer, 'Por favor ingresa tu nombre de usuario o DNI.');
-  });
-});

@@ -232,7 +232,7 @@ for (const [role, portal] of roles) {
   });
 }
 
-test('global gate also covers routes without AuthGuard (alumno mock portal)', async () => {
+test('global gate sends an ESTUDIANTE with a temporary password to the change page', async () => {
   await withApp({ pathname: '/alumno', stored: { token: jwt('ESTUDIANTE', true), role: 'ESTUDIANTE' }, page: <Portal /> }, async h => {
     assert.ok(!renderedText(h.renderer.root).includes('contenido-del-portal'));
     assert.deepEqual(h.navigations, [{ method: 'replace', href: '/cambiar-contrasena' }]);

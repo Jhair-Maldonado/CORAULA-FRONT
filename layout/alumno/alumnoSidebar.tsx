@@ -1,7 +1,7 @@
-// src/components/alumno/AlumnoSidebar.tsx
+// layout/alumno/alumnoSidebar.tsx
 'use client';
 
-import React from 'react';
+import React, { useContext } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -15,7 +15,8 @@ import {
   Bell,
   KeyRound
 } from 'lucide-react';
-import { useAlumnoSession, useHasRealStudentSession, DEFAULT_ALUMNO_SESSION } from '@/components/alumno/AlumnoSessionContext';
+import { AuthContext } from '@/contexts/AuthContext';
+import { useStudentProfile } from '@/components/alumno/StudentProfileContext';
 import { CHANGE_PASSWORD_ROUTE } from '@/utils/authRoutes';
 
 type MenuItem = {
@@ -36,9 +37,8 @@ const MENU_ITEMS: MenuItem[] = [
 
 export const AlumnoSidebar: React.FC = () => {
   const pathname = usePathname();
-  const { session, logout } = useAlumnoSession();
-  const realSession = useHasRealStudentSession();
-  const alumno = session || DEFAULT_ALUMNO_SESSION;
+  const authContext = useContext(AuthContext);
+  const { view } = useStudentProfile();
 
   return (
     <>
@@ -84,25 +84,24 @@ export const AlumnoSidebar: React.FC = () => {
 
         {/* User / Logout */}
         <div className="p-2 border-t border-line flex flex-col gap-2">
-          {alumno && (
-            <div className="flex flex-col items-center justify-center gap-1 p-2">
-              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[#BE123C] font-bold text-xs uppercase overflow-hidden shadow-2xs">
-                {alumno.nombre.substring(0, 2).toUpperCase()}
-              </div>
-            </div>
-          )}
-          {realSession && (
-            <Link
-              href={CHANGE_PASSWORD_ROUTE}
-              className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl text-muted hover:bg-neutral hover:text-ink transition-all group"
-              title="Cambiar contraseña"
+          <div className="flex flex-col items-center justify-center gap-1 p-2">
+            <div
+              className="w-8 h-8 rounded-full bg-neutral flex items-center justify-center text-accent font-bold text-xs uppercase overflow-hidden shadow-2xs"
+              title={`${view.fullName} · ${view.sectionLabel}`}
             >
-              <KeyRound size={20} className="group-hover:text-ink" />
-              <span className="text-[9px] font-bold text-center tracking-tight leading-tight">Contraseña</span>
-            </Link>
-          )}
+              {view.initials}
+            </div>
+          </div>
+          <Link
+            href={CHANGE_PASSWORD_ROUTE}
+            className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl text-muted hover:bg-neutral hover:text-ink transition-all group"
+            title="Cambiar contraseña"
+          >
+            <KeyRound size={20} className="group-hover:text-ink" />
+            <span className="text-[9px] font-bold text-center tracking-tight leading-tight">Contraseña</span>
+          </Link>
           <button
-            onClick={logout}
+            onClick={() => authContext?.logout()}
             className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl text-muted hover:bg-accent-soft hover:text-accent transition-all group"
             title="Cerrar sesión"
           >

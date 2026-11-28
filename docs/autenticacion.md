@@ -11,9 +11,11 @@ No se utilizan roles ficticios ni administrativos intermedios en el frontend (ej
 |-----------------|----------------------------|----------------------------|
 | ADMINISTRADOR   | `/security`                | `/administrador`           |
 | DIRECTIVO       | `/security`                | `/administrador`           |
-| DOCENTE         | `/security`                | `/docente`                 |
+| DOCENTE         | `/login`                   | `/docente`                 |
 | ESTUDIANTE      | `/login`                   | `/alumno`                  |
 | APODERADO       | `/login`                   | `/padre`                   |
+
+Las pantallas `/docente/login` y `/alumno/login` se retiraron (FRONT #32, #170): ambas rutas responden con un redirect 307 (no permanente) a `/login`, que enruta por rol con `portalPathForRole`. Los portales `/alumno` y `/docente` sin JWT del rol correspondiente envían a `/login`.
 
 **Nota Visual sobre Query Params:**
 Las URLs del tipo `/security?rol=docente` o `/login?rol=estudiante` se usan única y exclusivamente para entregar contexto visual a la interfaz pública del formulario. **La autorización real proviene siempre del JWT decodificado por `AuthContext`.** Jamás se debe utilizar el query parameter para tomar decisiones de seguridad.

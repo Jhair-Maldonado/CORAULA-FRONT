@@ -5,13 +5,13 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import { AlumnoSidebar } from '../../../layout/alumno/alumnoSidebar'; 
 import { AlumnoNavbar } from '../../../layout/alumno/alumnoNavbar'; 
-import { AlumnoSessionProvider } from '@/components/alumno/AlumnoSessionContext';
+import { AuthGuard } from '@/components/AuthGuard';
+import { StudentProfileProvider } from '@/components/alumno/StudentProfileContext';
 import { AvisoModuloSimulado } from '@/components/ui/AvisoModuloSimulado';
 import { Menu } from 'lucide-react';
 
 function AlumnoLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isLoginPage = pathname === '/alumno/login';
 
   const getPageTitle = (path: string) => {
     if (path === '/alumno') return 'Panel General';
@@ -22,15 +22,6 @@ function AlumnoLayoutContent({ children }: { children: React.ReactNode }) {
     if (path.includes('/mensajes')) return 'Mensajería';
     return 'Portal de Alumnos';
   };
-
-  // Si estamos en la página de login (/alumno/login), no mostrar sidebar ni topbar del dashboard
-  if (isLoginPage) {
-    return (
-      <main className="min-h-screen bg-[#F3F4F6] text-[#111827] antialiased flex flex-col justify-center">
-        {children}
-      </main>
-    );
-  }
 
   return (
     <div className="flex h-screen w-full bg-[#F3F4F6] font-sans overflow-hidden text-[#111827]">
@@ -61,7 +52,7 @@ function AlumnoLayoutContent({ children }: { children: React.ReactNode }) {
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 w-full mx-auto pb-16 max-w-[1200px] flex flex-col">
-          {/* El portal del alumno aún no tiene backend: siempre usa datos de demostración (#121). */}
+          {/* TODO(#171): las vistas del alumno aún usan datos de demostración; el encabezado ya consume /student/me. */}
           <AvisoModuloSimulado activo={true} />
           {children}
         </main>
@@ -72,8 +63,10 @@ function AlumnoLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function AlumnoLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AlumnoSessionProvider>
-      <AlumnoLayoutContent>{children}</AlumnoLayoutContent>
-    </AlumnoSessionProvider>
+    <AuthGuard allowedRoles={['ESTUDIANTE']}>
+      <StudentProfileProvider>
+        <AlumnoLayoutContent>{children}</AlumnoLayoutContent>
+      </StudentProfileProvider>
+    </AuthGuard>
   );
 }

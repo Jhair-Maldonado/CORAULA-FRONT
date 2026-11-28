@@ -6,6 +6,15 @@ assertAppModeEnv(process.env);
 const nextConfig = {
   reactStrictMode: true,
 
+  // Las pantallas de acceso por rol se retiraron: el inicio de sesión es /login y enruta por rol (FRONT #32, #170).
+  // No son permanentes (307) para que los navegadores no cacheen el destino.
+  async redirects() {
+    return [
+      { source: '/alumno/login', destination: '/login', permanent: false },
+      { source: '/docente/login', destination: '/login', permanent: false },
+    ];
+  },
+
   images: {
     remotePatterns: [
       {

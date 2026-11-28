@@ -84,6 +84,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1
 // Retardo simulado para validar estados de carga (Loading skeleton / spinners)
 const mockDelay = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// TODO(#171): migrar las vistas del alumno a httpClient y retirar getAuthToken/fetchWithAuth (clave coraula_token).
 /**
  * Obtiene el token de autenticación almacenado en el navegador (cliente)
  */

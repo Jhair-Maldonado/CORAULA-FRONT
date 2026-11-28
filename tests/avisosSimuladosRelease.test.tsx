@@ -5,6 +5,7 @@ import { act, create, type ReactTestRenderer, type ReactTestInstance } from 'rea
 import { AxiosError, type AxiosResponse } from 'axios';
 import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { PathnameContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
+import { AuthContext } from '../src/contexts/AuthContext';
 
 // #121 (REL-AVISOS-SIMULADOS): with real data enabled (NEXT_PUBLIC_USE_MOCKS=false) the modules without backend
 // keep demo data, show the notice and never call the nonexistent routes of src/lib/api.ts.
@@ -53,21 +54,37 @@ test('NEXT_PUBLIC_USE_MOCKS=false: student and teacher chat functions return dem
   assert.deepEqual(requests, []);
 });
 
+const studentSession = {
+  token: 'synthetic-token', role: 'ESTUDIANTE', status: 'authenticated', sessionValid: true, passwordChangeRequired: false,
+  login() {}, logout() {}, validateSession() {}, isSessionPhysicallyValid: () => true,
+} as unknown as React.ContextType<typeof AuthContext>;
+
 test('NEXT_PUBLIC_USE_MOCKS=false: the student portal layout always shows the notice', async () => {
   await recordHttpClient();
   const { default: AlumnoLayout } = await import('../src/app/alumno/layout');
   requests.length = 0;
+  // AuthGuard listens to pageshow on window.
+  const hadWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: Object.assign(new EventTarget(), { localStorage: globalThis.localStorage, location: { href: 'http://localhost:3000/alumno/calificaciones' } }) });
   let r!: ReactTestRenderer;
   await act(async () => {
     r = create(<AppRouterContext.Provider value={router}><PathnameContext.Provider value="/alumno/calificaciones">
-      <AlumnoLayout><p>Contenido</p></AlumnoLayout>
+      <AuthContext.Provider value={studentSession}><AlumnoLayout><p>Contenido</p></AlumnoLayout></AuthContext.Provider>
     </PathnameContext.Provider></AppRouterContext.Provider>);
   });
+  await wait(50);
   try {
     assert.deepEqual(notices(r), [ALUMNO]);
     assert.match(text(r.root), /Contenido/);
-    assert.deepEqual(requests, []);
-  } finally { await act(async () => { r.unmount(); }); }
+    // The only request is the real student profile (GET /v1/student/me); it fails here, so the header says «Sin dato».
+    // The demo-data routes of src/lib/api.ts are never called.
+    assert.deepEqual(requests, ['axios /v1/student/me']);
+    assert.match(text(r.root), /Sin dato/);
+    assert.doesNotMatch(text(r.root), /Ana Torres/);
+  } finally {
+    await act(async () => { r.unmount(); });
+    if (hadWindow) Object.defineProperty(globalThis, 'window', hadWindow); else Reflect.deleteProperty(globalThis, 'window');
+  }
 });
 
 test('NEXT_PUBLIC_USE_MOCKS=false: a student view loads demo data without requests', async () => {

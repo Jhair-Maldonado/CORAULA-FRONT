@@ -2,4 +2,4 @@
 export * from './AlumnoHeader';
 export * from './AlumnoFilterBar';
 export * from './TendenciaProgresoChart';
-export * from './AlumnoSessionContext';
+export * from './StudentProfileContext';

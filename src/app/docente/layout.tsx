@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { usePathname } from 'next/navigation';
 import { AuthGuard } from '@/components/AuthGuard';
 import { DocenteSidebar } from './components/DocenteSidebar';
 import { DocenteNavbar } from './components/DocenteNavbar';
@@ -47,13 +46,6 @@ export default function DocenteLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const isLoginPage = pathname === '/docente/login';
-
-  if (isLoginPage) {
-    return <>{children}</>;
-  }
-
   return (
     <AuthGuard allowedRoles={['DOCENTE']}>
       <DocenteSessionProvider>

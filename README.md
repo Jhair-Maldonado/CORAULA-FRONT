@@ -53,7 +53,7 @@ cp .env.example .env.local
 - En Vercel (producción), `next.config.mjs` detiene el build si `NEXT_PUBLIC_APP_MODE` no es `PRODUCTION`.
 
 ### Modo MOCK
-- Usuarios de demostración (cualquier contraseña de 8 o más caracteres): `admin@demo.local` (ADMINISTRADOR), `secretaria@demo.local` (DIRECTIVO), `docente@demo.local` (DOCENTE) y `padre@demo.local` (APODERADO). `bloqueado@demo.local` responde 423; cualquier otro correo, 401. Estos usuarios solo existen en `MOCK`: fuera de ese modo el adaptador no se incluye en el bundle.
+- Usuarios de demostración (cualquier contraseña de 8 o más caracteres): `admin@demo.local` (ADMINISTRADOR), `secretaria@demo.local` (DIRECTIVO), `docente@demo.local` (DOCENTE), `padre@demo.local` (APODERADO) y `alumno@demo.local` (ESTUDIANTE; su perfil sale de `GET /v1/student/me`). `bloqueado@demo.local` responde 423; cualquier otro correo, 401. Estos usuarios solo existen en `MOCK`: fuera de ese modo el adaptador no se incluye en el bundle.
 - El token es un JWT sin firma válida, decodificable, con el rol y una expiración de 8 h.
 - Datos sintéticos y coherentes entre portales (el mismo alumno aparece en gestión, docente y apoderado). Las escrituras se aplican en memoria y se pierden al recargar la página.
 - Una ruta sin datos simulados responde 501 `MOCK_NOT_IMPLEMENTED` y deja un aviso en la consola con la ruta.

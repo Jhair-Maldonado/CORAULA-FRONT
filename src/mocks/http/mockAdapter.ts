@@ -8,8 +8,9 @@ import { createMockStore, type MockStore } from './fixtures/shared';
 import { adminRoutes } from './fixtures/admin';
 import { docenteRoutes } from './fixtures/docente';
 import { apoderadoRoutes } from './fixtures/apoderado';
+import { alumnoRoutes } from './fixtures/alumno';
 
-export const MOCK_ROUTES: readonly MockRoute[] = [...authRoutes, ...adminRoutes, ...docenteRoutes, ...apoderadoRoutes];
+export const MOCK_ROUTES: readonly MockRoute[] = [...authRoutes, ...adminRoutes, ...docenteRoutes, ...apoderadoRoutes, ...alumnoRoutes];
 export const DEFAULT_MOCK_LATENCY_MS = 300;
 
 interface CompiledRoute extends MockRoute { regex: RegExp; names: string[] }

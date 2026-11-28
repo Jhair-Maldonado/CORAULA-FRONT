@@ -80,7 +80,7 @@ async function asRole<T>(email: string, run: () => Promise<T>): Promise<T> {
 
 test('login por rol: JWT decodificable con rol y expiración a 8 h; 401 y 423', async () => {
   const api = client(fresh());
-  for (const [email, role] of [['admin@demo.local', 'ADMINISTRADOR'], ['secretaria@demo.local', 'DIRECTIVO'], ['docente@demo.local', 'DOCENTE'], ['padre@demo.local', 'APODERADO']]) {
+  for (const [email, role] of [['admin@demo.local', 'ADMINISTRADOR'], ['secretaria@demo.local', 'DIRECTIVO'], ['docente@demo.local', 'DOCENTE'], ['padre@demo.local', 'APODERADO'], ['alumno@demo.local', 'ESTUDIANTE']]) {
     const data = await loginAs(api, email);
     assert.equal(data.role, role);
     assert.equal(data.passwordChangeRequired, false);

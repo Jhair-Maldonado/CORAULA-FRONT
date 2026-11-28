@@ -27,7 +27,7 @@ const ROLES = [
   {
     id: 'docente',
     name: 'Docente',
-    path: '/docente/login',
+    path: '/docente',
     desc: 'Registro de asistencia, publicaciones, calificaciones y aula virtual.',
     badge: 'Docencia',
     color: 'bg-blue-700 text-white',

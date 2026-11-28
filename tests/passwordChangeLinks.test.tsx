@@ -13,7 +13,8 @@ import { PadreSidebar } from '../layout/padre/padreSidebar';
 import { PadreProvider } from '../src/components/padres/PadreContext';
 import { AlumnoSidebar } from '../layout/alumno/alumnoSidebar';
 import { AlumnoNavbar } from '../layout/alumno/alumnoNavbar';
-import { AlumnoSessionProvider } from '../src/components/alumno/AlumnoSessionContext';
+import { StudentProfileProvider } from '../src/components/alumno/StudentProfileContext';
+import { studentProfileService } from '../src/services/student/studentProfileService';
 import httpClient from '../src/services/httpClient';
 import { teacherProfileService } from '../src/services/teacher/teacherProfileService';
 import { teacherCoursesService } from '../src/services/teacher/teacherCoursesService';
@@ -33,10 +34,9 @@ function auth(role: BackendRole | null, status: Auth['status'] = 'authenticated'
 
 const router: AppRouterInstance = { back() {}, forward() {}, refresh() {}, prefetch() {}, push() {}, replace() {}, bfcacheId: 'password-links-test' };
 
-async function render(node: React.ReactNode, options: { session: Auth; pathname: string; alumnoMock?: boolean }, check: (r: ReactTestRenderer) => void) {
+async function render(node: React.ReactNode, options: { session: Auth; pathname: string}, check: (r: ReactTestRenderer) => void) {
   const globals = ['window', 'localStorage', 'self'].map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const);
   const values = new Map<string, string>();
-  if (options.alumnoMock) values.set('coraula_alumno_session', JSON.stringify({ id: 'alu-1', nombre: 'Alumno Simulado', nombres: 'Alumno', apellidos: 'Simulado', usuario: 'sim', grado: '5to', seccion: 'B', codigoEstudiante: 'X-1' }));
   const storage = { getItem: (k: string) => values.get(k) ?? null, setItem: (k: string, v: string) => { values.set(k, v); }, removeItem: (k: string) => { values.delete(k); } };
   Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
   Object.defineProperty(globalThis, 'window', { configurable: true, value: Object.assign(new EventTarget(), { localStorage: storage }) });
@@ -70,6 +70,7 @@ async function render(node: React.ReactNode, options: { session: Auth; pathname:
   }
 }
 
+const text = (node: ReactTestInstance): string => node.children.map(c => (typeof c === 'string' ? c : text(c))).join('');
 const passwordLinks = (r: ReactTestRenderer): ReactTestInstance[] =>
   r.root.findAll(node => node.type === 'a' && node.props.href === CHANGE_PASSWORD_ROUTE);
 const logoutButtons = (r: ReactTestRenderer) =>
@@ -107,15 +108,23 @@ test('guardian sidebar links to the password change page', async () => {
   await render(<PadreProvider><PadreSidebar /></PadreProvider>, { session: auth('APODERADO'), pathname: '/padre' }, r => assertLink(r));
 });
 
-test('student menus link to the password change page only with a real ESTUDIANTE session', async () => {
-  for (const menu of [<AlumnoSidebar key="s" />, <AlumnoNavbar key="n" />]) {
-    await render(<AlumnoSessionProvider>{menu}</AlumnoSessionProvider>, { session: auth('ESTUDIANTE'), pathname: '/alumno', alumnoMock: true }, r => assertLink(r));
-    // Simulated alumno session without a backend account: no password change.
-    await render(<AlumnoSessionProvider>{menu}</AlumnoSessionProvider>, { session: auth(null, 'unauthenticated'), pathname: '/alumno', alumnoMock: true }, r => {
-      assert.equal(passwordLinks(r).length, 0);
-      assert.ok(logoutButtons(r).length > 0);
-    });
-    // Another role's JWT does not count as a student session.
-    await render(<AlumnoSessionProvider>{menu}</AlumnoSessionProvider>, { session: auth('DOCENTE'), pathname: '/alumno', alumnoMock: true }, r => assert.equal(passwordLinks(r).length, 0));
+test('student menus always link to the password change page and show the profile from /student/me', async () => {
+  const original = studentProfileService.getMe;
+  studentProfileService.getMe = async () => ({
+    studentId: 1, studentCode: 'C26000001', fullName: 'Luz Prueba Demo', academicPeriodId: 1, academicPeriodName: 'Año escolar 2026',
+    sectionId: 2, sectionName: 'B', level: 'SECONDARY', grade: 5,
+  });
+  try {
+    for (const menu of [<AlumnoSidebar key="s" />, <AlumnoNavbar key="n" />]) {
+      await render(<StudentProfileProvider>{menu}</StudentProfileProvider>, { session: auth('ESTUDIANTE'), pathname: '/alumno' }, r => {
+        assertLink(r);
+        // The sidebar shows the name in the avatar tooltip; the navbar prints it.
+        const named = r.root.findAll(n => typeof n.type === 'string' && (text(n).includes('Luz Prueba Demo') || String(n.props.title ?? '').includes('Luz Prueba Demo')));
+        assert.ok(named.length > 0, 'the profile name from /student/me is shown');
+        assert.ok(logoutButtons(r).length > 0);
+      });
+    }
+  } finally {
+    studentProfileService.getMe = original;
   }
 });

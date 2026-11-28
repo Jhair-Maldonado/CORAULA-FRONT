@@ -7,6 +7,7 @@ export const MOCK_USERS: Readonly<Record<string, BackendRole>> = {
   'secretaria@demo.local': 'DIRECTIVO',
   'docente@demo.local': 'DOCENTE',
   'padre@demo.local': 'APODERADO',
+  'alumno@demo.local': 'ESTUDIANTE',
 };
 export const MOCK_LOCKED_USER = 'bloqueado@demo.local';
 export const MOCK_MIN_PASSWORD = 8;
@@ -61,7 +62,7 @@ export const authRoutes: MockRoute[] = [
   {
     method: 'POST',
     pattern: '/v1/auth/change-password',
-    roles: ['ADMINISTRADOR', 'DIRECTIVO', 'DOCENTE', 'APODERADO'],
+    roles: ['ADMINISTRADOR', 'DIRECTIVO', 'DOCENTE', 'APODERADO', 'ESTUDIANTE'],
     handler: ({ body, session }) => {
       const { newPassword } = asObject(body);
       if (typeof newPassword !== 'string' || newPassword.length < MOCK_MIN_PASSWORD) {

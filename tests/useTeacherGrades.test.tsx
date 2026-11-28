@@ -293,3 +293,33 @@ test('resultsRevision (#45) advances on sheet reads and after a save with accept
     } finally { await h.unmount(); }
   });
 });
+
+async function harnessInitial(initialBimesterId: string, statusOf40: 'ABIERTO' | 'ANULADO' = 'ABIERTO') {
+  let latest!: ReturnType<typeof useTeacherGrades>;
+  function Host() { latest = useTeacherGrades(10, 20, { initialBimesterId }); return null; }
+  let renderer!: ReactTestRenderer;
+  const bimester40 = { ...sheet(40).bimester, status: statusOf40 };
+  await withService({ getBimesters: async () => [bimester40, sheet(41).bimester] }, async () => {
+    await act(async () => { renderer = create(<Host />); });
+  });
+  return { get current() { return latest; }, unmount: () => act(async () => { renderer.unmount(); }) };
+}
+
+test('initialBimesterId: a listed open bimester loads its sheet without selectBimester', async () => {
+  const h = await harnessInitial('40');
+  try {
+    assert.equal(h.current.bimester?.id, 40);
+    assert.ok(h.current.evaluation, 'planilla cargada');
+  } finally { await h.unmount(); }
+});
+
+test('initialBimesterId: an unknown or ANULADO bimester stays unselected and reads no sheet', async () => {
+  for (const [id, status] of [['999', 'ABIERTO'], ['40', 'ANULADO']] as const) {
+    const h = await harnessInitial(id, status);
+    try {
+      assert.equal(h.current.bimester, undefined);
+      assert.equal(h.current.evaluation, undefined);
+      assert.equal(h.current.evaluationLoading, false);
+    } finally { await h.unmount(); }
+  }
+});

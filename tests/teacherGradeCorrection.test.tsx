@@ -246,7 +246,8 @@ test('modal: while busy every control is disabled', async () => {
 
 // ---------- Full notes view ----------
 
-const router = { push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} } as unknown as AppRouterInstance;
+const replaces: string[] = [];
+const router = { push() {}, replace(url: string) { replaces.push(url); }, refresh() {}, back() {}, forward() {}, prefetch() {} } as unknown as AppRouterInstance;
 const course = { sectionCourseId: 10, assignmentId: 1, courseId: 20, code: 'COM', name: 'Comunicación', level: 'PRIMARY', area: 'Comunicación', weeklyHours: 4, sectionId: 5, grade: 3, sectionName: 'A', studentCount: 2 };
 const teacher = { id: 300, personId: 1, dni: '00000000', firstNames: 'Docente', paternalLastName: 'Prueba', maternalLastName: null, fullName: 'Docente Prueba', phone: null, specialty: null, active: true };
 function viewRoutes(sheet: () => Reply, patch: () => Reply = () => ({ data: saved() })): Route {
@@ -266,8 +267,8 @@ async function notesView(run: (h: { renderer: ReactTestRenderer; shown: () => st
   const restore = withDom();
   let renderer!: ReactTestRenderer;
   try {
-    await act(async () => { renderer = create(<AppRouterContext.Provider value={router}><DocenteSessionProvider><VistaNotasDocente /></DocenteSessionProvider></AppRouterContext.Provider>); });
-    await act(async () => { renderer.root.findByProps({ 'aria-label': 'Bimestre' }).props.onChange({ target: { value: '40' } }); });
+    await act(async () => { renderer = create(<AppRouterContext.Provider value={router}><DocenteSessionProvider><VistaNotasDocente sectionCourseId={10} /></DocenteSessionProvider></AppRouterContext.Provider>); });
+    await act(async () => { renderer.root.findAllByProps({ role: 'radio' }).find(b => text(b).startsWith('Bimestre 1'))!.props.onClick(); });
     await run({ renderer, shown: () => text(renderer.root), edit: () => renderer.root.findAllByType('button').find(b => b.props['aria-label'] === 'Editar Comprensión, Ana Pérez') });
   } finally {
     if (renderer) await act(async () => { renderer.unmount(); });
@@ -331,5 +332,77 @@ test('notes view: expired window shows GRADE_WINDOW_EXPIRED_MESSAGE and hides «
 test('notes view: a bimester not ABIERTO never offers «Editar»', async () => {
   await withAdapter(viewRoutes(() => ({ data: sheetWire({ status: 'EN_REVISION' }) })), async () => {
     await notesView(async h => { assert.equal(h.edit(), undefined); });
+  });
+});
+
+async function renderNotes(props: { sectionCourseId: number; initialBimesterId?: string }, run: (h: { renderer: ReactTestRenderer; shown: () => string }) => Promise<void>) {
+  const restore = withDom();
+  let renderer!: ReactTestRenderer;
+  try {
+    await act(async () => { renderer = create(<AppRouterContext.Provider value={router}><DocenteSessionProvider><VistaNotasDocente {...props} /></DocenteSessionProvider></AppRouterContext.Provider>); });
+    await run({ renderer, shown: () => text(renderer.root) });
+  } finally {
+    if (renderer) await act(async () => { renderer.unmount(); });
+    restore();
+  }
+}
+
+test('notes view: a section course outside the session shows the notice, links to the catalog and never reads students', async () => {
+  await withAdapter(viewRoutes(() => ({ data: sheetWire() })), async calls => {
+    await renderNotes({ sectionCourseId: 99, initialBimesterId: '40' }, async h => {
+      assert.match(h.shown(), /Este salón no está entre tus cursos asignados/);
+      const link = h.renderer.root.findAllByProps({ href: '/docente/notas?bimestre=40' });
+      assert.ok(link.length > 0, 'enlace al catálogo con el bimestre');
+      assert.equal(calls.filter(c => (c.url ?? '').includes('/students')).length, 0);
+      assert.equal(calls.filter(c => (c.url ?? '').includes('/bimesters')).length, 0);
+      assert.equal(h.renderer.root.findAllByProps({ role: 'radiogroup' }).length, 0);
+    });
+  });
+});
+
+test('notes view: bimester tabs use translated labels, never the raw enum, and initialBimesterId selects without a click', async () => {
+  await withAdapter(viewRoutes(() => ({ data: sheetWire({ status: 'EN_REVISION' }) })), async () => {
+    await renderNotes({ sectionCourseId: 10, initialBimesterId: '40' }, async h => {
+      const group = h.renderer.root.findByProps({ role: 'radiogroup' });
+      assert.equal(group.props['aria-label'], 'Bimestre');
+      const tab = h.renderer.root.findAllByProps({ role: 'radio' })[0];
+      assert.equal(tab.props['aria-checked'], true);
+      assert.match(text(tab), /Bimestre 1/);
+      assert.doesNotMatch(text(group), /EN_REVISION|ABIERTO|ANULADO/);
+      assert.match(h.shown(), /Estudiante \(2\)/);
+      assert.match(h.shown(), /Auto/);
+      assert.match(h.shown(), /Comunicación — 3° Grado "A"/);
+      assert.doesNotMatch(h.shown(), /Grado \/ Sección/);
+    });
+  });
+});
+
+test('notes view: an ANULADO bimester tab is disabled', async () => {
+  const route = viewRoutes(() => ({ data: sheetWire() }));
+  await withAdapter(config => config.url === '/v1/teacher/courses/10/bimesters' ? { data: [bimesterWire('ANULADO')] } : route(config), async () => {
+    await renderNotes({ sectionCourseId: 10, initialBimesterId: '40' }, async h => {
+      const tab = h.renderer.root.findAllByProps({ role: 'radio' })[0];
+      assert.equal(tab.props.disabled, true);
+      assert.equal(tab.props['aria-checked'], false);
+      assert.match(text(tab), /Anulado/);
+    });
+  });
+});
+
+test('notes view: changing the bimester tab writes ?bimestre= without scroll; «Ver Asistencia» carries the course; «Volver» uses the selected bimester', async () => {
+  replaces.length = 0;
+  await withAdapter(viewRoutes(() => ({ data: sheetWire() })), async () => {
+    await notesView(async h => {
+      assert.deepEqual(replaces, ['/docente/notas/salon/10?bimestre=40']);
+      const hrefs = h.renderer.root.findAllByType('a').map(a => a.props.href);
+      assert.ok(hrefs.includes('/docente/asistencia?curso=10'));
+      assert.ok(hrefs.includes('/docente/notas?bimestre=40'));
+    });
+  });
+  // Sin bimestre elegido «Volver» no inventa uno aunque llegue initialBimesterId inexistente.
+  await withAdapter(viewRoutes(() => ({ data: sheetWire() })), async () => {
+    await renderNotes({ sectionCourseId: 10, initialBimesterId: '999' }, async h => {
+      assert.ok(h.renderer.root.findAllByType('a').map(a => a.props.href).includes('/docente/notas'));
+    });
   });
 });

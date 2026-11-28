@@ -1,85 +1,43 @@
 'use client';
 
-// Incidencias del hijo activo para el apoderado (FRONT #59, BACK #117). Solo lectura.
-import { useEffect, useState } from 'react';
+// Incidencias del hijo activo para el apoderado (FRONT #59 y #163, BACK #117). Solo lectura.
+import { useCallback, useState } from 'react';
+import { AlertCircle } from 'lucide-react';
 import { usePadre } from '@/components/padres/PadreContext';
-import { attendanceRangeError } from '@/services/padres/guardianAttendanceService';
-import {
-  GUARDIAN_INCIDENTS_PAGE_SIZE, formatLimaDateTime, guardianIncidentsErrorMessage, guardianIncidentsService, incidentsDefaultRange, limaDay,
-} from '@/services/padres/guardianIncidentsService';
-import type { GuardianIncidentSeverity, GuardianIncidentsPage } from '@/types/guardianIncidentsApi';
+import { useGuardianIncidents } from '@/hooks/useGuardianIncidents';
+import type { IncidentView } from '@/adapters/guardianIncidentsAdapter';
+import { IncidenciaCard } from './component/incidenciaCard';
+import { IncidenciasFiltros } from './component/incidenciasFiltros';
+import { IncidenciasKpiBanner } from './component/incidenciasKpiBanner';
+import { ModalDetalleIncidencia } from './component/modalDetalleIncidencia';
 
 export const INCIDENTS_EMPTY_MESSAGE = 'No hay incidencias registradas en este periodo';
+export const INCIDENTS_TRUNCATED_MESSAGE = 'Conteo de las primeras 100 incidencias del rango. Acota las fechas para ver el resto.';
 
-const SEVERITY: Record<GuardianIncidentSeverity, { label: string; className: string }> = {
-  LEVE: { label: 'Leve', className: 'bg-sky-50 text-sky-800 border-sky-200' },
-  MODERADA: { label: 'Moderada', className: 'bg-amber-50 text-amber-800 border-amber-200' },
-  GRAVE: { label: 'Grave', className: 'bg-rose-50 text-rose-800 border-rose-200' },
-};
-
-const pagerButton = 'rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-neutral disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
-
-export function ListaIncidencias({ data, onPageChange }: { data: GuardianIncidentsPage; onPageChange: (page: number) => void }) {
-  const totalPages = Math.max(data.totalPages, 1);
+function IncidenciasSkeleton() {
   return (
-    <>
-      <ul className="space-y-3" aria-label="Incidencias">
-        {data.content.map(incident => {
-          const severity = SEVERITY[incident.severity];
-          return (
-            <li key={incident.id} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <time dateTime={incident.occurredAt} className="text-sm font-bold text-ink">{formatLimaDateTime(incident.occurredAt)}</time>
-                <span className={`rounded-full border px-3 py-0.5 text-[11px] font-bold ${severity.className}`}>Gravedad: {severity.label}</span>
-              </div>
-              <p className="mt-1 text-xs font-semibold text-muted">Curso: {incident.courseName}</p>
-              <p className="mt-2 whitespace-pre-line break-words text-sm text-ink">{incident.description}</p>
-            </li>
-          );
-        })}
-      </ul>
-      {data.totalPages > 1 && (
-        <nav aria-label="Paginación de incidencias" className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
-          <span>Página {data.page + 1} de {totalPages} · {data.totalElements} incidencias</span>
-          <div className="flex gap-2">
-            <button type="button" className={pagerButton} disabled={data.page <= 0} onClick={() => onPageChange(data.page - 1)}>Anterior</button>
-            <button type="button" className={pagerButton} disabled={data.page + 1 >= data.totalPages} onClick={() => onPageChange(data.page + 1)}>Siguiente</button>
+    <div className="space-y-3" role="status">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="animate-pulse rounded-xl border border-line bg-white p-4">
+          <div className="h-4 w-36 rounded bg-line" />
+          <div className="mt-3 space-y-2">
+            <div className="h-3.5 w-full rounded bg-line" />
+            <div className="h-3.5 w-4/5 rounded bg-line" />
           </div>
-        </nav>
-      )}
-    </>
+        </div>
+      ))}
+      <span className="sr-only">Cargando incidencias…</span>
+    </div>
   );
 }
 
-type Load = { key: string; data?: GuardianIncidentsPage; error?: string };
-
 export default function VistaIncidencias() {
   const { hijoActivo: hijo, isLoading: padreLoading, error: padreError, refreshPadreData } = usePadre();
-  const [today] = useState(limaDay);
-  const [range, setRange] = useState(() => incidentsDefaultRange(today));
-  const [page, setPage] = useState(0);
-  const [revision, setRevision] = useState(0);
-  const [result, setResult] = useState<Load>();
-  const studentId = hijo?.id ?? null;
-  const rangeError = range.to > today ? 'La fecha final no puede ser posterior a hoy.' : attendanceRangeError(range.from, range.to);
-  const key = studentId && !rangeError ? JSON.stringify([studentId, range.from, range.to, page, revision]) : null;
-
-  useEffect(() => {
-    if (!key || !studentId) return;
-    const abort = new AbortController();
-    guardianIncidentsService.list(studentId, range.from, range.to, page, GUARDIAN_INCIDENTS_PAGE_SIZE, abort.signal)
-      .then(data => { if (!abort.signal.aborted) setResult({ key, data }); })
-      .catch(error => { if (!abort.signal.aborted) setResult({ key, error: guardianIncidentsErrorMessage(error) }); });
-    return () => abort.abort();
-  }, [key, studentId, range.from, range.to, page]);
-
-  // Otro hijo o un rango nuevo vuelven a la primera página.
-  const [lastScope, setLastScope] = useState(studentId);
-  if (lastScope !== studentId) { setLastScope(studentId); setPage(0); }
-  const changeRange = (next: { from: string; to: string }) => { setRange(next); setPage(0); };
-
-  const loading = !!key && result?.key !== key;
-  const current = loading ? undefined : result;
+  const incidents = useGuardianIncidents(hijo?.id ?? null);
+  const [detail, setDetail] = useState<IncidentView | null>(null);
+  const closeDetail = useCallback(() => setDetail(null), []);
+  const { filters, view } = incidents;
+  const childName = hijo?.nombres || hijo?.nombreCompleto || 'El estudiante';
 
   return (
     <div className="mx-auto max-w-5xl py-4">
@@ -95,29 +53,47 @@ export default function VistaIncidencias() {
       ) : (
         <>
           <p className="mt-4 text-sm font-semibold text-ink">{hijo.nombreCompleto}</p>
-          <div className="my-5 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-white p-4">
-            <label className="text-xs font-semibold text-muted">
-              Desde
-              <input aria-label="Desde" type="date" value={range.from} max={range.to || today} onChange={e => changeRange({ ...range, from: e.target.value })} className="mt-1 block rounded-lg border border-line p-2 text-ink" />
-            </label>
-            <label className="text-xs font-semibold text-muted">
-              Hasta
-              <input aria-label="Hasta" type="date" value={range.to} min={range.from} max={today} onChange={e => changeRange({ ...range, to: e.target.value })} className="mt-1 block rounded-lg border border-line p-2 text-ink" />
-            </label>
-            <button type="button" onClick={() => setRevision(n => n + 1)} disabled={loading || !!rangeError} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Actualizar</button>
-            <p className="w-full text-[11px] text-muted">Rango de hasta 92 días.</p>
-          </div>
-          {rangeError ? <p role="alert" className="text-sm text-accent">{rangeError}</p>
-            : loading ? <p role="status" className="text-sm text-muted">Cargando incidencias…</p>
-            : current?.error ? (
-              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                <p>{current.error}</p>
-                <button type="button" className="mt-2 font-semibold underline" onClick={() => setRevision(n => n + 1)}>Reintentar</button>
+          <IncidenciasFiltros
+            range={{ from: filters.from, to: filters.to }}
+            today={incidents.today}
+            severity={filters.severity}
+            loading={incidents.loading}
+            rangeError={incidents.rangeError}
+            onRangeChange={incidents.setRange}
+            onSeverityChange={incidents.setSeverity}
+            onReload={incidents.reload}
+            onReset={incidents.resetFilters}
+          />
+          {incidents.rangeError ? <p role="alert" className="text-sm font-semibold text-accent">{incidents.rangeError}</p>
+            : incidents.loading ? <IncidenciasSkeleton />
+            : incidents.error ? (
+              <div role="alert" className="flex items-start gap-2 rounded-xl border border-accent/30 bg-accent-soft p-4 text-sm text-accent">
+                <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <div>
+                  <p className="font-semibold">{incidents.error}</p>
+                  <button type="button" className="mt-2 text-xs font-bold underline focus-visible:outline-2 focus-visible:outline-accent" onClick={incidents.reload}>Reintentar</button>
+                </div>
               </div>
             )
-            : current?.data && current.data.totalElements === 0 && current.data.content.length === 0
-              ? <p role="status" className="rounded-xl border border-line bg-white p-6 text-sm text-muted">{INCIDENTS_EMPTY_MESSAGE}</p>
-            : current?.data ? <ListaIncidencias data={current.data} onPageChange={setPage} /> : null}
+            : view ? (
+              <>
+                <IncidenciasKpiBanner kpis={view.kpis} />
+                {view.truncated && <p role="status" className="mb-4 rounded-xl border border-warning-ink/30 bg-white p-3 text-xs font-semibold text-warning-ink">{INCIDENTS_TRUNCATED_MESSAGE}</p>}
+                {view.kpis.total === 0 && view.items.length === 0
+                  ? <p role="status" className="rounded-xl border border-line bg-white p-6 text-center text-sm text-muted">{INCIDENTS_EMPTY_MESSAGE} para {childName}.</p>
+                  : view.visible.length === 0
+                    ? <p role="status" className="rounded-xl border border-line bg-white p-6 text-center text-sm text-muted">No hay incidencias con esa gravedad en el rango. Usa «Limpiar filtros» para ver todas.</p>
+                    : (
+                      <>
+                        <p className="mb-3 text-xs text-muted">Mostrando {view.visible.length} de {view.items.length} incidencias</p>
+                        <ul className="space-y-3" aria-label="Incidencias">
+                          {view.visible.map(item => <IncidenciaCard key={item.id} incident={item} onSelect={setDetail} />)}
+                        </ul>
+                      </>
+                    )}
+              </>
+            ) : null}
+          <ModalDetalleIncidencia incident={detail} onClose={closeDetail} />
         </>
       )}
     </div>

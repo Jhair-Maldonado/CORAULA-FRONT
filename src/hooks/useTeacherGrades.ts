@@ -10,12 +10,22 @@ import { adaptCriterionGradesSheet, prepareFirstGrades, registerFirstGrades } fr
 
 type Result<T> = { key: string; data?: T; error?: string };
 
-// Mounted with a sectionCourseId key by the view: switching course cancels reads
-// and discards all selection/drafts. No grading request survives in the next UI.
-export function useTeacherGrades(sectionCourseId: number | undefined, courseId: number | undefined) {
+/**
+ * Estado y acciones de la planilla de notas de un curso-sección.
+ *
+ * La vista lo monta con una clave por sectionCourseId: cambiar de curso cancela las lecturas y
+ * descarta selección y borradores; ninguna petición de notas sobrevive al contexto siguiente.
+ *
+ * @param sectionCourseId curso-sección a consultar (sin valor, el hook no hace peticiones).
+ * @param courseId curso académico, requerido para leer la planilla.
+ * @param options.initialBimesterId bimestre preseleccionado (p. ej. desde `?bimestre=`). Solo se
+ *   usa si existe en la lista cargada y no está ANULADO; en otro caso queda sin selección.
+ *   Es un valor inicial: no se vuelve a leer en renders posteriores.
+ */
+export function useTeacherGrades(sectionCourseId: number | undefined, courseId: number | undefined, options: { initialBimesterId?: string } = {}) {
   const [bimesterRevision, setBimesterRevision] = useState(0);
   const [sheetRevision, setSheetRevision] = useState(0);
-  const [selectedBimesterId, setSelectedBimesterId] = useState('');
+  const [selectedBimesterId, setSelectedBimesterId] = useState(options.initialBimesterId ?? '');
   const [bimesterResult, setBimesterResult] = useState<Result<Bimester[]> | null>(null);
   const [sheetResult, setSheetResult] = useState<Result<{ evaluation: TeacherEvaluationData; bimester: Bimester; gradeWindow: GradeWindow | null }> | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -34,7 +44,8 @@ export function useTeacherGrades(sectionCourseId: number | undefined, courseId: 
   const bimestersLoading = !!sectionCourseId && bimesterResult?.key !== bimesterKey;
   const bimesters = !bimestersLoading && bimesterResult?.key === bimesterKey ? bimesterResult.data ?? [] : [];
   const bimestersError = !bimestersLoading ? bimesterResult?.error : undefined;
-  const selected = bimesters.find(b => String(b.id) === selectedBimesterId);
+  // A preselected (initial) bimester that arrives ANULADO is never selected.
+  const selected = bimesters.find(b => String(b.id) === selectedBimesterId && b.status !== 'ANULADO');
   const sheetKey = JSON.stringify([sectionCourseId, selected?.id, selected?.academicPeriodId, sheetRevision]);
   const evaluationLoading = !!selected && sheetResult?.key !== sheetKey;
   const current = selected && sheetResult?.key === sheetKey ? sheetResult.data : undefined;

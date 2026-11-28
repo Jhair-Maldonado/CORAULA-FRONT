@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { usePadre } from '@/components/padres/PadreContext';
 import { attendanceRangeError, getGuardianAttendance } from '@/services/padres/guardianAttendanceService';
 import type { GuardianAttendanceRecord, GuardianAttendanceResponse } from '@/types/guardianAttendanceApi';
+import { DiaAsistenciaCard } from './component/diaAsistenciaCard';
+import { ResumenAsistencia } from './component/resumenAsistencia';
 
 function localDate(date: Date): string {
   const year = date.getFullYear();
@@ -20,12 +21,6 @@ function initialRange(): { from: string; to: string } {
   return { from: localDate(start), to: localDate(today) };
 }
 
-const STATUS_LABEL: Record<GuardianAttendanceRecord['status'], string> = {
-  PRESENTE: 'Presente',
-  TARDANZA: 'Tardanza',
-  INASISTENCIA: 'Inasistencia',
-};
-
 export function GuardianAttendanceReport({ data }: { data: GuardianAttendanceResponse }) {
   const days = useMemo(() => {
     const grouped = new Map<string, GuardianAttendanceRecord[]>();
@@ -39,65 +34,14 @@ export function GuardianAttendanceReport({ data }: { data: GuardianAttendanceRes
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 mb-6">
-        {([
-          ['Sesiones', data.summary.total],
-          ['Presentes', data.summary.present],
-          ['Tardanzas', data.summary.late],
-          ['Inasistencias', data.summary.absent],
-        ] as const).map(([label, count]) => (
-          <div key={label} className="rounded-xl border border-line bg-white p-4">
-            <p className="text-xs font-semibold text-muted">{label}</p>
-            <p className="text-2xl font-black text-ink">{count}</p>
-          </div>
-        ))}
-      </div>
+      <ResumenAsistencia summary={data.summary} />
       {days.length === 0 ? (
         <p className="rounded-xl border border-line bg-white p-6 text-sm text-muted">
           No hay sesiones con asistencia registrada en este rango.
         </p>
       ) : (
         <div className="space-y-4">
-          {days.map(([date, records]) => (
-            <section key={date} className="rounded-xl border border-line bg-white p-4">
-              <h2 className="mb-3 text-sm font-bold text-ink">{date}</h2>
-              <ul className="divide-y divide-line">
-                {records.map((record, index) => {
-                  const canJustify = (record.status === 'INASISTENCIA' || record.status === 'TARDANZA') && !record.justified
-                    && (!record.justification || record.justification.status === 'RECHAZADA'); // tras un rechazo cabe otra solicitud dentro del plazo
-                  return (
-                    <li key={`${record.date}-${record.startTime}-${record.courseName}-${index}`} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-                    <span className="text-ink">{record.courseName} · {record.startTime}–{record.endTime}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="font-semibold text-ink">
-                      {STATUS_LABEL[record.status] ?? record.status}
-                      {record.justification ? ` · Justificación ${record.justification.status.toLowerCase()}` : ''}
-                        </span>
-                        {canJustify && (
-                          <Link
-                            href={`/padre/justificacion?studentId=${data.studentId}&attendanceId=${record.attendanceId}&date=${encodeURIComponent(record.date)}&course=${encodeURIComponent(record.courseName)}&status=${encodeURIComponent(record.status)}`}
-                            prefetch={false}
-                            className="inline-flex items-center rounded-lg bg-accent px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-accent/90"
-                          >
-                            Justificar
-                          </Link>
-                        )}
-                        {record.justification && (
-                          <Link
-                            href={`/padre/justificacion?studentId=${data.studentId}&justificationId=${record.justification.id}`}
-                            prefetch={false}
-                            className="inline-flex items-center text-xs font-medium text-accent underline hover:text-accent/80"
-                          >
-                            Ver justificación
-                          </Link>
-                        )}
-                      </div>
-                  </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
+          {days.map(([date, records]) => <DiaAsistenciaCard key={date} studentId={data.studentId} date={date} records={records} />)}
         </div>
       )}
     </>

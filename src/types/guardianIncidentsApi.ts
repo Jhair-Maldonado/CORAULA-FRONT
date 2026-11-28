@@ -1,6 +1,9 @@
 // Contrato: docs/guardian-incidents.md (#117). GET /v1/guardian/students/{studentId}/incidents?from&to&page&size
 export type GuardianIncidentSeverity = 'LEVE' | 'MODERADA' | 'GRAVE';
 
+/** Filtro de gravedad de la vista; «TODAS» no es un valor del contrato. */
+export type GuardianIncidentSeverityFilter = 'TODAS' | GuardianIncidentSeverity;
+
 export interface GuardianIncident {
   id: number;
   /** ISO-8601 UTC. */

@@ -43,11 +43,11 @@ test('consulta asistencia con el contrato real y muestra el resumen y sesiones d
     let renderer!: ReturnType<typeof create>;
     act(() => { renderer = create(<GuardianAttendanceReport data={data} />); });
     const output = text(renderer.root);
-    assert.match(output, /Presentes1/);
+    assert.match(output, /Asistencias150%/); assert.match(output, /Total de sesiones2registradas/);
     assert.match(output, /Inasistencias1/);
     assert.match(output, /Matemática · 08:00–09:30/);
     assert.match(output, /Historia · 10:00–11:30/);
-    assert.ok(output.indexOf('2026-10-06') < output.indexOf('2026-10-05'));
+    assert.ok(output.indexOf('martes, 6 de octubre de 2026') < output.indexOf('lunes, 5 de octubre de 2026'), 'fechas en es-PE, la más reciente primero');
     // «Justificar» solo en la inasistencia; el enlace lleva el hijo y no se precarga.
     const links = renderer.root.findAll(n => typeof n.props.href === 'string' && n.props.href.startsWith('/padre/justificacion'));
     const hrefs = [...new Set(links.map(n => n.props.href as string))];
@@ -88,4 +88,39 @@ test('una revocación de vínculo no muestra datos ni mensajes internos del serv
   } finally {
     httpClient.defaults.adapter = original;
   }
+});
+
+test('resumen sin sesiones: total 0 y ningún porcentaje (sin dividir por cero)', () => {
+  const empty: GuardianAttendanceResponse = { ...RESPONSE, summary: { total: 0, present: 0, late: 0, absent: 0 }, records: [] };
+  let renderer!: ReturnType<typeof create>;
+  act(() => { renderer = create(<GuardianAttendanceReport data={empty} />); });
+  const output = text(renderer.root);
+  assert.match(output, /Total de sesiones0registradas/);
+  assert.doesNotMatch(output, /NaN|Infinity|%/);
+  assert.match(output, /No hay sesiones con asistencia registrada en este rango/);
+  act(() => renderer.unmount());
+});
+
+test('estados y justificaciones: «Justificar» y «Ver justificación» conforme a canJustify; la justificación observada se rotula', () => {
+  const base = { startTime: '08:00', endTime: '09:30', justified: false };
+  const data: GuardianAttendanceResponse = {
+    ...RESPONSE,
+    summary: { total: 4, present: 0, late: 1, absent: 3 },
+    records: [
+      { ...base, date: '2026-10-06', courseName: 'Arte', status: 'TARDANZA', attendanceId: 1, justification: null },
+      { ...base, date: '2026-10-06', courseName: 'Música', status: 'INASISTENCIA', attendanceId: 2, justification: { id: 90, status: 'OBSERVADA' } },
+      { ...base, date: '2026-10-06', courseName: 'Inglés', status: 'INASISTENCIA', attendanceId: 3, justification: { id: 91, status: 'RECHAZADA' } },
+      { ...base, date: '2026-10-06', courseName: 'Historia', status: 'INASISTENCIA', attendanceId: 4, justified: true, justification: { id: 92, status: 'APROBADA' } },
+    ],
+  };
+  let renderer!: ReturnType<typeof create>;
+  act(() => { renderer = create(<GuardianAttendanceReport data={data} />); });
+  const output = text(renderer.root);
+  assert.match(output, /Justificación observada/); assert.match(output, /Justificación rechazada/); assert.match(output, /Justificación aprobada/);
+  assert.doesNotMatch(output, /registradas por|auditadas/);
+  const hrefs = renderer.root.findAll(n => n.type === 'a').map(n => n.props.href as string);
+  const justify = hrefs.filter(h => h.includes('attendanceId='));
+  assert.deepEqual(justify.map(h => /attendanceId=(\d+)/.exec(h)![1]).sort(), ['1', '3'], 'tardanza sin solicitud y rechazada; no la observada ni la aprobada');
+  assert.deepEqual(hrefs.filter(h => h.includes('justificationId=')).map(h => /justificationId=(\d+)/.exec(h)![1]).sort(), ['90', '91', '92']);
+  act(() => renderer.unmount());
 });

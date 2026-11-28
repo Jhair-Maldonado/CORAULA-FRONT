@@ -285,6 +285,9 @@ export function createMockStore(now: () => Date = () => new Date()): MockStore {
       incident(3, '10:05', { severity: 'LEVE', description: 'Llegó sin el material de trabajo solicitado.', actionsTaken: 'Se conversó con la estudiante.' }),
       incident(12, '11:40', { sectionCourseId: 302, severity: 'MODERADA', location: 'Patio', description: 'Discusión con un compañero durante el recreo.' }),
       incident(6, '09:15', { enrollmentId: 504, studentId: 60, studentName: 'Jorge Salas Demo', studentCode: 'C26000060', severity: 'LEVE', description: 'Uso del celular en clase.' }),
+      // Hijo 58 (Luis): una GRAVE y una MODERADA, con otro docente para no alterar la lista del docente 201.
+      incident(5, '10:30', { sectionCourseId: 304, sectionId: 12, enrollmentId: 502, studentId: 58, studentName: 'Luis Arias Demo', studentCode: 'C26000058', teacherId: 202, teacherName: 'Carlos Huamán Demo', severity: 'GRAVE', location: 'Patio', description: 'Agresión física a un compañero durante el recreo.' }),
+      incident(9, '08:45', { sectionCourseId: 304, sectionId: 12, enrollmentId: 502, studentId: 58, studentName: 'Luis Arias Demo', studentCode: 'C26000058', teacherId: 202, teacherName: 'Carlos Huamán Demo', severity: 'MODERADA', description: 'Interrumpió la clase en repetidas ocasiones.' }),
     ],
     publications: [
       { bimesterId: 11, publishedAt: '2026-05-15T10:00:00-05:00', revision: 1 },
